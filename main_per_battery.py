@@ -19,7 +19,7 @@ import random
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.data_loader_per_battery import load_all_batteries, create_data_loaders_for_battery
+from src.data_loader_per_battery import create_data_loaders_for_battery
 from src.model import BPINN, BPINNLoss, SecondaryTrainingLoss
 from src.train import train_model, secondary_training, evaluate, save_model
 from src.utils import ensure_dir, print_metrics
@@ -161,6 +161,15 @@ def train_single_battery(battery_name, data_dict, config, device):
 
 def main():
     """Main training function."""
+    import argparse
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Train BPINN for a single battery')
+    parser.add_argument('--battery', type=str, default='B05',
+                        choices=['B05', 'B06', 'B07'],
+                        help='Battery to train (default: B05)')
+    args = parser.parse_args()
+
     # Set random seed
     set_seed(42)
 
@@ -171,14 +180,14 @@ def main():
         'dropout_rate': 0.0,
 
         # Training parameters
-        'num_epochs': 2000,
+        'num_epochs': 2500,
         'learning_rate': 0.001,
         'lambda_physics': 0.01,
         'batch_size': 64,
 
         # Secondary training
-        'num_secondary_iterations': 400,
-        'secondary_learning_rate': 0.002,
+        'num_secondary_iterations': 800,
+        'secondary_learning_rate': 0.001,
         'lambda_test_physics': 0.01,
 
         # Data
@@ -201,36 +210,40 @@ def main():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
 
     # ======================================================================
-    # Load Data for All Batteries
+    # Load Data for Selected Battery
     # ======================================================================
     print("\n" + "=" * 70)
-    print("Loading Battery Data (Per-Battery Mode)")
+    print(f"Loading Battery Data: {args.battery}")
     print("=" * 70)
 
-    file_paths = [
-        'data/B05_IC.csv',
-        'data/B06_IC.csv',
-        'data/B07_IC.csv'
-    ]
+    # Map battery name to file path
+    battery_file_map = {
+        'B05': 'data/B05_IC.csv',
+        'B06': 'data/B06_IC.csv',
+        'B07': 'data/B07_IC.csv'
+    }
 
-    all_battery_data = load_all_batteries(
-        file_paths,
-        train_ratio=config['train_ratio']
+    file_path = battery_file_map[args.battery]
+
+    # Load single battery data
+    from src.data_loader_per_battery import load_single_battery_data
+    data_dict = load_single_battery_data(file_path, train_ratio=config['train_ratio'])
+
+    print(f"\nLoaded {args.battery}:")
+    print(f"  Train: {data_dict['n_train']} samples")
+    print(f"  Test:  {data_dict['n_test']} samples")
+    print(f"  Train SOH range: {data_dict['train_soh'].min():.3f} - {data_dict['train_soh'].max():.3f}")
+    print(f"  Test SOH range:  {data_dict['test_soh'].min():.3f} - {data_dict['test_soh'].max():.3f}")
+
+    # ======================================================================
+    # Train the Selected Battery
+    # ======================================================================
+    results = train_single_battery(
+        args.battery,
+        data_dict,
+        config,
+        device
     )
-
-    # ======================================================================
-    # Train Each Battery Separately
-    # ======================================================================
-    all_results = {}
-
-    for battery_name, data_dict in all_battery_data.items():
-        results = train_single_battery(
-            battery_name,
-            data_dict,
-            config,
-            device
-        )
-        all_results[battery_name] = results
 
     # ======================================================================
     # Summary
@@ -239,52 +252,31 @@ def main():
     print("TRAINING COMPLETE - Summary")
     print("=" * 70)
 
-    print("\n{:<10} {:<15} {:<15} {:<15} {:<15}".format(
-        "Battery", "BPINN-1 MAE", "BPINN-1 RMSE", "BPINN-2 MAE", "BPINN-2 RMSE"
-    ))
+    mae1 = results['results_phase1']['mae']
+    rmse1 = results['results_phase1']['rmse']
+    mae2 = results['results_phase2']['mae']
+    rmse2 = results['results_phase2']['rmse']
+
+    print(f"\n{args.battery} Performance:")
     print("-" * 70)
-
-    for battery_name, results in all_results.items():
-        mae1 = results['results_phase1']['mae']
-        rmse1 = results['results_phase1']['rmse']
-        mae2 = results['results_phase2']['mae']
-        rmse2 = results['results_phase2']['rmse']
-
-        print("{:<10} {:<15.4f} {:<15.4f} {:<15.4f} {:<15.4f}".format(
-            battery_name,
-            mae1 * 100,  # Convert to percentage
-            rmse1 * 100,
-            mae2 * 100,
-            rmse2 * 100
-        ))
-
-    # Calculate average
-    avg_mae1 = np.mean([r['results_phase1']['mae'] for r in all_results.values()])
-    avg_rmse1 = np.mean([r['results_phase1']['rmse'] for r in all_results.values()])
-    avg_mae2 = np.mean([r['results_phase2']['mae'] for r in all_results.values()])
-    avg_rmse2 = np.mean([r['results_phase2']['rmse'] for r in all_results.values()])
-
-    print("-" * 70)
-    print("{:<10} {:<15.4f} {:<15.4f} {:<15.4f} {:<15.4f}".format(
-        "Average",
-        avg_mae1 * 100,
-        avg_rmse1 * 100,
-        avg_mae2 * 100,
-        avg_rmse2 * 100
-    ))
+    print(f"BPINN-1: MAE={mae1*100:.4f}%, RMSE={rmse1*100:.4f}%")
+    print(f"BPINN-2: MAE={mae2*100:.4f}%, RMSE={rmse2*100:.4f}%")
 
     print("\n" + "=" * 70)
-    print(f"All results saved to: {config['results_dir']}/")
+    print(f"Results saved to: {config['results_dir']}/")
+    print(f"  - {args.battery}_bpinn_phase1.pth")
+    print(f"  - {args.battery}_bpinn_final.pth")
     print("=" * 70)
 
-    # Save results summary
+    # Save single battery results
     import pickle
-    with open(os.path.join(config['results_dir'], 'all_results.pkl'), 'wb') as f:
-        pickle.dump(all_results, f)
-    print(f"\nResults summary saved to: {config['results_dir']}/all_results.pkl")
+    result_file = os.path.join(config['results_dir'], f'{args.battery}_results.pkl')
+    with open(result_file, 'wb') as f:
+        pickle.dump({args.battery: results}, f)
+    print(f"\nResults saved to: {result_file}")
 
-    return all_results
+    return results
 
 
 if __name__ == "__main__":
-    all_results = main()
+    results = main()
