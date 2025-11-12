@@ -1,0 +1,45 @@
+{
+  "model_type": "LSTM",
+  "model_name": "Long Short-Term Memory",
+  
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "fc_hidden_sizes": [32, 16],
+    "dropout_rate": 0.2,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  
+  "training": {
+    "num_epochs": 2500,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "early_stopping": {
+      "enabled": false,
+      "patience": 100,
+      "min_delta": 1e-5
+    }
+  },
+  
+  "data": {
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5
+  },
+  
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  
+  "description": "长短期记忆网络。将特征序列当作时序数据处理，能够捕捉长期依赖关系。"
+}
