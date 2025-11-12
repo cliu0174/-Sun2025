@@ -12,13 +12,13 @@ import torch.nn as nn
 from tqdm import tqdm
 from pathlib import Path
 
-from src.baseline_models import FNN, CNN, LSTM
+from .baseline_models import FNN, CNN, LSTM
 from src.feature_selector import (
     get_top_correlated_features,
     create_filtered_data_dict,
     print_feature_selection_report
 )
-from src.data_loader_hust import create_hust_dataloaders
+from data_loaders import create_hust_dataloaders
 
 
 class ConfigLoader:
@@ -156,7 +156,8 @@ class ModelTrainer:
         # 1. 特征筛选
         if self.config['feature_selection']['enabled']:
             threshold = self.config['feature_selection']['correlation_threshold']
-            selection_result = get_top_correlated_features(data_dict, threshold)
+            top_k = self.config['feature_selection'].get('top_k', None)
+            selection_result = get_top_correlated_features(data_dict, threshold, top_k=top_k)
             
             if verbose:
                 print_feature_selection_report(selection_result, threshold)

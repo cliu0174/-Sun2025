@@ -14,11 +14,8 @@ import random
 import argparse
 from tqdm import tqdm
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_loader_per_battery import load_single_battery_data, create_data_loaders_for_battery
-from src.baseline_models import FNN, CNN, LSTM
+from data_loaders import load_single_battery_data, create_data_loaders_for_battery
+from models import FNN, CNN, LSTM
 from src.utils import ensure_dir
 from src.train import evaluate
 
@@ -183,7 +180,7 @@ def main():
         'B07': 'data/B07_IC.csv'
     }
 
-    from src.data_loader_per_battery import load_single_battery_data
+    from data_loaders import load_single_battery_data
     data_dict = load_single_battery_data(
         battery_file_map[args.battery],
         train_ratio=config['train_ratio']

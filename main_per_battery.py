@@ -16,11 +16,8 @@ import torch.optim as optim
 import numpy as np
 import random
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_loader_per_battery import create_data_loaders_for_battery
-from src.model import BPINN, BPINNLoss, SecondaryTrainingLoss
+from data_loaders import create_data_loaders_for_battery
+from models import BPINN, BPINNLoss, SecondaryTrainingLoss
 from src.train import train_model, secondary_training, evaluate, save_model
 from src.utils import ensure_dir, print_metrics
 
@@ -226,7 +223,7 @@ def main():
     file_path = battery_file_map[args.battery]
 
     # Load single battery data
-    from src.data_loader_per_battery import load_single_battery_data
+    from data_loaders import load_single_battery_data
     data_dict = load_single_battery_data(file_path, train_ratio=config['train_ratio'])
 
     print(f"\nLoaded {args.battery}:")

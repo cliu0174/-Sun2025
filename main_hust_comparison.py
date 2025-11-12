@@ -14,11 +14,8 @@ import random
 import argparse
 from tqdm import tqdm
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_loader_hust import load_single_hust_battery, create_hust_dataloaders
-from src.baseline_models import FNN, CNN, LSTM
+from data_loaders import load_single_hust_battery, create_hust_dataloaders
+from models import FNN, CNN, LSTM
 from src.utils import ensure_dir
 from src.train import evaluate
 

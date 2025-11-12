@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.data_loader_hust import load_single_hust_battery
+from data_loaders import load_single_hust_battery
 
 
 def analyze_feature_correlations(battery_file, save_dir='results/feature_analysis'):
@@ -58,7 +58,9 @@ def analyze_feature_correlations(battery_file, save_dir='results/feature_analysi
 
     pearson_corr = []
     for feature in feature_names:
-        corr, p_value = stats.pearsonr(df[feature], df['SOH'])
+        corr_result = stats.pearsonr(df[feature], df['SOH'])
+        corr = float(corr_result[0])
+        p_value = float(corr_result[1])
         pearson_corr.append({
             'feature': feature,
             'correlation': corr,
@@ -72,7 +74,7 @@ def analyze_feature_correlations(battery_file, save_dir='results/feature_analysi
     print(f"\n{'特征':<25} {'相关系数':<12} {'绝对值':<12} {'显著性':<10} {'关系':<10}")
     print("-" * 70)
     for _, row in pearson_df.iterrows():
-        direction = "正相关 ↗" if row['correlation'] > 0 else "负相关 ↘"
+        direction = "正相关" if row['correlation'] > 0 else "负相关"
         print(f"{row['feature']:<25} {row['correlation']:<12.6f} {row['abs_correlation']:<12.6f} "
               f"{row['significant']:<10} {direction:<10}")
 
@@ -83,7 +85,9 @@ def analyze_feature_correlations(battery_file, save_dir='results/feature_analysi
 
     spearman_corr = []
     for feature in feature_names:
-        corr, p_value = stats.spearmanr(df[feature], df['SOH'])
+        corr_result = stats.spearmanr(df[feature], df['SOH'])
+        corr = float(corr_result[0])
+        p_value = float(corr_result[1])
         spearman_corr.append({
             'feature': feature,
             'correlation': corr,

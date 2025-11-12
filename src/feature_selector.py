@@ -10,13 +10,14 @@ import pandas as pd
 from scipy import stats
 
 
-def get_top_correlated_features(data_dict, correlation_threshold=0.5):
+def get_top_correlated_features(data_dict, correlation_threshold=0.5, top_k=None):
     """
     提取与SOH相关系数绝对值大于阈值的特征。
 
     Args:
         data_dict: load_single_hust_battery()返回的字典
         correlation_threshold: 相关系数绝对值阈值 (默认0.5)
+        top_k: 只保留前K个相关性最强的特征 (默认None，不限制)
 
     Returns:
         Dictionary:
@@ -48,21 +49,22 @@ def get_top_correlated_features(data_dict, correlation_threshold=0.5):
     # 按绝对相关系数排序
     correlations = sorted(correlations, key=lambda x: x['abs_correlation'], reverse=True)
 
-    # 筛选满足阈值的特征
-    selected = [c for c in correlations if c['abs_correlation'] >= correlation_threshold]
+    # 如果指定了top_k，直接选择前K个
+    if top_k is not None:
+        selected = correlations[:top_k]
+    else:
+        # 筛选满足阈值的特征
+        selected = [c for c in correlations if c['abs_correlation'] >= correlation_threshold]
+
+        # 如果没有特征满足阈值，至少选择Top-5特征
+        if len(selected) == 0:
+            print(f"Warning: No features with |correlation| >= {correlation_threshold}")
+            print(f"Selecting top 5 features instead...")
+            selected = correlations[:5]
 
     selected_indices = [c['index'] for c in selected]
     selected_names = [c['name'] for c in selected]
     selected_correlations = [c['correlation'] for c in selected]
-
-    # 如果没有特征满足阈值，至少选择Top-5特征
-    if len(selected_indices) == 0:
-        print(f"Warning: No features with |correlation| >= {correlation_threshold}")
-        print(f"Selecting top 5 features instead...")
-        selected = correlations[:5]
-        selected_indices = [c['index'] for c in selected]
-        selected_names = [c['name'] for c in selected]
-        selected_correlations = [c['correlation'] for c in selected]
 
     return {
         'selected_indices': selected_indices,

@@ -27,11 +27,8 @@ import argparse
 import pickle
 from pathlib import Path
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_loader_hust import load_single_hust_battery
-from src.model_trainer import ConfigLoader, ModelTrainer
+from data_loaders import load_single_hust_battery
+from models import ConfigLoader, ModelTrainer
 from src.utils import ensure_dir, print_metrics
 
 
@@ -76,6 +73,11 @@ def override_config(config, args):
         config['feature_selection']['correlation_threshold'] = args.corr_threshold
         print(f"  相关性阈值已修改: {args.corr_threshold}")
     
+    # Top-K特征数
+    if args.top_k is not None:
+        config['feature_selection']['top_k'] = args.top_k
+        print(f"  Top-K已修改: {args.top_k}")
+    
     return config
 
 
@@ -94,43 +96,43 @@ def train_battery(model_name, battery_name, config, device, results_dir):
         训练结果字典
     """
     print("\n" + "=" * 70)
-    print(f"训练 {model_name} - 电池 {battery_name}")
+    print(f"Training {model_name} - Battery {battery_name}")
     print("=" * 70)
     
-    # 1. 加载数据
+    # 1. Load data
     data_path = os.path.join('data/HUST data', f'{battery_name}.csv')
     if not os.path.exists(data_path):
-        print(f"❌ 文件不存在: {data_path}")
+        print(f"[ERROR] File not found: {data_path}")
         return None
     
-    print(f"\n加载数据: {battery_name}")
+    print(f"\nLoading data: {battery_name}")
     data_dict = load_single_hust_battery(
         data_path,
         train_ratio=config['data']['train_ratio'],
         normalize_target=config['data']['normalize_target']
     )
     
-    print(f"  训练集: {data_dict['n_train']} 个样本")
-    print(f"  测试集: {data_dict['n_test']} 个样本")
-    print(f"  特征数: {len(data_dict['feature_names'])}")
+    print(f"  Train set: {data_dict['n_train']} samples")
+    print(f"  Test set: {data_dict['n_test']} samples")
+    print(f"  Num features: {len(data_dict['feature_names'])}")
     
-    # 2. 创建训练器
+    # 2. Create trainer
     trainer = ModelTrainer(config, device=device.type)
     
-    # 3. 打印配置
+    # 3. Print config
     ConfigLoader.print_config(config)
     
-    # 4. 训练
+    # 4. Train
     history, results = trainer.train(data_dict, verbose=True)
     
-    # 5. 保存模型
+    # 5. Save model
     battery_results_dir = os.path.join(results_dir, battery_name, model_name.lower())
     ensure_dir(battery_results_dir)
     
     model_path = os.path.join(battery_results_dir, f'{model_name.lower()}_model.pth')
     trainer.save_model(model_path)
     
-    # 6. 保存结果
+    # 6. Save results
     results_path = os.path.join(battery_results_dir, 'results.pkl')
     with open(results_path, 'wb') as f:
         pickle.dump({
@@ -145,17 +147,17 @@ def train_battery(model_name, battery_name, config, device, results_dir):
                 'n_features': len(data_dict['feature_names'])
             }
         }, f)
-    print(f"✓ 结果已保存: {results_path}")
+    print(f"[SAVED] Results saved: {results_path}")
     
-    # 7. 打印摘要
+    # 7. Print summary
     print("\n" + "-" * 70)
-    print(f"训练结果摘要 ({model_name} - {battery_name})")
+    print(f"Training Summary ({model_name} - {battery_name})")
     print("-" * 70)
-    print(f"最终MAE:     {results['mae']*100:.4f}%")
-    print(f"最终RMSE:    {results['rmse']*100:.4f}%")
-    print(f"最佳Epoch:   {results['best_epoch']}")
-    print(f"最佳MAE:     {results['best_mae']*100:.4f}%")
-    print(f"最终训练损失: {results['final_train_loss']:.6f}")
+    print(f"Final MAE:     {results['mae']*100:.4f}%")
+    print(f"Final RMSE:    {results['rmse']*100:.4f}%")
+    print(f"Best Epoch:   {results['best_epoch']}")
+    print(f"Best MAE:     {results['best_mae']*100:.4f}%")
+    print(f"Final Train Loss: {results['final_train_loss']:.6f}")
     print("-" * 70)
     
     return {
@@ -205,6 +207,8 @@ def main():
                         help='训练轮数 (覆盖配置文件中的值)')
     parser.add_argument('--corr-threshold', type=float, default=None,
                         help='特征相关性阈值 (覆盖配置文件中的值)')
+    parser.add_argument('--top-k', type=int, default=None,
+                        help='只选择前K个相关性最强的特征 (覆盖配置文件中的值)')
     
     parser.add_argument('--seed', type=int, default=42,
                         help='随机种子 (默认: 42)')
@@ -255,12 +259,12 @@ def main():
     # 汇总结果
     if len(all_results) > 0:
         print("\n" + "=" * 70)
-        print("训练汇总")
+        print("Training Summary")
         print("=" * 70)
         
-        print(f"\n模型: {args.model}")
-        print(f"训练电池数: {len(all_results)}")
-        print(f"\n{'电池':<12} {'MAE (%)':<12} {'RMSE (%)':<12} {'最佳Epoch':<15}")
+        print(f"\nModel: {args.model}")
+        print(f"Batteries Trained: {len(all_results)}")
+        print(f"\n{'Battery':<12} {'MAE (%)':<12} {'RMSE (%)':<12} {'Best Epoch':<15}")
         print("-" * 70)
         
         for result in all_results:
@@ -270,16 +274,16 @@ def main():
             
             print(f"{result['battery']:<12} {mae:<12.4f} {rmse:<12.4f} {best_epoch:<15}")
         
-        # 计算平均值
+        # Calculate average
         if len(all_results) > 1:
             avg_mae = np.mean([r['results']['mae'] for r in all_results]) * 100
             avg_rmse = np.mean([r['results']['rmse'] for r in all_results]) * 100
             
             print("-" * 70)
-            print(f"{'平均值':<12} {avg_mae:<12.4f} {avg_rmse:<12.4f}")
+            print(f"{'Average':<12} {avg_mae:<12.4f} {avg_rmse:<12.4f}")
         
         print("=" * 70)
-        print(f"\n✓ 所有结果已保存到: {results_dir}/")
+        print(f"\n[COMPLETED] All results saved to: {results_dir}/")
     
     return all_results
 

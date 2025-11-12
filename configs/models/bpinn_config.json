@@ -1,0 +1,60 @@
+{
+  "model_type": "BPINN",
+  "model_name": "Battery Physics-Informed Neural Network",
+
+  "architecture": {
+    "input_size": -1,
+    "hidden_sizes": [10, 10, 10],
+    "dropout_rate": 0.0,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+
+  "training": {
+    "num_epochs": 100,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "optimizer": "Adam",
+    "loss_function": "BPINNLoss",
+    "lambda_physics": 0.01,
+    "scheduler": {
+      "enabled": true,
+      "type": "StepLR",
+      "step_size": 500,
+      "gamma": 0.9
+    },
+    "early_stopping": {
+      "enabled": false,
+      "patience": 100,
+      "min_delta": 1e-5
+    }
+  },
+
+  "secondary_training": {
+    "enabled": true,
+    "num_iterations": 400,
+    "learning_rate": 0.001,
+    "lambda_train_physics": 0.01,
+    "lambda_test_physics": 0.01
+  },
+
+  "data": {
+    "train_ratio": 0.6,
+    "shuffle": true,
+    "normalize_target": false
+  },
+
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+
+  "description": "基于物理信息的神经网络，用于电池SOH估计。结合数据驱动和物理约束（单调性约束），包含两阶段训练（主训练+二次训练）。"
+}

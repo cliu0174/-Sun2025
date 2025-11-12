@@ -10,11 +10,8 @@ import torch.optim as optim
 import numpy as np
 import random
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_loader import load_battery_data, create_data_loaders
-from src.model import BPINN, BPINNLoss, SecondaryTrainingLoss
+from data_loaders import load_battery_data, create_data_loaders
+from models import BPINN, BPINNLoss, SecondaryTrainingLoss
 from src.train import train_model, secondary_training, evaluate, save_model, load_model
 from src.utils import (plot_training_history, plot_predictions,
                    plot_secondary_training_history, plot_comparison,
@@ -74,7 +71,7 @@ def main():
         'device': 'cuda' if torch.cuda.is_available() else 'cpu',
 
         # Paths
-        'results_dir': 'results',
+        'results_dir': 'results/NASA_BPINN',
         'model_save_path': 'results/bpinn_model.pth'
     }
 
