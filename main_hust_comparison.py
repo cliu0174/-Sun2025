@@ -1,7 +1,7 @@
 """
-对比训练脚本：FNN vs CNN vs LSTM (Per-Battery模式)
+对比训练脚本：FNN vs CNN vs LSTM for HUST Dataset (Per-Battery模式)
 
-训练三个基准模型并对比结果。
+训练三个基准模型并对比HUST数据集结果。
 """
 
 import os
@@ -17,7 +17,7 @@ from tqdm import tqdm
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.data_loader_per_battery import load_single_battery_data, create_data_loaders_for_battery
+from src.data_loader_hust import load_single_hust_battery, create_hust_dataloaders
 from src.baseline_models import FNN, CNN, LSTM
 from src.utils import ensure_dir
 from src.train import evaluate
@@ -69,13 +69,13 @@ def train_baseline_model(model, train_loader, test_loader, num_epochs, learning_
         model.train()
         train_loss = 0.0
 
-        for features, soh, _ in train_loader:
+        for features, capacity in train_loader:
             features = features.to(device)
-            soh = soh.to(device).unsqueeze(1)
+            capacity = capacity.to(device).unsqueeze(1)
 
             optimizer.zero_grad()
             predictions = model(features)
-            loss = criterion(predictions, soh)
+            loss = criterion(predictions, capacity)
             loss.backward()
             optimizer.step()
 
@@ -85,16 +85,25 @@ def train_baseline_model(model, train_loader, test_loader, num_epochs, learning_
 
         # Evaluation
         model.eval()
+        test_mae_total = 0.0
+        test_rmse_total = 0.0
+
         with torch.no_grad():
-            for features, soh, _ in test_loader:
+            for features, capacity in test_loader:
                 features = features.to(device)
-                soh = soh.to(device).unsqueeze(1)
+                capacity = capacity.to(device).unsqueeze(1)
 
                 predictions = model(features)
 
                 # Calculate metrics
-                mae = torch.mean(torch.abs(predictions - soh)).item()
-                rmse = torch.sqrt(torch.mean((predictions - soh) ** 2)).item()
+                mae = torch.mean(torch.abs(predictions - capacity)).item()
+                rmse = torch.sqrt(torch.mean((predictions - capacity) ** 2)).item()
+
+                test_mae_total += mae * features.size(0)
+                test_rmse_total += rmse * features.size(0)
+
+        mae = test_mae_total / len(test_loader.dataset)
+        rmse = test_rmse_total / len(test_loader.dataset)
 
         history['train_loss'].append(train_loss)
         history['test_mae'].append(mae)
@@ -119,20 +128,44 @@ def train_baseline_model(model, train_loader, test_loader, num_epochs, learning_
         model.load_state_dict(best_model_state)
         print(f"\n=== Restored best model from epoch {best_epoch} ===")
 
-    # Final evaluation
-    results = evaluate(model, test_loader, device)
-    results['best_epoch'] = best_epoch
-    results['best_mae'] = best_mae
+    # Final evaluation - compute final metrics on test set
+    model.eval()
+    final_mae = 0.0
+    final_rmse = 0.0
+
+    with torch.no_grad():
+        for features, capacity in test_loader:
+            features = features.to(device)
+            capacity = capacity.to(device).unsqueeze(1)
+
+            predictions = model(features)
+
+            mae = torch.mean(torch.abs(predictions - capacity)).item()
+            rmse = torch.sqrt(torch.mean((predictions - capacity) ** 2)).item()
+
+            final_mae += mae * features.size(0)
+            final_rmse += rmse * features.size(0)
+
+    final_mae /= len(test_loader.dataset)
+    final_rmse /= len(test_loader.dataset)
+
+    results = {
+        'mae': final_mae,
+        'rmse': final_rmse,
+        'best_epoch': best_epoch,
+        'best_mae': best_mae
+    }
 
     return history, results
 
 
 def main():
     """主函数：训练并对比所有基准模型。"""
-    parser = argparse.ArgumentParser(description='Compare FNN, CNN, and LSTM baseline models')
-    parser.add_argument('--battery', type=str, default='B05',
-                        choices=['B05', 'B06', 'B07'],
-                        help='Battery to train (default: B05)')
+    parser = argparse.ArgumentParser(description='Compare FNN, CNN, and LSTM baseline models on HUST dataset')
+    parser.add_argument('--battery', type=str, default='1-1',
+                        help='Battery to train (e.g., 1-1, 1-2, ..., 10-8)')
+    parser.add_argument('--max-batteries', type=int, default=None,
+                        help='Train on first N batteries (for batch testing)')
     args = parser.parse_args()
 
     # Set seed
@@ -141,19 +174,13 @@ def main():
     # Configuration
     config = {
         # Model architecture
-        'hidden_sizes': [10, 10, 10],
-        'dropout_rate': 0.0,
+        'hidden_sizes': [64, 32, 16],
+        'dropout_rate': 0.2,
 
         # Training parameters
         'num_epochs': 2500,
         'learning_rate': 0.001,
-        'lambda_physics': 0.01,
         'batch_size': 64,
-
-        # Secondary training (BPINN only)
-        'num_secondary_iterations': 800,
-        'secondary_learning_rate': 0.001,
-        'lambda_test_physics': 0.01,
 
         # Data
         'train_ratio': 0.75,
@@ -162,7 +189,8 @@ def main():
         'device': 'cuda' if torch.cuda.is_available() else 'cpu',
 
         # Paths
-        'results_dir': f'results/results_comparison/{args.battery}',
+        'data_dir': 'data/HUST data',
+        'results_dir': f'results/results_hust/{args.battery}' if args.battery else 'results/results_hust',
     }
 
     ensure_dir(config['results_dir'])
@@ -174,26 +202,26 @@ def main():
 
     # Load data
     print("\n" + "=" * 70)
-    print(f"Loading Battery Data: {args.battery}")
+    print(f"Loading HUST Battery Data: {args.battery}")
     print("=" * 70)
 
-    battery_file_map = {
-        'B05': 'data/B05_IC.csv',
-        'B06': 'data/B06_IC.csv',
-        'B07': 'data/B07_IC.csv'
-    }
+    battery_file = os.path.join(config['data_dir'], f'{args.battery}.csv')
+    if not os.path.exists(battery_file):
+        print(f"Error: Battery file not found: {battery_file}")
+        return
 
-    from src.data_loader_per_battery import load_single_battery_data
-    data_dict = load_single_battery_data(
-        battery_file_map[args.battery],
-        train_ratio=config['train_ratio']
+    data_dict = load_single_hust_battery(
+        battery_file,
+        train_ratio=config['train_ratio'],
+        normalize_target=True
     )
 
     print(f"\nLoaded {args.battery}:")
     print(f"  Train: {data_dict['n_train']} samples")
     print(f"  Test:  {data_dict['n_test']} samples")
+    print(f"  Features: {len(data_dict['feature_names'])}")
 
-    train_loader, test_loader = create_data_loaders_for_battery(
+    train_loader, test_loader = create_hust_dataloaders(
         data_dict, batch_size=config['batch_size']
     )
 
@@ -207,7 +235,7 @@ def main():
     print("Training FNN")
     print("=" * 70)
 
-    fnn = FNN(input_size=6, hidden_sizes=[64, 32, 16], dropout_rate=0.2)
+    fnn = FNN(input_size=16, hidden_sizes=config['hidden_sizes'], dropout_rate=config['dropout_rate'])
     print(f"FNN Parameters: {sum(p.numel() for p in fnn.parameters())}")
 
     fnn_history, fnn_results = train_baseline_model(
@@ -230,7 +258,7 @@ def main():
     print("Training CNN")
     print("=" * 70)
 
-    cnn = CNN(input_size=6, num_filters=64, fc_hidden_sizes=[32, 16], dropout_rate=0.2)
+    cnn = CNN(input_size=16, num_filters=64, fc_hidden_sizes=[32, 16], dropout_rate=config['dropout_rate'])
     print(f"CNN Parameters: {sum(p.numel() for p in cnn.parameters())}")
 
     cnn_history, cnn_results = train_baseline_model(
@@ -253,7 +281,7 @@ def main():
     print("Training LSTM")
     print("=" * 70)
 
-    lstm = LSTM(input_size=6, hidden_size=64, num_layers=2, fc_hidden_sizes=[32, 16], dropout_rate=0.2)
+    lstm = LSTM(input_size=16, hidden_size=64, num_layers=2, fc_hidden_sizes=[32, 16], dropout_rate=config['dropout_rate'])
     print(f"LSTM Parameters: {sum(p.numel() for p in lstm.parameters())}")
 
     lstm_history, lstm_results = train_baseline_model(
@@ -273,16 +301,16 @@ def main():
     # Summary
     # ======================================================================
     print("\n" + "=" * 70)
-    print(f"COMPARISON SUMMARY - {args.battery}")
+    print(f"COMPARISON SUMMARY - HUST Battery {args.battery}")
     print("=" * 70)
 
-    print(f"\n{'Model':<12} {'MAE (%)':<12} {'RMSE (%)':<12} {'Best Epoch/Iter':<15}")
+    print(f"\n{'Model':<12} {'MAE (%)':<12} {'RMSE (%)':<12} {'Best Epoch':<15}")
     print("-" * 70)
 
     for model_name, results in all_results.items():
         mae = results['mae'] * 100
         rmse = results['rmse'] * 100
-        best_info = results.get('best_epoch', results.get('best_iteration', 'N/A'))
+        best_info = results.get('best_epoch', 'N/A')
 
         print(f"{model_name:<12} {mae:<12.4f} {rmse:<12.4f} {best_info:<15}")
 

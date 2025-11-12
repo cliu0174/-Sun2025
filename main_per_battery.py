@@ -197,7 +197,7 @@ def main():
         'device': 'cuda' if torch.cuda.is_available() else 'cpu',
 
         # Paths
-        'results_dir': 'results_per_battery',
+        'results_dir': 'results/results_per_battery',
     }
 
     # Create results directory
