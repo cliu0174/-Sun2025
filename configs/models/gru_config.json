@@ -1,0 +1,56 @@
+{
+  "model_type": "GRU",
+  "model_name": "Gated Recurrent Unit",
+
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "fc_hidden_sizes": [64],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+
+  "training": {
+    "num_epochs": 200,
+    "batch_size":256,
+    "learning_rate": 0.001,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": false,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 30,
+      "warmup_lr": 0.002,
+      "base_lr": 0.01,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 30,
+      "min_delta": 1e-5
+    }
+  },
+
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+
+  "description": "门控循环单元。相比LSTM结构更简单，参数更少，训练更快，但性能相近。"
+}

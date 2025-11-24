@@ -155,58 +155,60 @@ def load_all_hust_batteries(data_dir='data/HUST data', train_ratio=0.75,
     return all_data
 
 
-class HUSTBatteryDataset(Dataset):
-    """PyTorch Dataset for HUST battery data."""
 
-    def __init__(self, features, capacity):
+class HUSTBatteryDataset(Dataset):
+    """
+    修正版 Dataset: 支持滑动窗口生成时间序列
+    """
+    def __init__(self, features, capacity, window_size=10):
         """
         Args:
-            features: numpy array of shape (n_samples, 16)
-            capacity: numpy array of shape (n_samples,)
+            features: (N, 16) 原始特征
+            capacity: (N, ) 目标容量
+            window_size: 时间窗口大小 (例如看过去10个周期)
         """
-        self.features = torch.FloatTensor(features)
-        self.capacity = torch.FloatTensor(capacity)
+        self.window_size = window_size
+        self.X, self.y = self._create_sequences(features, capacity, window_size)
+
+    def _create_sequences(self, features, capacity, window_size):
+        X_seq, y_seq = [], []
+        # 从第 window_size 个数据开始，因为需要回头看 window_size 个历史数据
+        for i in range(window_size, len(features)):
+            # 取过去 window_size 个时间步作为输入
+            # 形状: (window_size, 16)
+            X_seq.append(features[i-window_size:i]) 
+            # 取当前时间步作为预测目标
+            y_seq.append(capacity[i])
+            
+        return torch.FloatTensor(np.array(X_seq)), torch.FloatTensor(np.array(y_seq)).unsqueeze(1)
 
     def __len__(self):
-        return len(self.features)
+        return len(self.X)
 
     def __getitem__(self, idx):
-        return self.features[idx], self.capacity[idx]
+        return self.X[idx], self.y[idx]
 
-
-def create_hust_dataloaders(data_dict, batch_size=64, shuffle_train=True):
+# 更新 DataLoader 创建函数
+def create_hust_dataloaders(data_dict, batch_size=64, window_size=10):
     """
-    创建PyTorch DataLoader。
-
-    Args:
-        data_dict: load_single_hust_battery()返回的字典
-        batch_size: Batch大小
-        shuffle_train: 是否打乱训练集
-
-    Returns:
-        train_loader, test_loader
+    注意：增加了 window_size 参数
     """
+    # 训练集需要滑动窗口
     train_dataset = HUSTBatteryDataset(
         data_dict['train_features'],
-        data_dict['train_capacity']
+        data_dict['train_capacity'],
+        window_size=window_size
     )
 
+    # 测试集也需要同样的滑动窗口处理
     test_dataset = HUSTBatteryDataset(
         data_dict['test_features'],
-        data_dict['test_capacity']
+        data_dict['test_capacity'],
+        window_size=window_size
     )
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=shuffle_train
-    )
-
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False
-    )
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_loader, test_loader
 

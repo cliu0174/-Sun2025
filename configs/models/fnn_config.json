@@ -4,26 +4,28 @@
 
   "architecture": {
     "input_size": -1,
-    "hidden_sizes": [64, 32, 16],
+    "hidden_sizes": [256, 128, 64],
     "dropout_rate": 0.2,
     "activation": "ReLU",
     "output_activation": "Sigmoid"
   },
 
   "training": {
-    "num_epochs": 2500,
-    "batch_size": 64,
+    "num_epochs": 1000,
+    "batch_size": 256,
     "learning_rate": 0.0001,
     "optimizer": "Adam",
     "loss_function": "MSELoss",
     "scheduler": {
       "enabled": false,
-      "type": "StepLR",
-      "step_size": 500,
-      "gamma": 0.9
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 30,
+      "warmup_lr": 0.002,
+      "base_lr": 0.01,
+      "final_lr": 0.0001
     },
     "early_stopping": {
-      "enabled": false,
+      "enabled": true,
       "patience": 100,
       "min_delta": 1e-5
     }

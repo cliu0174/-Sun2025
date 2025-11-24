@@ -176,28 +176,101 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     return data_dict
 
 
-def create_dataloaders(data_dict, batch_size=64):
-    """创建PyTorch DataLoader"""
+def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
+    """
+    创建PyTorch DataLoader，支持窗口化数据。
+
+    Args:
+        data_dict: 数据字典
+        batch_size: 批次大小
+        window_size: 窗口大小（LSTM/GRU使用>1的值，其他模型使用1）
+        seq2seq: 是否使用Seq2Seq模式（Many-to-Many）
+    """
     from torch.utils.data import TensorDataset, DataLoader
+
+    def apply_windowing(features, targets, window_size, seq2seq=False):
+        """
+        对特征进行滑动窗口处理
+
+        Args:
+            seq2seq: 如果为True，返回完整序列目标（Many-to-Many）
+                    如果为False，只返回最后一个时间步目标（Many-to-One）
+        """
+        if window_size <= 1:
+            # 不需要窗口化，直接返回
+            return features, targets
+
+        # 创建滑动窗口数据
+        windowed_features = []
+        windowed_targets = []
+
+        for i in range(len(features) - window_size + 1):
+            window_feat = features[i:i+window_size]  # (window_size, n_features)
+            windowed_features.append(window_feat)
+
+            if seq2seq:
+                # Seq2Seq模式：返回整个窗口的目标序列
+                window_targ = targets[i:i+window_size]  # (window_size,)
+                windowed_targets.append(window_targ)
+            else:
+                # Many-to-One模式：只返回最后一个时间步的目标
+                windowed_targets.append(targets[i+window_size-1])  # scalar
+
+        return np.array(windowed_features), np.array(windowed_targets)
+
+    # 对训练集、验证集、测试集分别进行窗口化处理
+    train_feat, train_targ = apply_windowing(
+        data_dict['train_features'],
+        data_dict['train_targets'],
+        window_size,
+        seq2seq
+    )
+    val_feat, val_targ = apply_windowing(
+        data_dict['val_features'],
+        data_dict['val_targets'],
+        window_size,
+        seq2seq
+    )
+    test_feat, test_targ = apply_windowing(
+        data_dict['test_features'],
+        data_dict['test_targets'],
+        window_size,
+        seq2seq
+    )
+
+    # 处理目标张量形状
+    if seq2seq:
+        # Seq2Seq模式：目标是 (N, seq_len, 1)
+        train_targ_tensor = torch.FloatTensor(train_targ).unsqueeze(-1)
+        val_targ_tensor = torch.FloatTensor(val_targ).unsqueeze(-1)
+        test_targ_tensor = torch.FloatTensor(test_targ).unsqueeze(-1)
+        # Seq2Seq使用shuffle=False保持时序
+        shuffle_train = False
+    else:
+        # Many-to-One模式：目标是 (N,)
+        train_targ_tensor = torch.FloatTensor(train_targ)
+        val_targ_tensor = torch.FloatTensor(val_targ)
+        test_targ_tensor = torch.FloatTensor(test_targ)
+        shuffle_train = True
 
     # 训练集
     train_dataset = TensorDataset(
-        torch.FloatTensor(data_dict['train_features']),
-        torch.FloatTensor(data_dict['train_targets'])
+        torch.FloatTensor(train_feat),
+        train_targ_tensor
     )
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train)
 
     # 验证集
     val_dataset = TensorDataset(
-        torch.FloatTensor(data_dict['val_features']),
-        torch.FloatTensor(data_dict['val_targets'])
+        torch.FloatTensor(val_feat),
+        val_targ_tensor
     )
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
     # 测试集
     test_dataset = TensorDataset(
-        torch.FloatTensor(data_dict['test_features']),
-        torch.FloatTensor(data_dict['test_targets'])
+        torch.FloatTensor(test_feat),
+        test_targ_tensor
     )
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -216,7 +289,7 @@ def train_cross_battery_model(
     跨电池训练模型。
 
     Args:
-        model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'bpinn')
+        model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'gru', 'mlp', 'rescnn')
         train_ratio: 训练集比例
         val_ratio: 验证集比例
         test_ratio: 测试集比例
@@ -256,10 +329,28 @@ def train_cross_battery_model(
     print(f"批次大小: {config['training']['batch_size']}")
     print(f"训练轮数: {config['training']['num_epochs']}")
 
-    # 5. 创建数据加载器
+    # 5. 创建数据加载器（根据模型类型设置窗口大小和Seq2Seq模式）
+    # 检测是否为Seq2Seq模型（从配置文件中的model_type判断）
+    config_model_type = config['model_type'].lower()
+    is_seq2seq = 'seq2seq' in config_model_type
+
+    # 时序模型需要窗口化数据
+    needs_window = any(model_name in config_model_type for model_name in ['lstm', 'gru'])
+    if needs_window or is_seq2seq:
+        window_size = config.get('data', {}).get('window_size', 10)
+        if is_seq2seq:
+            print(f"\n模型 {config_model_type.upper()} 使用 Seq2Seq (Many-to-Many)，窗口大小: {window_size}")
+        else:
+            print(f"\n模型 {config_model_type.upper()} 使用窗口化数据 (Many-to-One)，窗口大小: {window_size}")
+    else:
+        window_size = 1
+        print(f"\n模型 {config_model_type.upper()} 使用平坦特征（window_size=1）")
+
     train_loader, val_loader, test_loader = create_dataloaders(
         data_dict,
-        batch_size=config['training']['batch_size']
+        batch_size=config['training']['batch_size'],
+        window_size=window_size,
+        seq2seq=is_seq2seq
     )
 
     # 6. 创建模型
@@ -277,6 +368,43 @@ def train_cross_battery_model(
     optimizer = wrapper.get_optimizer()
     criterion = wrapper.criterion
 
+    # 6.5 创建学习率调度器 (Warmup + Cosine Decay)
+    scheduler = None
+    if config['training'].get('scheduler', {}).get('enabled', False):
+        print("\n创建学习率调度器...")
+        scheduler_config = config['training']['scheduler']
+        warmup_epochs = scheduler_config.get('warmup_epochs', 30)
+        warmup_lr = scheduler_config.get('warmup_lr', 2e-3)
+        base_lr = scheduler_config.get('base_lr', 1e-2)
+        final_lr = scheduler_config.get('final_lr', 2e-4)
+
+        print(f"  Warmup epochs: {warmup_epochs}")
+        print(f"  Warmup LR: {warmup_lr:.6f}")
+        print(f"  Base LR: {base_lr:.6f}")
+        print(f"  Final LR: {final_lr:.6f}")
+
+        def lr_lambda(epoch):
+            """
+            学习率调度函数: Warmup + Cosine Decay
+            返回相对于optimizer中base_lr的倍数因子
+            """
+            if epoch < warmup_epochs:
+                # Warmup阶段: 线性增长 (warmup_lr → base_lr)
+                current_lr = warmup_lr + (base_lr - warmup_lr) * epoch / warmup_epochs
+            else:
+                # Cosine Decay阶段 (base_lr → final_lr)
+                progress = (epoch - warmup_epochs) / (num_epochs - warmup_epochs)
+                current_lr = final_lr + (base_lr - final_lr) * 0.5 * (1 + np.cos(np.pi * progress))
+
+            # 返回相对于optimizer base_lr的倍数
+            # optimizer的base_lr是config中的learning_rate (0.002)
+            optimizer_base_lr = config['training']['learning_rate']
+            return current_lr / optimizer_base_lr
+
+        from torch.optim.lr_scheduler import LambdaLR
+        scheduler = LambdaLR(optimizer, lr_lambda)
+        print("  调度器创建成功 [OK]")
+
     # 7. 训练模型
     print("\n" + "="*70)
     print("开始训练")
@@ -289,9 +417,14 @@ def train_cross_battery_model(
         'val_rmse': []
     }
 
+    # 使用val_mae判断最佳模型
     best_val_mae = float('inf')
     best_epoch = 0
     best_model_state = None
+
+    # Early stopping配置
+    patience = config['training']['early_stopping'].get('patience', 10)
+    patience_counter = 0
 
     num_epochs = config['training']['num_epochs']
 
@@ -302,16 +435,15 @@ def train_cross_battery_model(
 
         for features, targets in train_loader:
             features = features.to(device)
-            targets = targets.to(device).unsqueeze(1)
+            targets = targets.to(device)
+
+            # 只有Many-to-One模型需要unsqueeze
+            if not is_seq2seq:
+                targets = targets.unsqueeze(1)
 
             optimizer.zero_grad()
             predictions = model(features)
-
-            # BPINN需要特殊的损失计算
-            if model_type == 'bpinn':
-                loss, data_loss, physics_loss = criterion(predictions, targets, features, model)
-            else:
-                loss = criterion(predictions, targets)
+            loss = criterion(predictions, targets)
 
             loss.backward()
             optimizer.step()
@@ -319,6 +451,11 @@ def train_cross_battery_model(
             train_loss += loss.item() * features.size(0)
 
         train_loss /= len(train_loader.dataset)
+
+        # ===== 更新学习率 (在validation之前，与原始代码一致) =====
+        current_lr = optimizer.param_groups[0]['lr']
+        if scheduler is not None:
+            scheduler.step()
 
         # ===== 验证阶段 =====
         model.eval()
@@ -329,15 +466,14 @@ def train_cross_battery_model(
         with torch.no_grad():
             for features, targets in val_loader:
                 features = features.to(device)
-                targets = targets.to(device).unsqueeze(1)
+                targets = targets.to(device)
+
+                # 只有Many-to-One模型需要unsqueeze
+                if not is_seq2seq:
+                    targets = targets.unsqueeze(1)
 
                 predictions = model(features)
-
-                # BPINN需要特殊的损失计算
-                if model_type == 'bpinn':
-                    loss, data_loss, physics_loss = criterion(predictions, targets, features, model)
-                else:
-                    loss = criterion(predictions, targets)
+                loss = criterion(predictions, targets)
 
                 val_loss += loss.item() * features.size(0)
                 val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
@@ -353,20 +489,34 @@ def train_cross_battery_model(
         history['val_mae'].append(val_mae)
         history['val_rmse'].append(val_rmse)
 
-        # 保存最佳模型
-        if val_mae < best_val_mae:
+        # ===== 保存最佳模型和Early Stopping =====
+        patience_counter += 1  # 每个epoch递增
+
+        if val_mae < best_val_mae:  # 基于val_mae判断
             best_val_mae = val_mae
             best_epoch = epoch + 1
             best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            patience_counter = 0  # 重置early stopping计数器
 
-        # 每100个epoch打印一次
+        # 每10个epoch打印一次
         if (epoch + 1) % 10 == 0 or epoch == 0:
             print(f"\nEpoch [{epoch+1}/{num_epochs}]")
+            if scheduler is not None:
+                print(f"  LR:         {current_lr:.6f}")
             print(f"  Train Loss: {train_loss:.6f}")
             print(f"  Val Loss:   {val_loss:.6f}")
-            print(f"  Val MAE:    {val_mae*100:.4f}%")
+            print(f"  Val MAE:    {val_mae*100:.4f}% (Best: {best_val_mae*100:.4f}%)")
             print(f"  Val RMSE:   {val_rmse*100:.4f}%")
-            print(f"  Best:       {best_val_mae*100:.4f}% (Epoch {best_epoch})")
+            print(f"  Best Epoch: {best_epoch}")
+            if config['training']['early_stopping'].get('enabled', False):
+                print(f"  Patience:   {patience_counter}/{patience}")
+
+        # Early stopping检查
+        if config['training']['early_stopping'].get('enabled', False):
+            if patience_counter > patience:
+                print(f"\n早停触发！验证集MAE连续{patience}个epoch未改善")
+                print(f"最佳epoch: {best_epoch}, 最佳val_mae: {best_val_mae*100:.4f}%")
+                break
 
     # 8. 恢复最佳模型
     print("\n" + "="*70)
@@ -386,8 +536,17 @@ def train_cross_battery_model(
     with torch.no_grad():
         for features, targets in test_loader:
             features = features.to(device)
-            predictions = model(features).cpu().numpy().squeeze()
+            predictions = model(features).cpu().numpy()
             targets = targets.cpu().numpy()
+
+            # 处理输出形状
+            if is_seq2seq:
+                # Seq2Seq: (batch, seq_len, 1) -> 展平为1D
+                predictions = predictions.reshape(-1)
+                targets = targets.reshape(-1)
+            else:
+                # Many-to-One: (batch, 1) -> squeeze
+                predictions = predictions.squeeze()
 
             all_predictions.extend(predictions)
             all_targets.extend(targets)
@@ -521,7 +680,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'bpinn'          # 模型类型: 'fnn', 'cnn', 'lstm', 'bpinn'
+    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)

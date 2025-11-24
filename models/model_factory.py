@@ -1,7 +1,7 @@
 """
 统一的模型工厂系统。
 
-支持创建和配置所有模型：FNN, CNN, LSTM, BPINN。
+支持创建和配置所有基准模型：FNN, CNN, LSTM, GRU。
 提供统一的接口用于模型创建、配置加载和参数覆盖。
 """
 
@@ -12,8 +12,7 @@ import torch.nn as nn
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
-from .baseline_models import FNN, CNN, LSTM
-from .model import BPINN, BPINNLoss, SecondaryTrainingLoss
+from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
 
 
 class ConfigLoader:
@@ -44,7 +43,7 @@ class ConfigLoader:
         通过模型类型加载配置。
 
         Args:
-            model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'bpinn')
+            model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'gru')
             config_dir: 配置目录
 
         Returns:
@@ -107,11 +106,14 @@ class ModelFactory:
     """
     模型工厂类。
 
-    提供统一接口创建所有支持的模型类型。
+    提供统一接口创建所有支持的基准模型。
     支持从配置文件加载或直接传入参数。
     """
 
-    SUPPORTED_MODELS = ['fnn', 'cnn', 'lstm', 'bpinn']
+    SUPPORTED_MODELS = [
+        'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
+        'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq'
+    ]
 
     @staticmethod
     def create_model(
@@ -125,7 +127,7 @@ class ModelFactory:
         创建模型实例。
 
         Args:
-            model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'bpinn')
+            model_type: 模型类型 ('fnn', 'cnn', 'lstm', 'gru')
             input_size: 输入特征维度
             config: 配置字典（可选）
             config_path: 配置文件路径（可选）
@@ -171,8 +173,24 @@ class ModelFactory:
             return ModelFactory._create_cnn(arch)
         elif model_type == 'lstm':
             return ModelFactory._create_lstm(arch)
-        elif model_type == 'bpinn':
-            return ModelFactory._create_bpinn(arch)
+        elif model_type == 'gru':
+            return ModelFactory._create_gru(arch)
+        elif model_type == 'bilstm':
+            return ModelFactory._create_bilstm(arch)
+        elif model_type == 'bigru':
+            return ModelFactory._create_bigru(arch)
+        elif model_type == 'mlp':
+            return ModelFactory._create_mlp(arch)
+        elif model_type == 'rescnn':
+            return ModelFactory._create_rescnn(arch)
+        elif model_type == 'lstm_seq2seq':
+            return ModelFactory._create_lstm_seq2seq(arch)
+        elif model_type == 'gru_seq2seq':
+            return ModelFactory._create_gru_seq2seq(arch)
+        elif model_type == 'bilstm_seq2seq':
+            return ModelFactory._create_bilstm_seq2seq(arch)
+        elif model_type == 'bigru_seq2seq':
+            return ModelFactory._create_bigru_seq2seq(arch)
 
     @staticmethod
     def _create_fnn(arch: Dict[str, Any]) -> FNN:
@@ -206,12 +224,102 @@ class ModelFactory:
         )
 
     @staticmethod
-    def _create_bpinn(arch: Dict[str, Any]) -> BPINN:
-        """创建BPINN模型。"""
-        return BPINN(
+    def _create_gru(arch: Dict[str, Any]) -> GRU:
+        """创建GRU模型。"""
+        return GRU(
             input_size=arch['input_size'],
-            hidden_sizes=arch.get('hidden_sizes', [10, 10, 10]),
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_bilstm(arch: Dict[str, Any]) -> BiLSTM:
+        """创建BiLSTM模型。"""
+        return BiLSTM(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_bigru(arch: Dict[str, Any]) -> BiGRU:
+        """创建BiGRU模型。"""
+        return BiGRU(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_mlp(arch: Dict[str, Any]) -> MLP:
+        """创建MLP模型（多层感知机）。"""
+        return MLP(
+            input_size=arch['input_size'],
+            hidden_sizes=arch.get('hidden_sizes', [60, 60, 60]),
+            output_size=arch.get('output_size', 32),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_rescnn(arch: Dict[str, Any]) -> ResCNN:
+        """创建ResCNN模型（带残差连接的CNN）。"""
+        return ResCNN(
+            input_size=arch['input_size'],
+            channel_config=arch.get('channel_config', [8, 16, 24, 16, 8]),
+            stride_config=arch.get('stride_config', [1, 2, 2, 1, 1]),
             dropout_rate=arch.get('dropout_rate', 0.0)
+        )
+
+    @staticmethod
+    def _create_lstm_seq2seq(arch: Dict[str, Any]):
+        """创建LSTM Seq2Seq模型（Many-to-Many）。"""
+        from .seq2seq_models import LSTMSeq2Seq
+        return LSTMSeq2Seq(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            dropout_rate=arch.get('dropout_rate', 0.2),
+            bidirectional=arch.get('bidirectional', False)
+        )
+
+    @staticmethod
+    def _create_gru_seq2seq(arch: Dict[str, Any]):
+        """创建GRU Seq2Seq模型（Many-to-Many）。"""
+        from .seq2seq_models import GRUSeq2Seq
+        return GRUSeq2Seq(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            dropout_rate=arch.get('dropout_rate', 0.2),
+            bidirectional=arch.get('bidirectional', False)
+        )
+
+    @staticmethod
+    def _create_bilstm_seq2seq(arch: Dict[str, Any]):
+        """创建BiLSTM Seq2Seq模型（Many-to-Many）。"""
+        from .seq2seq_models import BiLSTMSeq2Seq
+        return BiLSTMSeq2Seq(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_bigru_seq2seq(arch: Dict[str, Any]):
+        """创建BiGRU Seq2Seq模型（Many-to-Many）。"""
+        from .seq2seq_models import BiGRUSeq2Seq
+        return BiGRUSeq2Seq(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            dropout_rate=arch.get('dropout_rate', 0.2)
         )
 
     @staticmethod
@@ -231,16 +339,8 @@ class ModelFactory:
         Returns:
             损失函数实例
         """
-        model_type = model_type.lower()
-
-        if model_type == 'bpinn':
-            lambda_physics = kwargs.get('lambda_physics', 0.01)
-            if config and 'training' in config:
-                lambda_physics = config['training'].get('lambda_physics', lambda_physics)
-            return BPINNLoss(lambda_physics=lambda_physics)
-        else:
-            # 标准损失函数
-            return nn.MSELoss()
+        # 直接返回标准MSE损失
+        return nn.MSELoss()
 
     @staticmethod
     def get_model_info(model: nn.Module) -> Dict[str, Any]:

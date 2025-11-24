@@ -92,9 +92,20 @@ def train_model(model_type='cnn', battery_id='1-1', device='cuda'):
 
     # ==================== 4. 创建数据加载器 ====================
     print("\n[4/6] 创建数据加载器...")
+
+    # 根据模型类型决定是否使用窗口化数据
+    # LSTM、GRU、BiLSTM、BiGRU 需要窗口化的时序数据，其他模型需要平坦的特征输入
+    if model_type.lower() in ['lstm', 'gru', 'bilstm', 'bigru']:
+        window_size = config.get('data', {}).get('window_size', 10)
+        print(f"  模型 {model_type.upper()} 使用窗口化数据，窗口大小: {window_size}")
+    else:
+        window_size = 1  # FNN, CNN, MLP, ResCNN 不需要窗口，设置为1以兼容
+        print(f"  模型 {model_type.upper()} 使用平坦特征（window_size=1）")
+
     train_loader, test_loader = create_hust_dataloaders(
         data_dict,
-        batch_size=config['training']['batch_size']
+        batch_size=config['training']['batch_size'],
+        window_size=window_size
     )
 
     # ==================== 5. 创建模型 ====================
@@ -160,16 +171,8 @@ def train_model(model_type='cnn', battery_id='1-1', device='cuda'):
             optimizer.zero_grad()
 
             # 前向传播
-            if model_type == 'bpinn':
-                # BPINN需要特殊的损失计算
-                predictions = model(features)
-                loss, data_loss, physics_loss = criterion(
-                    predictions, targets, features, model
-                )
-            else:
-                # 标准模型
-                predictions = model(features)
-                loss = criterion(predictions, targets)
+            predictions = model(features)
+            loss = criterion(predictions, targets)
 
             # 反向传播
             loss.backward()
@@ -382,7 +385,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'bpinn'      # 选择: 'fnn', 'cnn', 'lstm', 'bpinn'
+    MODEL_TYPE = 'gru'      # 选择: 'fnn', 'cnn', 'lstm', 'gru', 'mlp', 'rescnn'
     BATTERY_ID = '1-1'      # HUST电池ID
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 

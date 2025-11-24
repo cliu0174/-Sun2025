@@ -1,15 +1,12 @@
 """Model architectures and training utilities."""
 
-# Base models
-from .baseline_models import FNN, CNN, LSTM
-from .model import BPINN, BPINNLoss, SecondaryTrainingLoss
+# Baseline models for SOH estimation (Many-to-One)
+from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
 
-# Legacy trainer (for backward compatibility)
-from .model_trainer import ConfigLoader as LegacyConfigLoader
-from .model_trainer import ModelTrainer as LegacyModelTrainer
-from .model_trainer import ModelFactory as LegacyModelFactory
+# Seq2Seq models for SOH estimation (Many-to-Many)
+from .seq2seq_models import LSTMSeq2Seq, GRUSeq2Seq, BiLSTMSeq2Seq, BiGRUSeq2Seq
 
-# New unified model factory system (recommended)
+# Unified model factory system
 from .model_factory import (
     ConfigLoader,
     ModelFactory,
@@ -17,21 +14,24 @@ from .model_factory import (
 )
 
 __all__ = [
-    # Models
+    # Baseline Models (Many-to-One)
     'FNN',
     'CNN',
     'LSTM',
-    'BPINN',
-    'BPINNLoss',
-    'SecondaryTrainingLoss',
+    'GRU',
+    'BiLSTM',
+    'BiGRU',
+    'MLP',
+    'ResCNN',
 
-    # New unified system (recommended)
+    # Seq2Seq Models (Many-to-Many)
+    'LSTMSeq2Seq',
+    'GRUSeq2Seq',
+    'BiLSTMSeq2Seq',
+    'BiGRUSeq2Seq',
+
+    # Unified system
     'ConfigLoader',
     'ModelFactory',
     'UnifiedModelWrapper',
-
-    # Legacy system (backward compatibility)
-    'LegacyConfigLoader',
-    'LegacyModelTrainer',
-    'LegacyModelFactory',
 ]
