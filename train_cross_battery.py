@@ -34,9 +34,13 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-def load_all_batteries(data_dir='data/HUST data'):
+def load_all_batteries(data_dir='data/HUST data', apply_cleaning=False):
     """
     加载所有77组HUST电池数据。
+
+    Args:
+        data_dir: 数据目录
+        apply_cleaning: 是否应用3-Sigma清洗（默认False，保持向后兼容）
 
     Returns:
         battery_names: 电池名称列表
@@ -51,16 +55,33 @@ def load_all_batteries(data_dir='data/HUST data'):
 
     print(f"找到 {len(battery_names)} 组电池数据")
 
+    # 统计清洗效果
+    total_removed = 0
+    total_original = 0
+
     all_data = {}
     for battery_name in tqdm(battery_names, desc="加载数据"):
         file_path = os.path.join(data_dir, f'{battery_name}.csv')
         try:
-            data = load_single_hust_battery(file_path, train_ratio=1.0, normalize_target=True)
+            data = load_single_hust_battery(file_path, train_ratio=1.0, normalize_target=True, apply_cleaning=apply_cleaning)
             all_data[battery_name] = data
+
+            # 统计清洗效果
+            if apply_cleaning and data.get('cleaning_stats'):
+                stats = data['cleaning_stats']
+                total_removed += stats['total_removed']
+                total_original += stats['original_size']
+
         except Exception as e:
             print(f"警告: 加载 {battery_name} 失败: {e}")
 
     print(f"成功加载 {len(all_data)} 组电池")
+
+    # 打印清洗统计
+    if apply_cleaning and total_original > 0:
+        overall_rate = (total_removed / total_original) * 100
+        print(f"[3-Sigma清洗] 原始样本: {total_original}, 删除: {total_removed}, 删除率: {overall_rate:.2f}%")
+
     return battery_names, all_data
 
 
@@ -283,7 +304,8 @@ def train_cross_battery_model(
     val_ratio=0.2,
     test_ratio=0.2,
     device='cuda',
-    seed=42
+    seed=42,
+    apply_cleaning=False
 ):
     """
     跨电池训练模型。
@@ -295,16 +317,19 @@ def train_cross_battery_model(
         test_ratio: 测试集比例
         device: 计算设备
         seed: 随机种子
+        apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
     """
     set_seed(seed)
 
     print("\n" + "="*70)
     print(f"跨电池训练: {model_type.upper()}")
     print(f"数据划分: Train/Val/Test = {train_ratio*100:.0f}%/{val_ratio*100:.0f}%/{test_ratio*100:.0f}%")
+    if apply_cleaning:
+        print("数据清洗: 启用 (3-Sigma)")
     print("="*70)
 
     # 1. 加载所有电池数据
-    battery_names, all_data = load_all_batteries()
+    battery_names, all_data = load_all_batteries(apply_cleaning=apply_cleaning)
 
     # 2. 划分数据集
     train_batteries, val_batteries, test_batteries = split_batteries(

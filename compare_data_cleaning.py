@@ -20,8 +20,8 @@ def run_comparison_experiment():
     print("="*70)
 
     # 配置
-    model_type = 'gru'
-    num_epochs_test = 50  # 快速测试用较少轮数
+    model_type = 'bilstm'
+    num_epochs_test = 200  # 快速测试用较少轮数
     device = 'cuda'
 
     results = {}
@@ -75,10 +75,34 @@ def run_comparison_experiment():
     print("实验 2: 使用 3-Sigma 清洗数据")
     print("="*70)
 
-    # TODO: 这里需要修改 data_loader_hust.py 以支持数据清洗
-    # 暂时提示用户手动修改
-    print("\n[注意] 需要在数据加载器中启用 3-Sigma 清洗")
-    print("请修改 data_loaders/data_loader_hust.py 添加清洗功能")
+    try:
+        # 训练清洗数据模型
+        wrapper_cleaned, results_cleaned, data_dict_cleaned = train_cross_battery_model(
+            model_type=model_type,
+            device=device,
+            apply_cleaning=True  # 启用数据清洗
+        )
+
+        results['cleaned'] = {
+            'test_mae': results_cleaned['test_mae'],
+            'test_rmse': results_cleaned['test_rmse'],
+            'test_mape': results_cleaned['test_mape'],
+            'train_samples': len(data_dict_cleaned['train_features']),
+            'val_samples': len(data_dict_cleaned['val_features']),
+            'test_samples': len(data_dict_cleaned['test_features'])
+        }
+
+        print("\n[实验2完成] 清洗数据结果:")
+        print(f"  Test MAE:  {results['cleaned']['test_mae']*100:.4f}%")
+        print(f"  Test RMSE: {results['cleaned']['test_rmse']*100:.4f}%")
+        print(f"  Test MAPE: {results['cleaned']['test_mape']:.4f}%")
+        print(f"  训练样本数: {results['cleaned']['train_samples']}")
+
+    except Exception as e:
+        print(f"\n[实验2失败] 错误: {e}")
+        import traceback
+        traceback.print_exc()
+        results['cleaned'] = None
 
     # 恢复原始配置
     config['training']['num_epochs'] = original_epochs

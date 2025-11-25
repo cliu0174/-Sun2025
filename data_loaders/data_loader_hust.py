@@ -14,7 +14,70 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
-def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True):
+def clean_3_sigma(df, verbose=False):
+    """
+    使用 3-Sigma 规则清洗异常值
+
+    规则: 删除超过 mean ± 3*std 的数据点
+
+    Args:
+        df: DataFrame，包含特征和目标
+        verbose: 是否打印清洗信息
+
+    Returns:
+        cleaned_df: 清洗后的 DataFrame
+        stats: 清洗统计信息
+    """
+    original_size = len(df)
+
+    # 1. 替换无穷大为 NaN
+    df = df.replace([np.inf, -np.inf], np.nan)
+
+    # 2. 删除含 NaN 的行
+    df = df.dropna()
+    after_nan = len(df)
+
+    # 3. 对每列应用 3-Sigma 规则
+    removed_by_column = {}
+
+    for col in df.columns:
+        before = len(df)
+        mean = df[col].mean()
+        std = df[col].std()
+
+        # 计算上下界
+        lower_bound = mean - 3 * std
+        upper_bound = mean + 3 * std
+
+        # 删除超过界限的行
+        df = df[(df[col] >= lower_bound) & (df[col] <= upper_bound)]
+
+        removed = before - len(df)
+        if removed > 0:
+            removed_by_column[col] = removed
+
+    final_size = len(df)
+
+    # 统计信息
+    stats = {
+        'original_size': original_size,
+        'after_nan_removal': after_nan,
+        'final_size': final_size,
+        'total_removed': original_size - final_size,
+        'nan_removed': original_size - after_nan,
+        'outliers_removed': after_nan - final_size,
+        'removal_rate': (original_size - final_size) / original_size * 100 if original_size > 0 else 0,
+        'removed_by_column': removed_by_column
+    }
+
+    if verbose:
+        print(f"  3-Sigma清洗: {original_size} -> {final_size} "
+              f"(删除 {stats['total_removed']}, {stats['removal_rate']:.1f}%)")
+
+    return df, stats
+
+
+def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True, apply_cleaning=False):
     """
     加载单个HUST电池数据并划分训练/测试集。
 
@@ -22,6 +85,7 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True)
         file_path: CSV文件路径 (例如: 'data/HUST data/1-1.csv')
         train_ratio: 训练集比例 (默认0.75，即75%)
         normalize_target: 是否归一化目标值为SOH (默认True)
+        apply_cleaning: 是否应用3-Sigma清洗 (默认False，保持向后兼容)
 
     Returns:
         Dictionary包含：
@@ -31,10 +95,16 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True)
         - battery_name: 电池名称 (例如: '1-1')
         - feature_names: 特征名列表
         - rated_capacity: 额定容量 (1.1 Ah)
+        - cleaning_stats: 清洗统计（如果启用清洗）
     """
     # 读取数据
     df = pd.read_csv(file_path)
     battery_name = os.path.basename(file_path).replace('.csv', '')
+
+    # 应用 3-Sigma 清洗（可选）
+    cleaning_stats = None
+    if apply_cleaning:
+        df, cleaning_stats = clean_3_sigma(df, verbose=False)
 
     # 16个输入特征
     feature_columns = [
@@ -111,14 +181,15 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True)
         'n_train': n_train,
         'n_test': len(test_df),
         'rated_capacity': rated_capacity,
-        'normalize_target': normalize_target
+        'normalize_target': normalize_target,
+        'cleaning_stats': cleaning_stats  # 清洗统计信息（如果启用）
     }
 
     return result
 
 
 def load_all_hust_batteries(data_dir='data/HUST data', train_ratio=0.75,
-                            normalize_target=True, max_batteries=None):
+                            normalize_target=True, max_batteries=None, apply_cleaning=False):
     """
     加载所有HUST电池数据。
 
@@ -127,6 +198,7 @@ def load_all_hust_batteries(data_dir='data/HUST data', train_ratio=0.75,
         train_ratio: 训练集比例
         normalize_target: 是否归一化目标值
         max_batteries: 最多加载多少个电池 (None表示全部)
+        apply_cleaning: 是否应用3-Sigma清洗 (默认False)
 
     Returns:
         Dictionary: {battery_name: data_dict}
@@ -141,16 +213,33 @@ def load_all_hust_batteries(data_dir='data/HUST data', train_ratio=0.75,
 
     print(f"Found {len(csv_files)} battery files")
 
+    # 统计清洗效果
+    total_removed = 0
+    total_original = 0
+
     for csv_file in csv_files:
         file_path = os.path.join(data_dir, csv_file)
         try:
-            data = load_single_hust_battery(file_path, train_ratio, normalize_target)
+            data = load_single_hust_battery(file_path, train_ratio, normalize_target, apply_cleaning)
             all_data[data['battery_name']] = data
 
-            print(f"Loaded {data['battery_name']}: "
-                  f"Train={data['n_train']}, Test={data['n_test']}")
+            msg = f"Loaded {data['battery_name']}: Train={data['n_train']}, Test={data['n_test']}"
+
+            # 如果启用清洗，显示清洗统计
+            if apply_cleaning and data['cleaning_stats'] is not None:
+                stats = data['cleaning_stats']
+                total_removed += stats['total_removed']
+                total_original += stats['original_size']
+                msg += f" | Cleaned: {stats['total_removed']} removed ({stats['removal_rate']:.1f}%)"
+
+            print(msg)
         except Exception as e:
             print(f"Error loading {csv_file}: {e}")
+
+    # 打印总体清洗统计
+    if apply_cleaning and total_original > 0:
+        overall_rate = (total_removed / total_original) * 100
+        print(f"\n[3-Sigma清洗总计] 原始: {total_original}, 删除: {total_removed}, 删除率: {overall_rate:.2f}%")
 
     return all_data
 
