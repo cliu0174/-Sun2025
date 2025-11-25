@@ -214,20 +214,23 @@ class LSTM(nn.Module):
             Args:
                 x: Input features (batch_size, window_size, input_size)
                 注意：这里假设 x 已经是 3D 张量
+
+            Returns:
+                SOH predictions (batch_size, 1) - Many-to-One
             """
-            
+
             # 1. 如果数据加载器还没改好（输入是2D），为了兼容可以保留这行判断
             # 但强烈建议直接改数据加载器，去掉这个 if
             if x.dim() == 2:
-                x = x.unsqueeze(1) 
-                
+                x = x.unsqueeze(1)
+
             # 2. LSTM 前向传播
             # 输入形状: (batch, window_size, input_size)
             # 输出形状: lstm_out -> (batch, window_size, hidden_size)
             #          h_n      -> (num_layers, batch, hidden_size)
             lstm_out, (h_n, c_n) = self.lstm(x)
 
-            # 3. 取最后一个时间步的隐藏状态
+            # 3. 取最后一个时间步的隐藏状态 (Many-to-One)
             # 注意：h_n 包含所有层的状态，我们取最后一层 (h_n[-1])
             # 形状: (batch, hidden_size)
             out = h_n[-1]
@@ -288,7 +291,7 @@ class GRU(nn.Module):
                或 (batch_size, input_size) - 会被转换为单时间步
 
         Returns:
-            SOH predictions (batch_size, 1)
+            SOH predictions (batch_size, 1) - Many-to-One
         """
         # 如果输入是 2D，转换为 3D (单时间步)
         if x.dim() == 2:
@@ -297,7 +300,7 @@ class GRU(nn.Module):
         # GRU
         gru_out, h_n = self.gru(x)  # h_n: (num_layers, batch, hidden_size)
 
-        # Use last hidden state from last layer
+        # Use last hidden state from last layer (Many-to-One)
         x = h_n[-1]  # (batch, hidden_size)
 
         # Fully connected
@@ -358,7 +361,7 @@ class BiLSTM(nn.Module):
                或 (batch_size, input_size) - 会被转换为单时间步
 
         Returns:
-            SOH predictions (batch_size, 1)
+            SOH predictions (batch_size, 1) - Many-to-One
         """
         # 如果输入是 2D，转换为 3D (单时间步)
         if x.dim() == 2:
@@ -368,7 +371,7 @@ class BiLSTM(nn.Module):
         lstm_out, (h_n, c_n) = self.lstm(x)
         # h_n: (num_layers * 2, batch, hidden_size)
 
-        # 取最后一层的前向和后向隐藏状态并拼接
+        # 取最后一层的前向和后向隐藏状态并拼接 (Many-to-One)
         forward_h = h_n[-2, :, :]  # 最后一层前向
         backward_h = h_n[-1, :, :] # 最后一层后向
         x = torch.cat([forward_h, backward_h], dim=1)  # (batch, hidden_size*2)
@@ -431,7 +434,7 @@ class BiGRU(nn.Module):
                或 (batch_size, input_size) - 会被转换为单时间步
 
         Returns:
-            SOH predictions (batch_size, 1)
+            SOH predictions (batch_size, 1) - Many-to-One
         """
         # 如果输入是 2D，转换为 3D (单时间步)
         if x.dim() == 2:
@@ -441,7 +444,7 @@ class BiGRU(nn.Module):
         gru_out, h_n = self.gru(x)
         # h_n: (num_layers * 2, batch, hidden_size)
 
-        # 取最后一层的前向和后向隐藏状态并拼接
+        # 取最后一层的前向和后向隐藏状态并拼接 (Many-to-One)
         forward_h = h_n[-2, :, :]  # 最后一层前向
         backward_h = h_n[-1, :, :] # 最后一层后向
         x = torch.cat([forward_h, backward_h], dim=1)  # (batch, hidden_size*2)
@@ -632,6 +635,280 @@ class ResCNN(nn.Module):
             x = x.reshape(batch_size, window_size, 1).mean(dim=1)
 
         return x
+
+
+# ==================== Many-to-Many (Seq2Seq) 版本模型 ====================
+# 以下模型输出整个序列，用于支持物理约束
+
+
+class LSTMManyToMany(nn.Module):
+    """
+    LSTM Many-to-Many (Seq2Seq) 版本
+    输出整个序列的 SOH 预测，用于物理约束计算
+    """
+
+    def __init__(self, input_size=6, hidden_size=64, num_layers=2,
+                 fc_hidden_sizes=[32, 16], dropout_rate=0.2):
+        """
+        Args:
+            input_size: 输入特征数量（每个时间步）
+            hidden_size: LSTM隐藏层大小
+            num_layers: LSTM层数
+            fc_hidden_sizes: 全连接层大小
+            dropout_rate: Dropout比率
+        """
+        super(LSTMManyToMany, self).__init__()
+
+        # LSTM layers
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout_rate if num_layers > 1 else 0
+        )
+
+        # Fully connected layers
+        fc_layers = []
+        prev_size = hidden_size
+
+        for fc_hidden_size in fc_hidden_sizes:
+            fc_layers.append(nn.Linear(prev_size, fc_hidden_size))
+            fc_layers.append(nn.ReLU())
+            if dropout_rate > 0:
+                fc_layers.append(nn.Dropout(dropout_rate))
+            prev_size = fc_hidden_size
+
+        # Output layer
+        fc_layers.append(nn.Linear(prev_size, 1))
+        fc_layers.append(nn.Sigmoid())
+
+        self.fc_network = nn.Sequential(*fc_layers)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Input features (batch_size, seq_len, input_size)
+
+        Returns:
+            SOH predictions (batch_size, seq_len, 1) - Many-to-Many
+        """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
+        # LSTM 前向传播
+        lstm_out, (h_n, c_n) = self.lstm(x)  # (batch, seq_len, hidden_size)
+
+        # 对每个时间步应用全连接层
+        batch_size, seq_len, hidden_size = lstm_out.size()
+        lstm_out_flat = lstm_out.reshape(-1, hidden_size)  # (batch*seq_len, hidden_size)
+        out_flat = self.fc_network(lstm_out_flat)  # (batch*seq_len, 1)
+        out = out_flat.reshape(batch_size, seq_len, 1)  # (batch, seq_len, 1)
+
+        return out
+
+
+class GRUManyToMany(nn.Module):
+    """
+    GRU Many-to-Many (Seq2Seq) 版本
+    输出整个序列的 SOH 预测，用于物理约束计算
+    """
+
+    def __init__(self, input_size=6, hidden_size=64, num_layers=2,
+                 fc_hidden_sizes=[32, 16], dropout_rate=0.2):
+        """
+        Args:
+            input_size: 输入特征数量（每个时间步）
+            hidden_size: GRU隐藏层大小
+            num_layers: GRU层数
+            fc_hidden_sizes: 全连接层大小
+            dropout_rate: Dropout比率
+        """
+        super(GRUManyToMany, self).__init__()
+
+        # GRU layers
+        self.gru = nn.GRU(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout_rate if num_layers > 1 else 0
+        )
+
+        # Fully connected layers
+        fc_layers = []
+        prev_size = hidden_size
+
+        for fc_hidden_size in fc_hidden_sizes:
+            fc_layers.append(nn.Linear(prev_size, fc_hidden_size))
+            fc_layers.append(nn.ReLU())
+            if dropout_rate > 0:
+                fc_layers.append(nn.Dropout(dropout_rate))
+            prev_size = fc_hidden_size
+
+        # Output layer
+        fc_layers.append(nn.Linear(prev_size, 1))
+        fc_layers.append(nn.Sigmoid())
+
+        self.fc_network = nn.Sequential(*fc_layers)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Input features (batch_size, seq_len, input_size)
+
+        Returns:
+            SOH predictions (batch_size, seq_len, 1) - Many-to-Many
+        """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
+        # GRU 前向传播
+        gru_out, h_n = self.gru(x)  # (batch, seq_len, hidden_size)
+
+        # 对每个时间步应用全连接层
+        batch_size, seq_len, hidden_size = gru_out.size()
+        gru_out_flat = gru_out.reshape(-1, hidden_size)  # (batch*seq_len, hidden_size)
+        out_flat = self.fc_network(gru_out_flat)  # (batch*seq_len, 1)
+        out = out_flat.reshape(batch_size, seq_len, 1)  # (batch, seq_len, 1)
+
+        return out
+
+
+class BiLSTMManyToMany(nn.Module):
+    """
+    BiLSTM Many-to-Many (Seq2Seq) 版本
+    输出整个序列的 SOH 预测，用于物理约束计算
+    """
+
+    def __init__(self, input_size=6, hidden_size=64, num_layers=2,
+                 fc_hidden_sizes=[32, 16], dropout_rate=0.2):
+        """
+        Args:
+            input_size: 输入特征数量（每个时间步）
+            hidden_size: LSTM隐藏层大小（单向）
+            num_layers: LSTM层数
+            fc_hidden_sizes: 全连接层大小
+            dropout_rate: Dropout比率
+        """
+        super(BiLSTMManyToMany, self).__init__()
+
+        # BiLSTM layers
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout_rate if num_layers > 1 else 0,
+            bidirectional=True  # 双向
+        )
+
+        # Fully connected layers
+        fc_layers = []
+        prev_size = hidden_size * 2  # 双向输出，维度翻倍
+
+        for fc_hidden_size in fc_hidden_sizes:
+            fc_layers.append(nn.Linear(prev_size, fc_hidden_size))
+            fc_layers.append(nn.ReLU())
+            if dropout_rate > 0:
+                fc_layers.append(nn.Dropout(dropout_rate))
+            prev_size = fc_hidden_size
+
+        # Output layer
+        fc_layers.append(nn.Linear(prev_size, 1))
+        fc_layers.append(nn.Sigmoid())
+
+        self.fc_network = nn.Sequential(*fc_layers)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Input features (batch_size, seq_len, input_size)
+
+        Returns:
+            SOH predictions (batch_size, seq_len, 1) - Many-to-Many
+        """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
+        # BiLSTM 前向传播
+        lstm_out, (h_n, c_n) = self.lstm(x)  # (batch, seq_len, hidden_size*2)
+
+        # 对每个时间步应用全连接层
+        batch_size, seq_len, hidden_size = lstm_out.size()
+        lstm_out_flat = lstm_out.reshape(-1, hidden_size)  # (batch*seq_len, hidden_size*2)
+        out_flat = self.fc_network(lstm_out_flat)  # (batch*seq_len, 1)
+        out = out_flat.reshape(batch_size, seq_len, 1)  # (batch, seq_len, 1)
+
+        return out
+
+
+class BiGRUManyToMany(nn.Module):
+    """
+    BiGRU Many-to-Many (Seq2Seq) 版本
+    输出整个序列的 SOH 预测，用于物理约束计算
+    """
+
+    def __init__(self, input_size=6, hidden_size=64, num_layers=2,
+                 fc_hidden_sizes=[32, 16], dropout_rate=0.2):
+        """
+        Args:
+            input_size: 输入特征数量（每个时间步）
+            hidden_size: GRU隐藏层大小（单向）
+            num_layers: GRU层数
+            fc_hidden_sizes: 全连接层大小
+            dropout_rate: Dropout比率
+        """
+        super(BiGRUManyToMany, self).__init__()
+
+        # BiGRU layers
+        self.gru = nn.GRU(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout_rate if num_layers > 1 else 0,
+            bidirectional=True  # 双向
+        )
+
+        # Fully connected layers
+        fc_layers = []
+        prev_size = hidden_size * 2  # 双向输出，维度翻倍
+
+        for fc_hidden_size in fc_hidden_sizes:
+            fc_layers.append(nn.Linear(prev_size, fc_hidden_size))
+            fc_layers.append(nn.ReLU())
+            if dropout_rate > 0:
+                fc_layers.append(nn.Dropout(dropout_rate))
+            prev_size = fc_hidden_size
+
+        # Output layer
+        fc_layers.append(nn.Linear(prev_size, 1))
+        fc_layers.append(nn.Sigmoid())
+
+        self.fc_network = nn.Sequential(*fc_layers)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Input features (batch_size, seq_len, input_size)
+
+        Returns:
+            SOH predictions (batch_size, seq_len, 1) - Many-to-Many
+        """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
+        # BiGRU 前向传播
+        gru_out, h_n = self.gru(x)  # (batch, seq_len, hidden_size*2)
+
+        # 对每个时间步应用全连接层
+        batch_size, seq_len, hidden_size = gru_out.size()
+        gru_out_flat = gru_out.reshape(-1, hidden_size)  # (batch*seq_len, hidden_size*2)
+        out_flat = self.fc_network(gru_out_flat)  # (batch*seq_len, 1)
+        out = out_flat.reshape(batch_size, seq_len, 1)  # (batch, seq_len, 1)
+
+        return out
 
 
 if __name__ == "__main__":

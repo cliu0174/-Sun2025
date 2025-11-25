@@ -12,7 +12,10 @@ import torch.nn as nn
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
-from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
+from .baseline_models import (
+    FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN,
+    LSTMManyToMany, GRUManyToMany, BiLSTMManyToMany, BiGRUManyToMany
+)
 
 
 class ConfigLoader:
@@ -112,6 +115,7 @@ class ModelFactory:
 
     SUPPORTED_MODELS = [
         'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
+        'lstm_manytomany', 'gru_manytomany', 'bilstm_manytomany', 'bigru_manytomany',
         'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq'
     ]
 
@@ -183,6 +187,14 @@ class ModelFactory:
             return ModelFactory._create_mlp(arch)
         elif model_type == 'rescnn':
             return ModelFactory._create_rescnn(arch)
+        elif model_type == 'lstm_manytomany':
+            return ModelFactory._create_lstm_manytomany(arch)
+        elif model_type == 'gru_manytomany':
+            return ModelFactory._create_gru_manytomany(arch)
+        elif model_type == 'bilstm_manytomany':
+            return ModelFactory._create_bilstm_manytomany(arch)
+        elif model_type == 'bigru_manytomany':
+            return ModelFactory._create_bigru_manytomany(arch)
         elif model_type == 'lstm_seq2seq':
             return ModelFactory._create_lstm_seq2seq(arch)
         elif model_type == 'gru_seq2seq':
@@ -274,6 +286,50 @@ class ModelFactory:
             channel_config=arch.get('channel_config', [8, 16, 24, 16, 8]),
             stride_config=arch.get('stride_config', [1, 2, 2, 1, 1]),
             dropout_rate=arch.get('dropout_rate', 0.0)
+        )
+
+    @staticmethod
+    def _create_lstm_manytomany(arch: Dict[str, Any]) -> LSTMManyToMany:
+        """创建LSTM Many-to-Many模型（用于物理约束）。"""
+        return LSTMManyToMany(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_gru_manytomany(arch: Dict[str, Any]) -> GRUManyToMany:
+        """创建GRU Many-to-Many模型（用于物理约束）。"""
+        return GRUManyToMany(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_bilstm_manytomany(arch: Dict[str, Any]) -> BiLSTMManyToMany:
+        """创建BiLSTM Many-to-Many模型（用于物理约束）。"""
+        return BiLSTMManyToMany(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
+        )
+
+    @staticmethod
+    def _create_bigru_manytomany(arch: Dict[str, Any]) -> BiGRUManyToMany:
+        """创建BiGRU Many-to-Many模型（用于物理约束）。"""
+        return BiGRUManyToMany(
+            input_size=arch['input_size'],
+            hidden_size=arch.get('hidden_size', 64),
+            num_layers=arch.get('num_layers', 2),
+            fc_hidden_sizes=arch.get('fc_hidden_sizes', [32, 16]),
+            dropout_rate=arch.get('dropout_rate', 0.2)
         )
 
     @staticmethod

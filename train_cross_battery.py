@@ -183,8 +183,9 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
     Args:
         data_dict: 数据字典
         batch_size: 批次大小
-        window_size: 窗口大小（LSTM/GRU使用>1的值，其他模型使用1）
+        window_size: 窗口大小（LSTM/GRU/BiLSTM/BiGRU使用>1的值，其他模型使用1）
         seq2seq: 是否使用Seq2Seq模式（Many-to-Many）
+                 注意：LSTM/GRU/BiLSTM/BiGRU现在都是Seq2Seq架构
     """
     from torch.utils.data import TensorDataset, DataLoader
 
@@ -204,13 +205,14 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
         windowed_features = []
         windowed_targets = []
 
-        for i in range(len(features) - window_size + 1):
+        for i in range(len(features) - window_size):
             window_feat = features[i:i+window_size]  # (window_size, n_features)
             windowed_features.append(window_feat)
 
             if seq2seq:
-                # Seq2Seq模式：返回整个窗口的目标序列
-                window_targ = targets[i:i+window_size]  # (window_size,)
+                # Seq2Seq模式：输入X[i:i+window_size]，预测Y[i+1:i+window_size+1]
+                # 例如：输入cycle[0-19]特征 → 预测cycle[1-20]的SOH
+                window_targ = targets[i+1:i+window_size+1]  # (window_size,)
                 windowed_targets.append(window_targ)
             else:
                 # Many-to-One模式：只返回最后一个时间步的目标
@@ -330,18 +332,21 @@ def train_cross_battery_model(
     print(f"训练轮数: {config['training']['num_epochs']}")
 
     # 5. 创建数据加载器（根据模型类型设置窗口大小和Seq2Seq模式）
-    # 检测是否为Seq2Seq模型（从配置文件中的model_type判断）
     config_model_type = config['model_type'].lower()
-    is_seq2seq = 'seq2seq' in config_model_type
 
-    # 时序模型需要窗口化数据
+    # 检测是否为 Many-to-Many 模型（输出整个序列）
+    is_seq2seq = any(keyword in config_model_type for keyword in ['manytomany', 'seq2seq'])
+
+    # 检测是否为需要窗口化的模型（即使是Many-to-One的LSTM/GRU）
     needs_window = any(model_name in config_model_type for model_name in ['lstm', 'gru'])
-    if needs_window or is_seq2seq:
-        window_size = config.get('data', {}).get('window_size', 10)
+
+    # 设置窗口大小
+    if is_seq2seq or needs_window:
+        window_size = config.get('data', {}).get('window_size', 40)
         if is_seq2seq:
-            print(f"\n模型 {config_model_type.upper()} 使用 Seq2Seq (Many-to-Many)，窗口大小: {window_size}")
+            print(f"\n模型 {config_model_type.upper()} 使用 Many-to-Many，窗口大小: {window_size}")
         else:
-            print(f"\n模型 {config_model_type.upper()} 使用窗口化数据 (Many-to-One)，窗口大小: {window_size}")
+            print(f"\n模型 {config_model_type.upper()} 使用 Many-to-One，窗口大小: {window_size}")
     else:
         window_size = 1
         print(f"\n模型 {config_model_type.upper()} 使用平坦特征（window_size=1）")
@@ -680,7 +685,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
+    MODEL_TYPE = 'lstm_manytomany'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
