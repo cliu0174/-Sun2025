@@ -1,13 +1,14 @@
 {
-  "model_type": "LSTM",
-  "model_name": "Long Short-Term Memory",
+  "model_type": "CNN_LSTM",
+  "model_name": "CNN-LSTM Hybrid Network",
   "architecture": {
     "input_size": -1,
     "hidden_size": 64,
     "num_layers": 2,
-    "fc_hidden_sizes": [
-      64
-    ],
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "pool_size": 2,
+    "fc_hidden_sizes": [64],
     "dropout_rate": 0.4,
     "activation": "ReLU",
     "output_activation": "Sigmoid"
@@ -15,7 +16,7 @@
   "training": {
     "num_epochs": 200,
     "batch_size": 256,
-    "learning_rate": 0.001,
+    "learning_rate": 0.004,
     "optimizer": "Adam",
     "loss_function": "MSELoss",
     "scheduler": {
@@ -24,7 +25,8 @@
       "warmup_epochs": 20,
       "warmup_lr": 0.002,
       "base_lr": 0.005,
-      "final_lr": 0.0001
+      "final_lr": 0.0001,
+      "comment": "可选类型详见 configs/LEARNING_RATE_SCHEDULER_GUIDE.md"
     },
     "early_stopping": {
       "enabled": true,
@@ -49,10 +51,10 @@
     "l2_weight": 0.0
   },
   "physics_constraints": {
-    "enabled": true,
+    "enabled": false,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.1,
-    "boundary_weight": 0.0,
+    "boundary_weight": 0.05,
     "smoothness_weight": 0.0,
     "monotonic_tolerance": 0.01,
     "temporal_decay": {
@@ -63,5 +65,8 @@
     },
     "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
   },
-  "description": "长短期记忆网络。将特征序列当作时序数据处理，能够捕捉长期依赖关系。"
+  "visualization": {
+    "color_by_battery": true
+  },
+  "description": "CNN-LSTM混合模型。CNN提取电池特征的局部模式（电压、电流、温度等），LSTM捕捉容量衰减的长期时序依赖关系。结合两者优势，既能提取局部特征，又能建模长期趋势。"
 }

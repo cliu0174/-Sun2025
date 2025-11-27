@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
 from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
+from .cnn_lstm import CNN_LSTM
 
 
 class ConfigLoader:
@@ -112,7 +113,8 @@ class ModelFactory:
 
     SUPPORTED_MODELS = [
         'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
-        'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq'
+        'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq',
+        'cnn_lstm'
     ]
 
     @staticmethod
@@ -191,6 +193,11 @@ class ModelFactory:
             return ModelFactory._create_bilstm_seq2seq(arch)
         elif model_type == 'bigru_seq2seq':
             return ModelFactory._create_bigru_seq2seq(arch)
+        elif model_type == 'cnn_lstm':
+            # 更新配置中的input_size
+            config_copy = config.copy()
+            config_copy['architecture'] = arch
+            return ModelFactory._create_cnn_lstm(config_copy)
 
     @staticmethod
     def _create_fnn(arch: Dict[str, Any]) -> FNN:
@@ -321,6 +328,11 @@ class ModelFactory:
             num_layers=arch.get('num_layers', 2),
             dropout_rate=arch.get('dropout_rate', 0.2)
         )
+
+    @staticmethod
+    def _create_cnn_lstm(config: Dict[str, Any]) -> CNN_LSTM:
+        """创建CNN-LSTM混合模型。"""
+        return CNN_LSTM(config)
 
     @staticmethod
     def create_loss_function(

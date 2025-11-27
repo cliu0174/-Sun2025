@@ -538,42 +538,13 @@ def train_cross_battery_model(
         criterion = wrapper.criterion
         print(f"\n损失函数: {type(criterion).__name__} (标准)")
 
+    # 6.5 获取训练轮数并创建学习率调度器
+    num_epochs = config['training']['num_epochs']
 
-    # 6.5 创建学习率调度器 (Warmup + Cosine Decay)
-    scheduler = None
-    if config['training'].get('scheduler', {}).get('enabled', False):
-        print("\n创建学习率调度器...")
-        scheduler_config = config['training']['scheduler']
-        warmup_epochs = scheduler_config.get('warmup_epochs', 30)
-        warmup_lr = scheduler_config.get('warmup_lr', 2e-3)
-        base_lr = scheduler_config.get('base_lr', 1e-2)
-        final_lr = scheduler_config.get('final_lr', 2e-4)
+    from utils.lr_schedulers import create_scheduler
+    scheduler, scheduler_type = create_scheduler(optimizer, config, num_epochs)
 
-        print(f"  Warmup epochs: {warmup_epochs}")
-        print(f"  Warmup LR: {warmup_lr:.6f}")
-        print(f"  Base LR: {base_lr:.6f}")
-        print(f"  Final LR: {final_lr:.6f}")
-
-        def lr_lambda(epoch):
-            """
-            学习率调度函数: Warmup + Cosine Decay
-            返回相对于optimizer中base_lr的倍数因子
-            """
-            if epoch < warmup_epochs:
-                # Warmup阶段: 线性增长 (warmup_lr → base_lr)
-                current_lr = warmup_lr + (base_lr - warmup_lr) * epoch / warmup_epochs
-            else:
-                # Cosine Decay阶段 (base_lr → final_lr)
-                progress = (epoch - warmup_epochs) / (num_epochs - warmup_epochs)
-                current_lr = final_lr + (base_lr - final_lr) * 0.5 * (1 + np.cos(np.pi * progress))
-
-            # 返回相对于optimizer base_lr的倍数
-            # optimizer的base_lr是config中的learning_rate (0.002)
-            optimizer_base_lr = config['training']['learning_rate']
-            return current_lr / optimizer_base_lr
-
-        from torch.optim.lr_scheduler import LambdaLR
-        scheduler = LambdaLR(optimizer, lr_lambda)
+    if scheduler is not None:
         print("  调度器创建成功 [OK]")
 
     # 7. 训练模型
@@ -596,8 +567,6 @@ def train_cross_battery_model(
     # Early stopping配置
     patience = config['training']['early_stopping'].get('patience', 10)
     patience_counter = 0
-
-    num_epochs = config['training']['num_epochs']
 
     for epoch in tqdm(range(num_epochs), desc="Training"):
         # ===== 训练阶段 =====
@@ -1002,7 +971,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
+    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)

@@ -6,6 +6,9 @@ from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
 # Seq2Seq models for SOH estimation (Many-to-Many)
 from .seq2seq_models import LSTMSeq2Seq, GRUSeq2Seq, BiLSTMSeq2Seq, BiGRUSeq2Seq
 
+# Hybrid models
+from .cnn_lstm import CNN_LSTM
+
 # Unified model factory system
 from .model_factory import (
     ConfigLoader,
@@ -32,6 +35,9 @@ __all__ = [
     'GRUSeq2Seq',
     'BiLSTMSeq2Seq',
     'BiGRUSeq2Seq',
+
+    # Hybrid Models
+    'CNN_LSTM',
 
     # Unified system
     'ConfigLoader',
