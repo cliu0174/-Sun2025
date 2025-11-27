@@ -17,9 +17,10 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
-# 导入模型工厂
-from models import ModelFactory, ConfigLoader, UnifiedModelWrapper
+# 导入模型工厂和物理约束
+from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss
 from data_loaders import load_single_hust_battery
+from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
 
 
 def set_seed(seed=42):
@@ -150,7 +151,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     print("="*70)
 
     def merge_batteries(battery_list):
-        """合并多个电池的数据，同时记录每个样本的电池ID"""
+        """合并多个电池的数据，同时记录 battery_id"""
         all_features = []
         all_targets = []
         all_battery_ids = []
@@ -190,13 +191,13 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     data_dict = {
         'train_features': train_features_scaled,
         'train_targets': train_targets,
-        'train_battery_ids': train_battery_ids,  # 新增：每个样本的电池ID
+        'train_battery_ids': train_battery_ids,
         'val_features': val_features_scaled,
         'val_targets': val_targets,
-        'val_battery_ids': val_battery_ids,  # 新增：每个样本的电池ID
+        'val_battery_ids': val_battery_ids,
         'test_features': test_features_scaled,
         'test_targets': test_targets,
-        'test_battery_ids': test_battery_ids,  # 新增：每个样本的电池ID
+        'test_battery_ids': test_battery_ids,
         'scaler': scaler,
         'n_features': train_features.shape[1],
         'train_batteries': train_batteries,
@@ -207,110 +208,193 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     return data_dict
 
 
-def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
+def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False):
     """
-    创建PyTorch DataLoader，支持窗口化数据。
+    创建PyTorch DataLoader，支持窗口化数据和物理约束。
 
     Args:
         data_dict: 数据字典
         batch_size: 批次大小
         window_size: 窗口大小（LSTM/GRU使用>1的值，其他模型使用1）
         seq2seq: 是否使用Seq2Seq模式（Many-to-Many）
+        use_physics: 是否使用物理约束（需要 battery_id 和 cycle_idx）
     """
-    from torch.utils.data import TensorDataset, DataLoader
+    from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 
-    def apply_windowing(features, targets, battery_ids, window_size, seq2seq=False):
-        """
-        对特征进行滑动窗口处理，同时保留电池ID映射
+    def custom_collate_fn(batch):
+        """自定义 collate function，处理带元数据的 batch"""
+        windows = torch.stack([item['window'] for item in batch])
+        # 注意：target_soh 已经是 (1,) 形状，用 cat 而不是 stack 来避免额外维度
+        targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
+        battery_ids = [item['battery_id'] for item in batch]
+        cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
 
-        Args:
-            seq2seq: 如果为True，返回完整序列目标（Many-to-Many）
-                    如果为False，只返回最后一个时间步目标（Many-to-One）
-        """
-        if window_size <= 1:
-            # 不需要窗口化，直接返回
-            return features, targets, battery_ids
+        return {
+            'window': windows,
+            'target_soh': targets,
+            'battery_id': battery_ids,
+            'cycle_idx': cycle_indices
+        }
 
-        # 创建滑动窗口数据
-        windowed_features = []
-        windowed_targets = []
-        windowed_battery_ids = []  # 记录每个窗口对应的电池ID
+    # 根据是否使用物理约束选择不同的数据处理方式
+    if use_physics and window_size > 1:
+        # 物理约束模式：按每个电池单独窗口化（不跨电池边界）
+        print(f"  使用物理约束模式（窗口大小={window_size}，按电池单独窗口化）")
 
-        for i in range(len(features) - window_size + 1):
-            window_feat = features[i:i+window_size]  # (window_size, n_features)
-            windowed_features.append(window_feat)
+        # 为每个电池单独创建 windowed dataset
+        train_datasets = []
+        for battery_name in data_dict['train_batteries']:
+            # 获取该电池的数据
+            mask = data_dict['train_battery_ids'] == battery_name
+            features = data_dict['train_features'][mask]
+            targets = data_dict['train_targets'][mask]
 
-            if seq2seq:
-                # Seq2Seq模式：返回整个窗口的目标序列
-                window_targ = targets[i:i+window_size]  # (window_size,)
-                windowed_targets.append(window_targ)
-            else:
-                # Many-to-One模式：只返回最后一个时间步的目标
-                windowed_targets.append(targets[i+window_size-1])  # scalar
+            if len(features) < window_size:
+                continue
 
-            # 记录目标位置的电池ID
-            windowed_battery_ids.append(battery_ids[i+window_size-1])
+            # 应用 windowing + metadata
+            X, y, bid, cyc = apply_windowing_with_metadata(
+                features, targets, window_size, battery_name, mode='many_to_one'
+            )
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            train_datasets.append(dataset)
 
-        return np.array(windowed_features), np.array(windowed_targets), np.array(windowed_battery_ids)
+        # 验证集
+        val_datasets = []
+        for battery_name in data_dict['val_batteries']:
+            mask = data_dict['val_battery_ids'] == battery_name
+            features = data_dict['val_features'][mask]
+            targets = data_dict['val_targets'][mask]
 
-    # 对训练集、验证集、测试集分别进行窗口化处理
-    train_feat, train_targ, _ = apply_windowing(
-        data_dict['train_features'],
-        data_dict['train_targets'],
-        data_dict['train_battery_ids'],
-        window_size,
-        seq2seq
-    )
-    val_feat, val_targ, _ = apply_windowing(
-        data_dict['val_features'],
-        data_dict['val_targets'],
-        data_dict['val_battery_ids'],
-        window_size,
-        seq2seq
-    )
-    test_feat, test_targ, test_battery_ids = apply_windowing(
-        data_dict['test_features'],
-        data_dict['test_targets'],
-        data_dict['test_battery_ids'],
-        window_size,
-        seq2seq
-    )
+            if len(features) < window_size:
+                continue
 
-    # 处理目标张量形状
-    if seq2seq:
-        # Seq2Seq模式：目标是 (N, seq_len, 1)
-        train_targ_tensor = torch.FloatTensor(train_targ).unsqueeze(-1)
-        val_targ_tensor = torch.FloatTensor(val_targ).unsqueeze(-1)
-        test_targ_tensor = torch.FloatTensor(test_targ).unsqueeze(-1)
-        # Seq2Seq使用shuffle=False保持时序
-        shuffle_train = False
+            X, y, bid, cyc = apply_windowing_with_metadata(
+                features, targets, window_size, battery_name, mode='many_to_one'
+            )
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            val_datasets.append(dataset)
+
+        # 测试集
+        test_datasets = []
+        for battery_name in data_dict['test_batteries']:
+            mask = data_dict['test_battery_ids'] == battery_name
+            features = data_dict['test_features'][mask]
+            targets = data_dict['test_targets'][mask]
+
+            if len(features) < window_size:
+                continue
+
+            X, y, bid, cyc = apply_windowing_with_metadata(
+                features, targets, window_size, battery_name, mode='many_to_one'
+            )
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            test_datasets.append(dataset)
+
+        # 合并所有电池的 dataset
+        train_dataset = ConcatDataset(train_datasets)
+        val_dataset = ConcatDataset(val_datasets)
+        test_dataset = ConcatDataset(test_datasets)
+
+        # 创建 DataLoader
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
+
     else:
-        # Many-to-One模式：目标是 (N,)
-        train_targ_tensor = torch.FloatTensor(train_targ)
-        val_targ_tensor = torch.FloatTensor(val_targ)
-        test_targ_tensor = torch.FloatTensor(test_targ)
-        shuffle_train = True
+        # 标准模式：跨电池窗口化（保持原有训练方式）
+        print(f"  使用标准模式（窗口大小={window_size}，跨电池窗口化）")
 
-    # 训练集
-    train_dataset = TensorDataset(
-        torch.FloatTensor(train_feat),
-        train_targ_tensor
-    )
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train)
+        def apply_windowing(features, targets, battery_ids, window_size, seq2seq=False):
+            """
+            对特征进行滑动窗口处理（跨电池边界），同时追踪电池ID
 
-    # 验证集
-    val_dataset = TensorDataset(
-        torch.FloatTensor(val_feat),
-        val_targ_tensor
-    )
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+            Args:
+                features: 特征数组
+                targets: 目标数组
+                battery_ids: 电池ID数组（每个样本对应的电池编号）
+                window_size: 窗口大小
+                seq2seq: 是否为序列到序列模式
 
-    # 测试集
-    test_dataset = TensorDataset(
-        torch.FloatTensor(test_feat),
-        test_targ_tensor
-    )
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+            Returns:
+                windowed_features, windowed_targets, windowed_battery_ids
+            """
+            if window_size <= 1:
+                return features, targets, battery_ids
+
+            windowed_features = []
+            windowed_targets = []
+            windowed_battery_ids = []  # 记录每个窗口对应的电池ID
+
+            for i in range(len(features) - window_size + 1):
+                window_feat = features[i:i+window_size]
+                windowed_features.append(window_feat)
+
+                if seq2seq:
+                    window_targ = targets[i:i+window_size]
+                    windowed_targets.append(window_targ)
+                else:
+                    windowed_targets.append(targets[i+window_size-1])
+
+                # 记录目标位置的电池ID（用于着色）
+                windowed_battery_ids.append(battery_ids[i+window_size-1])
+
+            return np.array(windowed_features), np.array(windowed_targets), np.array(windowed_battery_ids)
+
+        # 对训练集、验证集、测试集分别进行窗口化处理（跨电池边界）
+        train_feat, train_targ, _ = apply_windowing(
+            data_dict['train_features'],
+            data_dict['train_targets'],
+            data_dict['train_battery_ids'],
+            window_size,
+            seq2seq
+        )
+        val_feat, val_targ, _ = apply_windowing(
+            data_dict['val_features'],
+            data_dict['val_targets'],
+            data_dict['val_battery_ids'],
+            window_size,
+            seq2seq
+        )
+        # 测试集需要保留battery_ids用于着色
+        test_feat, test_targ, test_battery_ids = apply_windowing(
+            data_dict['test_features'],
+            data_dict['test_targets'],
+            data_dict['test_battery_ids'],
+            window_size,
+            seq2seq
+        )
+
+        # 处理目标张量形状
+        if seq2seq:
+            train_targ_tensor = torch.FloatTensor(train_targ).unsqueeze(-1)
+            val_targ_tensor = torch.FloatTensor(val_targ).unsqueeze(-1)
+            test_targ_tensor = torch.FloatTensor(test_targ).unsqueeze(-1)
+            shuffle_train = False
+        else:
+            train_targ_tensor = torch.FloatTensor(train_targ)
+            val_targ_tensor = torch.FloatTensor(val_targ)
+            test_targ_tensor = torch.FloatTensor(test_targ)
+            shuffle_train = True
+
+        # 创建标准 Dataset 和 DataLoader
+        train_dataset = TensorDataset(
+            torch.FloatTensor(train_feat),
+            train_targ_tensor
+        )
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train)
+
+        val_dataset = TensorDataset(
+            torch.FloatTensor(val_feat),
+            val_targ_tensor
+        )
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+        test_dataset = TensorDataset(
+            torch.FloatTensor(test_feat),
+            test_targ_tensor
+        )
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader, test_battery_ids
 
@@ -372,7 +456,28 @@ def train_cross_battery_model(
     print(f"批次大小: {config['training']['batch_size']}")
     print(f"训练轮数: {config['training']['num_epochs']}")
 
-    # 5. 创建数据加载器（根据模型类型设置窗口大小和Seq2Seq模式）
+    # 5. 检查是否启用物理约束
+    physics_config = config.get('physics_constraints', {})
+    use_physics = physics_config.get('enabled', False)
+
+    if use_physics:
+        print("\n" + "="*70)
+        print("物理约束配置")
+        print("="*70)
+        print(f"启用物理约束: True")
+        print(f"  基础损失权重: {physics_config.get('base_loss_weight', 1.0)}")
+        print(f"  单调性权重: {physics_config.get('monotonic_weight', 0.1)}")
+        print(f"  边界权重: {physics_config.get('boundary_weight', 0.05)}")
+        print(f"  平滑性权重: {physics_config.get('smoothness_weight', 0.0)}")
+        print(f"  单调性容忍度: {physics_config.get('monotonic_tolerance', 0.01)}")
+        print(f"  时间衰减启用: {physics_config.get('temporal_decay', {}).get('enabled', True)}")
+        print(f"  时间衰减最大步长: {physics_config.get('temporal_decay', {}).get('max_step', 20)}")
+        print(f"  时间衰减类型: {physics_config.get('temporal_decay', {}).get('decay_type', 'exp')}")
+        print(f"  时间衰减系数: {physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2)}")
+    else:
+        print("\n物理约束: 未启用")
+
+    # 6. 创建数据加载器（根据模型类型设置窗口大小和Seq2Seq模式）
     # 检测是否为Seq2Seq模型（从配置文件中的model_type判断）
     config_model_type = config['model_type'].lower()
     is_seq2seq = 'seq2seq' in config_model_type
@@ -393,10 +498,11 @@ def train_cross_battery_model(
         data_dict,
         batch_size=config['training']['batch_size'],
         window_size=window_size,
-        seq2seq=is_seq2seq
+        seq2seq=is_seq2seq,
+        use_physics=use_physics  # 传递物理约束标志
     )
 
-    # 6. 创建模型
+    # 7. 创建模型
     print("\n创建模型...")
     wrapper = UnifiedModelWrapper(
         model_type=model_type,
@@ -409,7 +515,26 @@ def train_cross_battery_model(
     ModelFactory.print_model_info(model)
 
     optimizer = wrapper.get_optimizer()
-    criterion = wrapper.criterion
+
+    # 8. 创建损失函数（支持物理约束）
+    if use_physics:
+        criterion = PhysicsConstrainedLoss(
+            base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+            monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+            boundary_weight=physics_config.get('boundary_weight', 0.05),
+            smoothness_weight=physics_config.get('smoothness_weight', 0.0),
+            monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
+            temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
+            temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
+            temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),
+            temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
+            verbose=False
+        ).to(device)
+        print("\n损失函数: PhysicsConstrainedLoss (物理约束)")
+    else:
+        criterion = wrapper.criterion
+        print(f"\n损失函数: {type(criterion).__name__} (标准)")
+
 
     # 6.5 创建学习率调度器 (Warmup + Cosine Decay)
     scheduler = None
@@ -476,17 +601,36 @@ def train_cross_battery_model(
         model.train()
         train_loss = 0.0
 
-        for features, targets in train_loader:
-            features = features.to(device)
-            targets = targets.to(device)
+        for batch in train_loader:
+            # 处理不同类型的batch
+            # 检查batch类型（dict表示有元数据，tuple表示无元数据）
+            if isinstance(batch, dict):
+                # 带元数据的 batch（窗口化数据）
+                features = batch['window'].to(device)
+                targets = batch['target_soh'].to(device)
+                battery_ids = batch['battery_id']
+                cycle_indices = batch['cycle_idx']
+                # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+            else:
+                # 传统 tuple batch（window_size=1的情况）
+                features, targets = batch
+                features = features.to(device)
+                targets = targets.to(device)
+                battery_ids = None
+                cycle_indices = None
 
-            # 只有Many-to-One模型需要unsqueeze
-            if not is_seq2seq:
-                targets = targets.unsqueeze(1)
+                # 只有Many-to-One模型需要unsqueeze (标准模式)
+                if not is_seq2seq:
+                    targets = targets.unsqueeze(1)
 
             optimizer.zero_grad()
             predictions = model(features)
-            loss = criterion(predictions, targets)
+
+            # 计算损失
+            if use_physics and battery_ids is not None:
+                loss = criterion(predictions, targets, battery_ids, cycle_indices)
+            else:
+                loss = criterion(predictions, targets)
 
             loss.backward()
             optimizer.step()
@@ -506,17 +650,51 @@ def train_cross_battery_model(
         val_mae = 0.0
         val_rmse = 0.0
 
-        with torch.no_grad():
-            for features, targets in val_loader:
-                features = features.to(device)
-                targets = targets.to(device)
+        # 用于累积物理损失详情
+        if use_physics:
+            physics_loss_details = {
+                'base': 0.0,
+                'monotonic': 0.0,
+                'boundary': 0.0,
+                'smoothness': 0.0
+            }
 
-                # 只有Many-to-One模型需要unsqueeze
-                if not is_seq2seq:
-                    targets = targets.unsqueeze(1)
+        with torch.no_grad():
+            for batch in val_loader:
+                # 处理不同类型的batch
+                # 检查batch类型（dict表示有元数据，tuple表示无元数据）
+                if isinstance(batch, dict):
+                    # 带元数据的 batch（窗口化数据）
+                    features = batch['window'].to(device)
+                    targets = batch['target_soh'].to(device)
+                    battery_ids = batch['battery_id']
+                    cycle_indices = batch['cycle_idx']
+                    # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+                else:
+                    # 传统 tuple batch（window_size=1的情况）
+                    features, targets = batch
+                    features = features.to(device)
+                    targets = targets.to(device)
+                    battery_ids = None
+                    cycle_indices = None
+
+                    # 只有Many-to-One模型需要unsqueeze (标准模式)
+                    if not is_seq2seq:
+                        targets = targets.unsqueeze(1)
 
                 predictions = model(features)
-                loss = criterion(predictions, targets)
+
+                # 计算损失
+                if use_physics and battery_ids is not None:
+                    loss = criterion(predictions, targets, battery_ids, cycle_indices)
+                    # 获取详细损失
+                    details = criterion.get_loss_details()
+                    physics_loss_details['base'] += details['base'] * features.size(0)
+                    physics_loss_details['monotonic'] += details['monotonic'] * features.size(0)
+                    physics_loss_details['boundary'] += details['boundary'] * features.size(0)
+                    physics_loss_details['smoothness'] += details['smoothness'] * features.size(0)
+                else:
+                    loss = criterion(predictions, targets)
 
                 val_loss += loss.item() * features.size(0)
                 val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
@@ -525,6 +703,11 @@ def train_cross_battery_model(
         val_loss /= len(val_loader.dataset)
         val_mae /= len(val_loader.dataset)
         val_rmse /= len(val_loader.dataset)
+
+        # 计算平均物理损失详情
+        if use_physics:
+            for key in physics_loss_details:
+                physics_loss_details[key] /= len(val_loader.dataset)
 
         # 记录历史
         history['train_loss'].append(train_loss)
@@ -554,6 +737,34 @@ def train_cross_battery_model(
             if config['training']['early_stopping'].get('enabled', False):
                 print(f"  Patience:   {patience_counter}/{patience}")
 
+            # 显示物理约束详细损失
+            if use_physics:
+                print(f"\n  物理约束详细损失:")
+                print(f"    基础损失 (MSE):  {physics_loss_details['base']:.6f}")
+                print(f"    单调性损失:      {physics_loss_details['monotonic']:.6f}")
+                print(f"    边界损失:        {physics_loss_details['boundary']:.6f}")
+                print(f"    平滑性损失:      {physics_loss_details['smoothness']:.6f}")
+
+                # 计算加权后的贡献
+                total_weighted = (
+                    physics_config.get('base_loss_weight', 1.0) * physics_loss_details['base'] +
+                    physics_config.get('monotonic_weight', 0.1) * physics_loss_details['monotonic'] +
+                    physics_config.get('boundary_weight', 0.05) * physics_loss_details['boundary'] +
+                    physics_config.get('smoothness_weight', 0.0) * physics_loss_details['smoothness']
+                )
+
+                print(f"  加权后贡献比例:")
+                if total_weighted > 0:
+                    base_contrib = physics_config.get('base_loss_weight', 1.0) * physics_loss_details['base']
+                    mono_contrib = physics_config.get('monotonic_weight', 0.1) * physics_loss_details['monotonic']
+                    bound_contrib = physics_config.get('boundary_weight', 0.05) * physics_loss_details['boundary']
+                    smooth_contrib = physics_config.get('smoothness_weight', 0.0) * physics_loss_details['smoothness']
+
+                    print(f"    基础:   {base_contrib:.6f} ({base_contrib/total_weighted*100:.1f}%)")
+                    print(f"    单调性: {mono_contrib:.6f} ({mono_contrib/total_weighted*100:.1f}%)")
+                    print(f"    边界:   {bound_contrib:.6f} ({bound_contrib/total_weighted*100:.1f}%)")
+                    print(f"    平滑性: {smooth_contrib:.6f} ({smooth_contrib/total_weighted*100:.1f}%)")
+
         # Early stopping检查
         if config['training']['early_stopping'].get('enabled', False):
             if patience_counter > patience:
@@ -577,10 +788,20 @@ def train_cross_battery_model(
     all_targets = []
 
     with torch.no_grad():
-        for features, targets in test_loader:
-            features = features.to(device)
+        for batch in test_loader:
+            # 处理不同类型的batch
+            # 检查batch类型（dict表示有元数据，tuple表示无元数据）
+            if isinstance(batch, dict):
+                # 物理约束模式：带元数据的 batch
+                features = batch['window'].to(device)
+                targets = batch['target_soh'].cpu().numpy()
+            else:
+                # 标准模式：tuple batch
+                features, targets = batch
+                features = features.to(device)
+                targets = targets.cpu().numpy()
+
             predictions = model(features).cpu().numpy()
-            targets = targets.cpu().numpy()
 
             # 处理输出形状
             if is_seq2seq:
@@ -590,6 +811,7 @@ def train_cross_battery_model(
             else:
                 # Many-to-One: (batch, 1) -> squeeze
                 predictions = predictions.squeeze()
+                targets = targets.squeeze()  # 确保 targets 也被 squeeze
 
             all_predictions.extend(predictions)
             all_targets.extend(targets)
@@ -642,7 +864,7 @@ def train_cross_battery_model(
         'best_epoch': best_epoch,
         'predictions': predictions_np.tolist(),
         'targets': targets_np.tolist(),
-        'battery_ids': test_battery_ids.tolist(),  # 新增：保存电池ID
+        'battery_ids': test_battery_ids.tolist() if isinstance(test_battery_ids, np.ndarray) else test_battery_ids,  # 保存电池编号
         'history': history
     }
 
@@ -651,7 +873,8 @@ def train_cross_battery_model(
         pickle.dump(results, f)
 
     # 绘制图表
-    plot_cross_battery_results(history, predictions_np, targets_np, test_battery_ids if color_by_battery else None, results_dir)
+    plot_cross_battery_results(history, predictions_np, targets_np,
+                                test_battery_ids if color_by_battery else None, results_dir)
 
     print(f"\n所有结果已保存到: {results_dir}/")
     print("="*70)
@@ -667,7 +890,7 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         history: 训练历史
         predictions: 预测值
         targets: 真实值
-        battery_ids: 电池编号数组
+        battery_ids: 电池编号列表
         save_dir: 保存目录
     """
 
@@ -698,12 +921,14 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
     plt.savefig(os.path.join(save_dir, 'training_history.png'), dpi=300)
     plt.close()
 
-    # 2. 预测对比（按电池ID着色）
+    # 2. 预测对比（根据电池ID着色）
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    # 检查是否需要按电池着色
-    if battery_ids is not None:
-        # 按电池着色模式
+    # 检查是否有电池ID信息
+    has_battery_ids = battery_ids is not None and len(battery_ids) > 0
+
+    if has_battery_ids:
+        # 获取唯一的电池ID
         unique_batteries = sorted(set(battery_ids))
         n_batteries = len(unique_batteries)
 
@@ -713,7 +938,7 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
 
         # 为每个电池绘制不同颜色的点
         for i, battery_id in enumerate(unique_batteries):
-            mask = battery_ids == battery_id
+            mask = np.array([bid == battery_id for bid in battery_ids])
             axes[0].scatter(targets[mask], predictions[mask],
                           alpha=0.6, s=10, c=[colors[i]],
                           label=f'{battery_id}' if n_batteries <= 10 else None)
@@ -721,24 +946,18 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         # 只在电池数量<=10时显示图例
         if n_batteries <= 10:
             axes[0].legend(loc='best', fontsize=8, markerscale=2)
-
-        # 绘制完美预测线
-        axes[0].plot([targets.min(), targets.max()],
-                     [targets.min(), targets.max()],
-                     'r--', lw=2, label='Perfect')
-        if n_batteries > 10:
-            axes[0].legend()
     else:
-        # 单色模式
+        # Standard mode: 单一颜色
         axes[0].scatter(targets, predictions, alpha=0.5, s=10)
-        axes[0].plot([targets.min(), targets.max()],
-                     [targets.min(), targets.max()],
-                     'r--', lw=2, label='Perfect')
-        axes[0].legend()
 
+    axes[0].plot([targets.min(), targets.max()],
+                 [targets.min(), targets.max()],
+                 'r--', lw=2, label='Perfect')
     axes[0].set_xlabel('True SOH')
     axes[0].set_ylabel('Predicted SOH')
     axes[0].set_title('Test Set Predictions')
+    if not has_battery_ids or n_batteries > 10:
+        axes[0].legend()
     axes[0].grid(True)
 
     errors = predictions - targets
@@ -763,7 +982,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
+    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)

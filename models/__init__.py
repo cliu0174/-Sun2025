@@ -13,6 +13,9 @@ from .model_factory import (
     UnifiedModelWrapper
 )
 
+# Physics-constrained loss
+from .physics_loss import PhysicsConstrainedLoss
+
 __all__ = [
     # Baseline Models (Many-to-One)
     'FNN',
@@ -34,4 +37,7 @@ __all__ = [
     'ConfigLoader',
     'ModelFactory',
     'UnifiedModelWrapper',
+
+    # Physics constraints
+    'PhysicsConstrainedLoss',
 ]

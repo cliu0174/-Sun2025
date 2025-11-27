@@ -14,6 +14,61 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
+def apply_windowing_with_metadata(features, targets, window_size, battery_id, mode='many_to_one'):
+    """
+    应用滑动窗口并附加 battery_id 和 cycle_idx（用于物理约束）
+
+    Args:
+        features: (total_cycles, feature_dim) 特征数组
+        targets: (total_cycles,) 目标值数组
+        window_size: 窗口大小
+        battery_id: str, 电池名称（如 "1-1"）
+        mode: 'many_to_one' 或 'many_to_many'
+
+    Returns:
+        X: (N, window_size, feature_dim) 输入窗口
+        y: (N,) for many_to_one 或 (N, window_size, 1) for many_to_many
+        battery_ids: (N,) 每个窗口的电池ID
+        cycle_indices: (N,) 每个窗口对应的cycle索引
+    """
+    X_windows = []
+    y_windows = []
+    battery_ids = []
+    cycle_indices = []
+
+    total_cycles = len(features)
+
+    for i in range(total_cycles - window_size + 1):
+        # 输入窗口
+        X_windows.append(features[i:i+window_size])
+
+        if mode == 'many_to_one':
+            # Many-to-One: 预测窗口最后一个点的目标值
+            y_windows.append(targets[i+window_size-1])
+            # cycle_idx = 窗口最后一个点的原始cycle索引
+            cycle_idx = i + window_size - 1
+
+        elif mode == 'many_to_many':
+            # Many-to-Many: 预测整个窗口的目标值
+            y_windows.append(targets[i:i+window_size])
+            # cycle_idx 定义为窗口的结束位置
+            cycle_idx = i + window_size - 1
+
+        else:
+            raise ValueError(f"Unknown mode: {mode}. Must be 'many_to_one' or 'many_to_many'")
+
+        # 附加元数据
+        battery_ids.append(battery_id)
+        cycle_indices.append(cycle_idx)
+
+    return (
+        np.array(X_windows),
+        np.array(y_windows),
+        np.array(battery_ids, dtype=object),  # 字符串数组
+        np.array(cycle_indices, dtype=np.int32)
+    )
+
+
 def clean_3_sigma(df, verbose=False):
     """
     使用 3-Sigma 规则清洗异常值
@@ -277,6 +332,38 @@ class HUSTBatteryDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
+
+
+class HUSTBatteryDatasetWithMetadata(Dataset):
+    """
+    支持物理约束的 Dataset: 返回 battery_id 和 cycle_idx
+
+    用于在 Many-to-One 模型中应用物理约束
+    """
+    def __init__(self, X, y, battery_ids, cycle_indices):
+        """
+        Args:
+            X: (N, window_size, feature_dim) 输入窗口
+            y: (N,) 目标值
+            battery_ids: (N,) 电池名称数组
+            cycle_indices: (N,) cycle 索引数组
+        """
+        self.X = torch.FloatTensor(X)
+        self.y = torch.FloatTensor(y).unsqueeze(1) if y.ndim == 1 else torch.FloatTensor(y)
+        self.battery_ids = battery_ids
+        self.cycle_indices = torch.LongTensor(cycle_indices)
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return {
+            'window': self.X[idx],
+            'target_soh': self.y[idx],
+            'battery_id': self.battery_ids[idx],
+            'cycle_idx': self.cycle_indices[idx]
+        }
+
 
 # 更新 DataLoader 创建函数
 def create_hust_dataloaders(data_dict, batch_size=64, window_size=10):

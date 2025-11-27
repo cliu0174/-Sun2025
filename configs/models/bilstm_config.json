@@ -28,7 +28,7 @@
     },
     "early_stopping": {
       "enabled": true,
-      "patience": 50,
+      "patience": 30,
       "min_delta": 1e-05
     }
   },
@@ -48,5 +48,20 @@
     "l1_weight": 0.0,
     "l2_weight": 0.0
   },
-  "description": "双向长短期记忆网络。同时从前向和后向处理时序，能更全面地捕捉电池容量衰减的时序依赖关系。"
+  "description": "双向长短期记忆网络。同时从前向和后向处理时序，能更全面地捕捉电池容量衰减的时序依赖关系。",
+  "physics_constraints": {
+    "enabled": true,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05,
+    "smoothness_weight": 0.0,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 20,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
+  }
 }

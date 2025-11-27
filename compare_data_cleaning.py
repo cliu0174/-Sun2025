@@ -20,7 +20,7 @@ def run_comparison_experiment():
     print("="*70)
 
     # 配置
-    model_type = 'bilstm'
+    model_type = 'gru'
     num_epochs_test = 200  # 快速测试用较少轮数
     device = 'cuda'
 
