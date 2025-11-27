@@ -301,6 +301,9 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
 
+        # 物理约束模式下，电池ID在batch的元数据中，这里设为None
+        test_battery_ids = None
+
     else:
         # 标准模式：跨电池窗口化（保持原有训练方式）
         print(f"  使用标准模式（窗口大小={window_size}，跨电池窗口化）")
@@ -786,6 +789,7 @@ def train_cross_battery_model(
 
     all_predictions = []
     all_targets = []
+    all_battery_ids_from_batch = []  # 用于物理约束模式下收集电池ID
 
     with torch.no_grad():
         for batch in test_loader:
@@ -795,11 +799,13 @@ def train_cross_battery_model(
                 # 物理约束模式：带元数据的 batch
                 features = batch['window'].to(device)
                 targets = batch['target_soh'].cpu().numpy()
+                battery_ids_batch = batch['battery_id']  # 提取电池ID
             else:
                 # 标准模式：tuple batch
                 features, targets = batch
                 features = features.to(device)
                 targets = targets.cpu().numpy()
+                battery_ids_batch = None
 
             predictions = model(features).cpu().numpy()
 
@@ -816,8 +822,22 @@ def train_cross_battery_model(
             all_predictions.extend(predictions)
             all_targets.extend(targets)
 
+            # 收集电池ID（用于着色）
+            if battery_ids_batch is not None:
+                all_battery_ids_from_batch.extend(battery_ids_batch)
+
     predictions_np = np.array(all_predictions)
     targets_np = np.array(all_targets)
+
+    # 合并电池ID：物理约束模式从batch收集，标准模式使用test_battery_ids
+    if len(all_battery_ids_from_batch) > 0:
+        # 物理约束模式：从batch中收集到了电池ID
+        final_battery_ids = all_battery_ids_from_batch
+    elif test_battery_ids is not None:
+        # 标准模式：使用预先计算的test_battery_ids
+        final_battery_ids = test_battery_ids
+    else:
+        final_battery_ids = None
 
     test_mae = np.mean(np.abs(predictions_np - targets_np))
     test_rmse = np.sqrt(np.mean((predictions_np - targets_np) ** 2))
@@ -864,7 +884,7 @@ def train_cross_battery_model(
         'best_epoch': best_epoch,
         'predictions': predictions_np.tolist(),
         'targets': targets_np.tolist(),
-        'battery_ids': test_battery_ids.tolist() if isinstance(test_battery_ids, np.ndarray) else test_battery_ids,  # 保存电池编号
+        'battery_ids': final_battery_ids if isinstance(final_battery_ids, (list, np.ndarray)) else None,  # 保存电池编号
         'history': history
     }
 
@@ -874,7 +894,7 @@ def train_cross_battery_model(
 
     # 绘制图表
     plot_cross_battery_results(history, predictions_np, targets_np,
-                                test_battery_ids if color_by_battery else None, results_dir)
+                                final_battery_ids if color_by_battery else None, results_dir)
 
     print(f"\n所有结果已保存到: {results_dir}/")
     print("="*70)
@@ -982,7 +1002,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
+    MODEL_TYPE = 'lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
