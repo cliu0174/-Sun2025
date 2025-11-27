@@ -48,5 +48,19 @@
     "l1_weight": 0.0,
     "l2_weight": 0.0
   },
-  "description": "门控循环单元。相比LSTM结构更简单，参数更少，训练更快，但性能相近。"
+  "description": "门控循环单元。相比LSTM结构更简单，参数更少，训练更快，但性能相近。",
+  "physics_constraints": {
+    "enabled": true,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.0,
+    "boundary_weight": 0.0,
+    "smoothness_weight": 0.1,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 20,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    }
+  }
 }

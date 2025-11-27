@@ -150,24 +150,31 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     print("="*70)
 
     def merge_batteries(battery_list):
-        """合并多个电池的数据"""
+        """合并多个电池的数据，同时记录每个样本的电池ID"""
         all_features = []
         all_targets = []
+        all_battery_ids = []
 
         for battery_name in battery_list:
             data = all_data[battery_name]
-            all_features.append(data['train_features'])
-            all_targets.append(data['train_capacity'])
+            features = data['train_features']
+            targets = data['train_capacity']
+
+            all_features.append(features)
+            all_targets.append(targets)
+            # 为每个样本记录来源电池
+            all_battery_ids.extend([battery_name] * len(features))
 
         features = np.vstack(all_features)
         targets = np.concatenate(all_targets)
+        battery_ids = np.array(all_battery_ids, dtype=object)
 
-        return features, targets
+        return features, targets, battery_ids
 
     # 合并各个集合
-    train_features, train_targets = merge_batteries(train_batteries)
-    val_features, val_targets = merge_batteries(val_batteries)
-    test_features, test_targets = merge_batteries(test_batteries)
+    train_features, train_targets, train_battery_ids = merge_batteries(train_batteries)
+    val_features, val_targets, val_battery_ids = merge_batteries(val_batteries)
+    test_features, test_targets, test_battery_ids = merge_batteries(test_batteries)
 
     print(f"训练集: {train_features.shape[0]} 个样本")
     print(f"验证集: {val_features.shape[0]} 个样本")
@@ -183,10 +190,13 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     data_dict = {
         'train_features': train_features_scaled,
         'train_targets': train_targets,
+        'train_battery_ids': train_battery_ids,  # 新增：每个样本的电池ID
         'val_features': val_features_scaled,
         'val_targets': val_targets,
+        'val_battery_ids': val_battery_ids,  # 新增：每个样本的电池ID
         'test_features': test_features_scaled,
         'test_targets': test_targets,
+        'test_battery_ids': test_battery_ids,  # 新增：每个样本的电池ID
         'scaler': scaler,
         'n_features': train_features.shape[1],
         'train_batteries': train_batteries,
@@ -209,9 +219,9 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
     """
     from torch.utils.data import TensorDataset, DataLoader
 
-    def apply_windowing(features, targets, window_size, seq2seq=False):
+    def apply_windowing(features, targets, battery_ids, window_size, seq2seq=False):
         """
-        对特征进行滑动窗口处理
+        对特征进行滑动窗口处理，同时保留电池ID映射
 
         Args:
             seq2seq: 如果为True，返回完整序列目标（Many-to-Many）
@@ -219,11 +229,12 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
         """
         if window_size <= 1:
             # 不需要窗口化，直接返回
-            return features, targets
+            return features, targets, battery_ids
 
         # 创建滑动窗口数据
         windowed_features = []
         windowed_targets = []
+        windowed_battery_ids = []  # 记录每个窗口对应的电池ID
 
         for i in range(len(features) - window_size + 1):
             window_feat = features[i:i+window_size]  # (window_size, n_features)
@@ -237,24 +248,30 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
                 # Many-to-One模式：只返回最后一个时间步的目标
                 windowed_targets.append(targets[i+window_size-1])  # scalar
 
-        return np.array(windowed_features), np.array(windowed_targets)
+            # 记录目标位置的电池ID
+            windowed_battery_ids.append(battery_ids[i+window_size-1])
+
+        return np.array(windowed_features), np.array(windowed_targets), np.array(windowed_battery_ids)
 
     # 对训练集、验证集、测试集分别进行窗口化处理
-    train_feat, train_targ = apply_windowing(
+    train_feat, train_targ, _ = apply_windowing(
         data_dict['train_features'],
         data_dict['train_targets'],
+        data_dict['train_battery_ids'],
         window_size,
         seq2seq
     )
-    val_feat, val_targ = apply_windowing(
+    val_feat, val_targ, _ = apply_windowing(
         data_dict['val_features'],
         data_dict['val_targets'],
+        data_dict['val_battery_ids'],
         window_size,
         seq2seq
     )
-    test_feat, test_targ = apply_windowing(
+    test_feat, test_targ, test_battery_ids = apply_windowing(
         data_dict['test_features'],
         data_dict['test_targets'],
+        data_dict['test_battery_ids'],
         window_size,
         seq2seq
     )
@@ -295,7 +312,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False):
     )
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, test_battery_ids
 
 
 def train_cross_battery_model(
@@ -305,7 +322,8 @@ def train_cross_battery_model(
     test_ratio=0.2,
     device='cuda',
     seed=42,
-    apply_cleaning=False
+    apply_cleaning=False,
+    color_by_battery=True  # 新增：是否按电池着色（默认True）
 ):
     """
     跨电池训练模型。
@@ -371,7 +389,7 @@ def train_cross_battery_model(
         window_size = 1
         print(f"\n模型 {config_model_type.upper()} 使用平坦特征（window_size=1）")
 
-    train_loader, val_loader, test_loader = create_dataloaders(
+    train_loader, val_loader, test_loader, test_battery_ids = create_dataloaders(
         data_dict,
         batch_size=config['training']['batch_size'],
         window_size=window_size,
@@ -624,6 +642,7 @@ def train_cross_battery_model(
         'best_epoch': best_epoch,
         'predictions': predictions_np.tolist(),
         'targets': targets_np.tolist(),
+        'battery_ids': test_battery_ids.tolist(),  # 新增：保存电池ID
         'history': history
     }
 
@@ -632,7 +651,7 @@ def train_cross_battery_model(
         pickle.dump(results, f)
 
     # 绘制图表
-    plot_cross_battery_results(history, predictions_np, targets_np, results_dir)
+    plot_cross_battery_results(history, predictions_np, targets_np, test_battery_ids if color_by_battery else None, results_dir)
 
     print(f"\n所有结果已保存到: {results_dir}/")
     print("="*70)
@@ -640,8 +659,17 @@ def train_cross_battery_model(
     return wrapper, results, data_dict
 
 
-def plot_cross_battery_results(history, predictions, targets, save_dir):
-    """绘制训练结果"""
+def plot_cross_battery_results(history, predictions, targets, battery_ids, save_dir):
+    """
+    绘制训练结果
+
+    Args:
+        history: 训练历史
+        predictions: 预测值
+        targets: 真实值
+        battery_ids: 电池编号数组
+        save_dir: 保存目录
+    """
 
     # 1. 训练曲线
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
@@ -670,17 +698,47 @@ def plot_cross_battery_results(history, predictions, targets, save_dir):
     plt.savefig(os.path.join(save_dir, 'training_history.png'), dpi=300)
     plt.close()
 
-    # 2. 预测对比
+    # 2. 预测对比（按电池ID着色）
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    axes[0].scatter(targets, predictions, alpha=0.5, s=10)
-    axes[0].plot([targets.min(), targets.max()],
-                 [targets.min(), targets.max()],
-                 'r--', lw=2, label='Perfect')
+    # 检查是否需要按电池着色
+    if battery_ids is not None:
+        # 按电池着色模式
+        unique_batteries = sorted(set(battery_ids))
+        n_batteries = len(unique_batteries)
+
+        # 使用colormap为不同电池分配颜色
+        import matplotlib.cm as cm
+        colors = cm.get_cmap('tab20' if n_batteries <= 20 else 'hsv')(np.linspace(0, 1, n_batteries))
+
+        # 为每个电池绘制不同颜色的点
+        for i, battery_id in enumerate(unique_batteries):
+            mask = battery_ids == battery_id
+            axes[0].scatter(targets[mask], predictions[mask],
+                          alpha=0.6, s=10, c=[colors[i]],
+                          label=f'{battery_id}' if n_batteries <= 10 else None)
+
+        # 只在电池数量<=10时显示图例
+        if n_batteries <= 10:
+            axes[0].legend(loc='best', fontsize=8, markerscale=2)
+
+        # 绘制完美预测线
+        axes[0].plot([targets.min(), targets.max()],
+                     [targets.min(), targets.max()],
+                     'r--', lw=2, label='Perfect')
+        if n_batteries > 10:
+            axes[0].legend()
+    else:
+        # 单色模式
+        axes[0].scatter(targets, predictions, alpha=0.5, s=10)
+        axes[0].plot([targets.min(), targets.max()],
+                     [targets.min(), targets.max()],
+                     'r--', lw=2, label='Perfect')
+        axes[0].legend()
+
     axes[0].set_xlabel('True SOH')
     axes[0].set_ylabel('Predicted SOH')
     axes[0].set_title('Test Set Predictions')
-    axes[0].legend()
     axes[0].grid(True)
 
     errors = predictions - targets
@@ -705,7 +763,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
+    MODEL_TYPE = 'lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
@@ -721,7 +779,9 @@ if __name__ == "__main__":
         val_ratio=VAL_RATIO,
         test_ratio=TEST_RATIO,
         device=DEVICE,
-        seed=SEED
+        seed=SEED,
+        # apply_cleaning=True,  # 是否使用3-Sigma数据清洗
+        color_by_battery=True  # 是否按电池着色（True=彩色图，False=单色图）
     )
 
     print("\n" + "="*70)
