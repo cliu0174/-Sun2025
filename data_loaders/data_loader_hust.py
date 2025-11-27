@@ -209,19 +209,18 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True,
 
     # 归一化目标值为SOH (可选)
     if normalize_target:
-        # 方法1: 使用额定容量 (PINN4SOH 方法)
-        train_capacity_normalized = train_capacity / rated_capacity
-
+        # 方法1: 使用初始容量 (更准确，推荐使用)
+        initial_capacity = train_df[target_column].iloc[0]
+        train_capacity_normalized = train_capacity / initial_capacity
         if len(test_capacity) > 0:
-            test_capacity_normalized = test_capacity / rated_capacity
+            test_capacity_normalized = test_capacity / initial_capacity
         else:
             test_capacity_normalized = np.array([])
 
-        # 方法2: 使用初始容量 (更准确，但已弃用)
-        # initial_capacity = train_df[target_column].iloc[0]
-        # train_capacity_normalized = train_capacity / initial_capacity
+        # 方法2: 使用额定容量 (PINN4SOH 方法，已弃用)
+        # train_capacity_normalized = train_capacity / rated_capacity
         # if len(test_capacity) > 0:
-        #     test_capacity_normalized = test_capacity / initial_capacity
+        #     test_capacity_normalized = test_capacity / rated_capacity
     else:
         train_capacity_normalized = train_capacity
         test_capacity_normalized = test_capacity
