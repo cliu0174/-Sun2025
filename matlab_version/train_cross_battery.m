@@ -21,19 +21,19 @@ model_type = 'lstm';
 
 % 数据参数
 data_dir = '../data/HUST data';
-window_size = 10;
+window_size = 40;  % 与Python保持一致（gru_config.json: window_size=40）
 % apply_cleaning = true;  % 是否应用3-Sigma清洗（默认false，保持向后兼容）
 
 % 可视化参数
 color_by_battery = true;  % 是否按电池着色（true=彩色图，false=单色图）
 
-% 训练参数（可以从config覆盖）
-max_epochs = 100;
-mini_batch_size = 64;
+% 训练参数（从config覆盖）
+max_epochs = 200;          % 与Python保持一致（gru_config.json: num_epochs=200）
+mini_batch_size = 256;     % 与Python保持一致（gru_config.json: batch_size=256）
 initial_learn_rate = 0.001;
 
 % 物理约束（对应Python的PhysicsConstrainedLoss参数）
-use_physics = true;
+use_physics = false;  % 与Python保持一致（gru_config.json: physics_constraints.enabled=false）
 
 % 输出目录
 output_dir = sprintf('results/cross_battery/%s', lower(model_type));
@@ -60,25 +60,21 @@ fprintf('[1/7] 加载模型配置...\n');
 model_config = ConfigLoader.load_model_config(model_type);
 ConfigLoader.print_config(model_config);
 
-% 从配置中提取训练参数
-if isfield(model_config, 'training')
-    if isfield(model_config.training, 'num_epochs')
-        max_epochs = model_config.training.num_epochs;
-    end
-    if isfield(model_config.training, 'batch_size')
-        mini_batch_size = model_config.training.batch_size;
-    end
-    if isfield(model_config.training, 'learning_rate')
-        initial_learn_rate = model_config.training.learning_rate;
-    end
-end
-
-% 从配置中提取数据参数
-if isfield(model_config, 'data')
-    if isfield(model_config.data, 'window_size')
-        window_size = model_config.data.window_size;
-    end
-end
+% 注意：训练参数和窗口大小已在配置参数部分手动设置
+% 不再从配置文件覆盖，以确保与Python版本完全一致
+%
+% 原逻辑（已禁用）：
+% if isfield(model_config, 'training')
+%     if isfield(model_config.training, 'num_epochs')
+%         max_epochs = model_config.training.num_epochs;
+%     end
+%     ...
+% end
+%
+% 当前使用的参数（手动设置，与Python一致）：
+%   max_epochs = 200 (gru_config.json: num_epochs=200)
+%   mini_batch_size = 256 (gru_config.json: batch_size=256)
+%   window_size = 40 (gru_config.json: window_size=40)
 
 fprintf('\n训练配置:\n');
 fprintf('  Max Epochs: %d\n', max_epochs);
@@ -173,9 +169,7 @@ options = trainingOptions('adam', ...
     'MaxEpochs', max_epochs, ...
     'MiniBatchSize', mini_batch_size, ...
     'InitialLearnRate', initial_learn_rate, ...
-    'LearnRateSchedule', 'piecewise', ...
-    'LearnRateDropFactor', 0.5, ...
-    'LearnRateDropPeriod', 20, ...
+    'LearnRateSchedule', 'none', ...  % 与Python保持一致：禁用学习率调度器
     'Shuffle', 'every-epoch', ...
     'ValidationData', {prepare_sequence_data(X_val), y_val}, ...
     'ValidationFrequency', 50, ...
