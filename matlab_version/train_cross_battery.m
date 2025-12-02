@@ -22,7 +22,10 @@ model_type = 'lstm';
 % 数据参数
 data_dir = '../data/HUST data';
 window_size = 10;
-apply_cleaning = false;  % 是否应用3-Sigma清洗
+% apply_cleaning = true;  % 是否应用3-Sigma清洗（默认false，保持向后兼容）
+
+% 可视化参数
+color_by_battery = true;  % 是否按电池着色（true=彩色图，false=单色图）
 
 % 训练参数（可以从config覆盖）
 max_epochs = 100;
@@ -46,7 +49,8 @@ fprintf('跨电池SOH估计训练 - MATLAB版本\n');
 fprintf('======================================================================\n');
 fprintf('模型类型: %s\n', upper(model_type));
 fprintf('窗口大小: %d\n', window_size);
-fprintf('数据清洗: %s\n', string(apply_cleaning));
+% fprintf('数据清洗: %s\n', string(apply_cleaning));
+fprintf('按电池着色: %s\n', string(color_by_battery));
 fprintf('物理约束: %s\n', string(use_physics));
 fprintf('======================================================================\n\n');
 
@@ -95,7 +99,8 @@ fprintf('找到 %d 个电池文件\n', length(csv_files));
 for i = 1:length(csv_files)
     file_path = fullfile(data_dir, csv_files(i).name);
     % 对应Python: load_single_hust_battery()
-    data = load_single_hust_battery(file_path, 1.0, true, apply_cleaning);
+    % apply_cleaning 默认为 false（与Python保持一致：被注释掉）
+    data = load_single_hust_battery(file_path, 1.0, true, false);
     battery_names{i} = data.battery_name;
     all_data{i} = data;
 
@@ -241,9 +246,7 @@ save(fullfile(output_dir, 'results.mat'), 'results');
 %% ===== 8. 可视化结果 =====
 fprintf('\n生成可视化结果...\n');
 
-% 是否按电池着色（对应Python: color_by_battery=True）
-color_by_battery = true;
-
+% 使用配置参数中的 color_by_battery（对应Python: color_by_battery=True）
 fig1 = figure('Position', [100, 100, 1200, 400]);
 
 subplot(1, 3, 1);
