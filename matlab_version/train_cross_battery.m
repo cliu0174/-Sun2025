@@ -241,10 +241,13 @@ save(fullfile(output_dir, 'results.mat'), 'results');
 %% ===== 8. 可视化结果 =====
 fprintf('\n生成可视化结果...\n');
 
+% 是否按电池着色（对应Python: color_by_battery=True）
+color_by_battery = true;
+
 fig1 = figure('Position', [100, 100, 1200, 400]);
 
 subplot(1, 3, 1);
-plot_predictions_scatter(y_test, y_pred_test, results);
+plot_predictions_scatter_colored(y_test, y_pred_test, battery_ids_test, results, color_by_battery);
 title('预测 vs 真实值');
 
 subplot(1, 3, 2);
@@ -394,4 +397,84 @@ function plot_predictions_by_battery(y_true, y_pred, battery_ids, n_show)
     ylabel('SOH');
     legend('Location', 'best', 'FontSize', 8);
     grid on;
+end
+
+
+function plot_predictions_scatter_colored(y_true, y_pred, battery_ids, results, color_by_battery)
+    % 绘制预测对比散点图（按电池着色）
+    % 对应Python: train_cross_battery.py 中的按电池着色功能
+    %
+    % Args:
+    %   y_true: 真实SOH值
+    %   y_pred: 预测SOH值
+    %   battery_ids: 电池ID (cell array)
+    %   results: 评估结果结构体
+    %   color_by_battery: 是否按电池着色
+
+    if color_by_battery && ~isempty(battery_ids)
+        % 获取唯一电池
+        unique_batteries = unique(battery_ids, 'stable');
+        n_batteries = length(unique_batteries);
+
+        % 选择colormap（对应Python: cm.get_cmap）
+        if n_batteries <= 20
+            % 使用lines colormap（类似tab20）
+            cmap = lines(n_batteries);
+        else
+            % 使用hsv colormap
+            cmap = hsv(n_batteries);
+        end
+
+        hold on;
+
+        % 对每个电池绘制不同颜色
+        for i = 1:n_batteries
+            battery_id = unique_batteries{i};
+            mask = strcmp(battery_ids, battery_id);
+
+            y_true_battery = y_true(mask);
+            y_pred_battery = y_pred(mask);
+
+            % 使用colormap颜色绘制
+            scatter(y_true_battery, y_pred_battery, 20, cmap(i, :), 'filled', ...
+                'MarkerFaceAlpha', 0.6, 'DisplayName', battery_id);
+        end
+
+        % 图例：只在电池数量≤10时显示
+        if n_batteries <= 10
+            legend('Location', 'southeast', 'FontSize', 7, 'NumColumns', 2);
+        else
+            % 添加说明文本
+            text(0.02, 0.98, sprintf('共%d个电池', n_batteries), ...
+                'Units', 'normalized', 'VerticalAlignment', 'top', ...
+                'FontSize', 9, 'BackgroundColor', [1 1 1 0.8], 'EdgeColor', 'k');
+        end
+
+    else
+        % 单色模式（不按电池着色）
+        scatter(y_true, y_pred, 20, [0.2, 0.4, 0.8], 'filled', 'MarkerFaceAlpha', 0.5);
+    end
+
+    % 绘制完美预测线（y=x）
+    hold on;
+    min_val = min([y_true; y_pred]);
+    max_val = max([y_true; y_pred]);
+    plot([min_val, max_val], [min_val, max_val], 'r--', 'LineWidth', 2, ...
+        'DisplayName', '理想预测');
+    hold off;
+
+    % 坐标轴设置
+    xlabel('真实SOH');
+    ylabel('预测SOH');
+    grid on;
+    axis equal;
+    xlim([min_val-0.05, max_val+0.05]);
+    ylim([min_val-0.05, max_val+0.05]);
+
+    % 添加性能指标文本
+    text_str = sprintf('RMSE = %.4f\\nMAE = %.4f\\nMAPE = %.2f%%\\nR² = %.4f', ...
+        results.rmse, results.mae, results.mape, results.r2);
+    text(0.05, 0.95, text_str, 'Units', 'normalized', ...
+        'VerticalAlignment', 'top', 'FontSize', 10, ...
+        'BackgroundColor', 'white', 'EdgeColor', 'black');
 end
