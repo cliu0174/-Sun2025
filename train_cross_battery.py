@@ -921,6 +921,9 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         unique_batteries = sorted(set(battery_ids))
         n_batteries = len(unique_batteries)
 
+        # 定义异常电池列表
+        problematic_batteries = ['1-5', '4-2']
+
         # 使用colormap为不同电池分配颜色
         import matplotlib.cm as cm
         colors = cm.get_cmap('tab20' if n_batteries <= 20 else 'hsv')(np.linspace(0, 1, n_batteries))
@@ -928,12 +931,24 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         # 为每个电池绘制不同颜色的点
         for i, battery_id in enumerate(unique_batteries):
             mask = np.array([bid == battery_id for bid in battery_ids])
-            axes[0].scatter(targets[mask], predictions[mask],
-                          alpha=0.6, s=10, c=[colors[i]],
-                          label=f'{battery_id}' if n_batteries <= 10 else None)
 
-        # 只在电池数量<=10时显示图例
-        if n_batteries <= 10:
+            # 检查是否为异常电池
+            is_problematic = battery_id in problematic_batteries
+
+            if is_problematic:
+                # 异常电池使用特殊标记：红色星形，更大，边框
+                axes[0].scatter(targets[mask], predictions[mask],
+                              alpha=0.8, s=50, c='red', marker='*',
+                              edgecolors='darkred', linewidths=1.5,
+                              label=f'{battery_id} [ANOMALY]', zorder=10)
+            else:
+                # 正常电池使用默认样式
+                axes[0].scatter(targets[mask], predictions[mask],
+                              alpha=0.6, s=10, c=[colors[i]],
+                              label=f'{battery_id}' if n_batteries <= 10 else None)
+
+        # 只在电池数量<=10时显示图例，或者有异常电池时总是显示
+        if n_batteries <= 10 or any(b in problematic_batteries for b in unique_batteries):
             axes[0].legend(loc='best', fontsize=8, markerscale=2)
     else:
         # Standard mode: 单一颜色

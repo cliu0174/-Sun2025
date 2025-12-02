@@ -50,7 +50,7 @@
   },
   "description": "双向长短期记忆网络。同时从前向和后向处理时序，能更全面地捕捉电池容量衰减的时序依赖关系。",
   "physics_constraints": {
-    "enabled": true,
+    "enabled": false,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.1,
     "boundary_weight": 0.05,

@@ -50,7 +50,7 @@
   },
   "description": "双向门控循环单元。同时从前向和后向处理时序，能更好地捕捉电池容量衰减的双向依赖关系。",
   "physics_constraints": {
-    "enabled": true,
+    "enabled": false,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.1,
     "boundary_weight": 0.05,
