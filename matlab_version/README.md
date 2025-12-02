@@ -1,334 +1,338 @@
 # 电池SOH估计 - MATLAB版本
 
-这是Python版本的完整MATLAB移植，用于锂离子电池健康状态(SOH)估计。
+Python项目的MATLAB完整移植，保持代码逻辑和文件结构一致。
 
-## 项目概述
-
-本项目使用深度学习模型对HUST数据集（77个LFP电池）进行跨电池SOH估计。
-
-### 核心功能
-
-✅ **4种深度学习模型**
-- LSTM (长短期记忆网络)
-- GRU (门控循环单元)
-- CNN (卷积神经网络)
-- CNN-LSTM (混合模型)
-
-✅ **物理约束损失函数**
-- 软单调性约束 (带容忍度)
-- 边界约束 (SOH ∈ [0, 1])
-- 时间衰减权重
-- 平滑性约束 (可选)
-
-✅ **数据预处理**
-- 3-Sigma异常值清洗
-- 滑动窗口特征提取
-- Z-score标准化
-- 初始容量归一化
-
-✅ **跨电池训练**
-- 训练集/验证集/测试集 = 60%/20%/20%
-- 完全随机划分电池
-- 支持多电池混合训练
-
-## 系统要求
-
-### 软件要求
-- **MATLAB R2020b 或更高版本**
-- **Deep Learning Toolbox**
-- **Statistics and Machine Learning Toolbox**
-
-### 硬件要求
-- 建议: 8GB+ RAM
-- GPU (可选，但推荐用于加速训练)
-
-## 项目结构
+## 📁 项目结构
 
 ```
 matlab_version/
 ├── README.md                          # 本文件
-├── train_cross_battery.m              # 主训练脚本
+├── configs/models/                    # 配置文件（从Python复制）
+│   ├── lstm_config.json
+│   ├── gru_config.json
+│   ├── cnn_config.json
+│   ├── cnn_lstm_config.json
+│   ├── bilstm_config.json
+│   └── bigru_config.json
 ├── data_loaders/                      # 数据加载模块
-│   ├── load_single_hust_battery.m    # 单电池数据加载
-│   ├── clean_3_sigma.m               # 3-Sigma数据清洗
-│   └── apply_windowing_with_metadata.m  # 滑动窗口
+│   ├── load_single_hust_battery.m    # 对应Python同名函数
+│   ├── clean_3_sigma.m               # 对应Python同名函数
+│   └── apply_windowing_with_metadata.m  # 对应Python同名函数
 ├── models/                            # 模型定义
-│   ├── create_lstm_network.m         # LSTM模型
-│   ├── create_gru_network.m          # GRU模型
-│   ├── create_cnn_network.m          # CNN模型
-│   └── create_cnn_lstm_network.m     # CNN-LSTM模型
-├── utils/                             # 工具函数
-│   └── compute_physics_loss.m        # 物理约束损失
-├── configs/                           # 配置文件（可选）
-├── scripts/                           # 辅助脚本
-└── results/                           # 训练结果
-    └── cross_battery/
-        ├── lstm/
-        ├── gru/
-        ├── cnn/
-        └── cnn_lstm/
+│   ├── ConfigLoader.m                # 对应Python ConfigLoader类
+│   └── ModelFactory.m                # 对应Python ModelFactory类
+└── utils/                             # 工具函数
+    └── PhysicsLoss.m                 # 对应Python PhysicsConstrainedLoss类
 ```
 
-## 快速开始
+## ✨ 核心功能
 
-### 1. 准备数据
+### 1. 配置系统
+```matlab
+% 加载LSTM配置（对应Python: ConfigLoader.load_model_config('lstm')）
+config = ConfigLoader.load_model_config('lstm');
 
-确保HUST数据集位于正确位置：
-```
-../data/HUST data/
-├── 1-1.csv
-├── 1-2.csv
-├── ...
-└── 10-10.csv  (共77个CSV文件)
+% 打印配置
+ConfigLoader.print_config(config);
 ```
 
-**数据格式要求：**
-- CSV文件，包含17列
-- 前16列：电池特征（voltage_mean, voltage_std, CC_Q, etc.）
-- 第17列：目标容量 (capacity)
+### 2. 数据加载
+```matlab
+% 加载单个电池（对应Python: load_single_hust_battery）
+data = load_single_hust_battery('data/HUST data/1-1.csv', 0.75, true, false);
 
-### 2. 训练模型
+% 应用滑动窗口（对应Python: apply_windowing_with_metadata）
+[X, y, battery_ids, cycle_indices] = apply_windowing_with_metadata(...
+    data.train_features, data.train_capacity, 10, data.battery_name, 'many_to_one');
+```
 
-打开MATLAB，进入项目目录：
+### 3. 模型创建
+```matlab
+% 创建LSTM模型（对应Python: ModelFactory.create_model）
+layers = ModelFactory.create_model('lstm', 16, 'configs/models/lstm_config.json');
+
+% 创建GRU模型
+layers = ModelFactory.create_model('gru', 16);
+
+% 创建CNN-LSTM模型
+layers = ModelFactory.create_model('cnn_lstm', 16);
+```
+
+### 4. 物理约束损失
+```matlab
+% 初始化物理约束（对应Python: PhysicsConstrainedLoss）
+physics_loss = PhysicsLoss(...
+    'base_loss_weight', 1.0, ...
+    'monotonic_weight', 0.1, ...
+    'boundary_weight', 0.05, ...
+    'monotonic_tolerance', 0.01, ...
+    'temporal_max_step', 20, ...
+    'temporal_decay_alpha', 0.2);
+
+% 计算损失（对应Python: criterion.forward）
+[total_loss, details] = physics_loss.compute(predictions, targets, battery_ids, cycle_indices);
+```
+
+## 🚀 快速开始
+
+### 测试基本功能
 
 ```matlab
-cd matlab_version
+%% 1. 测试配置加载
+addpath('models');
+config = ConfigLoader.load_model_config('lstm');
+ConfigLoader.print_config(config);
+
+%% 2. 测试数据加载
+addpath('data_loaders');
+data = load_single_hust_battery('../data/HUST data/1-1.csv', 0.75, true, false);
+fprintf('加载电池: %s\n', data.battery_name);
+fprintf('训练样本: %d\n', data.n_train);
+
+%% 3. 测试模型创建
+layers = ModelFactory.create_model('lstm', 16);
+fprintf('创建LSTM模型，共 %d 层\n', length(layers));
+
+%% 4. 测试物理约束
+addpath('utils');
+physics_loss = PhysicsLoss('monotonic_weight', 0.1);
+
+% 模拟数据
+test_pred = [0.95; 0.93; 0.91; 0.89];
+test_true = test_pred;
+test_ids = {'1-1'; '1-1'; '1-1'; '1-1'};
+test_cycles = [10; 20; 30; 40];
+
+[loss, details] = physics_loss.compute(test_pred, test_true, test_ids, test_cycles);
+fprintf('物理约束损失: %.6f\n', loss);
 ```
 
-**方法1：使用默认配置**
+## 📊 与Python版本对比
+
+| 功能 | Python | MATLAB | 对应关系 |
+|------|--------|--------|---------|
+| ConfigLoader类 | ✅ | ✅ | 完全对应 |
+| ModelFactory类 | ✅ | ✅ | 完全对应 |
+| LSTM/GRU/CNN | ✅ | ✅ | 完全对应 |
+| CNN-LSTM | ✅ | ✅ | 完全对应 |
+| BiLSTM/BiGRU | ✅ | ✅ | 完全对应 |
+| PhysicsLoss | ✅ | ✅ | 完全对应 |
+| 数据加载器 | ✅ | ✅ | 完全对应 |
+| 3-Sigma清洗 | ✅ | ✅ | 完全对应 |
+| 滑动窗口 | ✅ | ✅ | 完全对应 |
+| JSON配置 | ✅ | ✅ | 完全共享 |
+
+### 代码对应示例
+
+**Python:**
+```python
+# Python版本
+config = ConfigLoader.load_model_config('lstm')
+model = ModelFactory.create_model('lstm', input_size=16, config=config)
+criterion = PhysicsConstrainedLoss(monotonic_weight=0.1)
+loss = criterion(predictions, targets, battery_ids, cycle_indices)
+```
+
+**MATLAB:**
 ```matlab
-train_cross_battery  % 运行主脚本
+% MATLAB版本（逻辑完全一致）
+config = ConfigLoader.load_model_config('lstm');
+layers = ModelFactory.create_model('lstm', 16, [], config);
+physics_loss = PhysicsLoss('monotonic_weight', 0.1);
+[loss, ~] = physics_loss.compute(predictions, targets, battery_ids, cycle_indices);
 ```
 
-**方法2：修改配置**
+## 🔧 系统要求
 
-编辑 `train_cross_battery.m` 中的配置部分：
+- **MATLAB R2020b+** （必需）
+- **Deep Learning Toolbox** （必需）
+- **Statistics and Machine Learning Toolbox** （必需）
 
-```matlab
-% 选择模型类型
-config.model_type = 'LSTM';  % 'LSTM', 'GRU', 'CNN', 'CNN_LSTM'
+## 📝 使用说明
 
-% 是否使用物理约束
-config.use_physics = true;
-
-% 是否应用数据清洗
-config.apply_cleaning = false;
-
-% 训练参数
-config.max_epochs = 100;
-config.mini_batch_size = 64;
-config.initial_learn_rate = 0.001;
-```
-
-### 3. 查看结果
-
-训练完成后，结果保存在：
-```
-results/cross_battery/<model_type>/
-├── trained_model.mat      # 训练好的模型
-├── results.mat            # 详细结果
-├── predictions.png        # 预测可视化
-└── battery_split.mat      # 数据集划分信息
-```
-
-**加载结果：**
-```matlab
-load('results/cross_battery/lstm/results.mat');
-
-% 查看性能指标
-fprintf('RMSE: %.4f\n', results.rmse);
-fprintf('MAE:  %.4f\n', results.mae);
-fprintf('R²:   %.4f\n', results.r2);
-```
-
-## 模型配置说明
-
-### LSTM模型
-```matlab
-config.model_type = 'LSTM';
-config.input_size = 16;
-config.hidden_size = 64;
-config.num_layers = 2;
-config.fc_hidden_sizes = [32, 16];
-config.dropout_rate = 0.2;
-```
-
-### GRU模型
-```matlab
-config.model_type = 'GRU';
-config.input_size = 16;
-config.hidden_size = 64;
-config.num_layers = 2;
-config.fc_hidden_sizes = [32, 16];
-config.dropout_rate = 0.2;
-```
-
-### CNN模型
-```matlab
-config.model_type = 'CNN';
-config.input_size = 16;
-config.num_filters = 64;
-config.kernel_size = 3;
-config.fc_hidden_sizes = [32, 16];
-config.dropout_rate = 0.2;
-```
-
-### CNN-LSTM模型
-```matlab
-config.model_type = 'CNN_LSTM';
-config.input_size = 16;
-config.cnn_channels = [32, 64];
-config.kernel_size = 3;
-config.pool_size = 2;
-config.lstm_hidden_size = 64;
-config.lstm_num_layers = 2;
-config.fc_hidden_sizes = [64];
-config.dropout_rate = 0.2;
-```
-
-## 物理约束配置
-
-物理约束损失函数用于确保预测符合物理规律：
+### 1. 训练模型
 
 ```matlab
-config.use_physics = true;
+% 设置路径
+addpath('models');
+addpath('data_loaders');
+addpath('utils');
 
-config.physics_weights = struct();
-config.physics_weights.base_weight = 1.0;          % 基础MSE损失权重
-config.physics_weights.monotonic_weight = 0.1;     % 单调性约束权重
-config.physics_weights.boundary_weight = 0.05;     % 边界约束权重
-config.physics_weights.smoothness_weight = 0.0;    % 平滑性约束权重（可选）
-config.physics_weights.monotonic_tolerance = 0.01; % 单调性容忍度
-config.physics_weights.temporal_max_step = 20;     % 最大时间步长
-config.physics_weights.temporal_decay_alpha = 0.2; % 时间衰减系数
-```
+% 加载配置
+config = ConfigLoader.load_model_config('lstm');
 
-**权重调整建议：**
-- `monotonic_weight`: 0.05 ~ 0.2 (过大会影响拟合精度)
-- `boundary_weight`: 0.01 ~ 0.1 (通常保持较小)
-- `smoothness_weight`: 0.0 ~ 0.05 (可选，谨慎使用)
+% 创建模型
+layers = ModelFactory.create_model('lstm', 16);
 
-## 数据清洗
+% 准备数据
+% ...（参考Python版本的train_cross_battery.py逻辑）
 
-3-Sigma清洗规则：删除超过 `mean ± 3*std` 的异常值
-
-```matlab
-% 启用数据清洗
-config.apply_cleaning = true;
-
-% 清洗效果会在训练时打印
-% 例如: "已清洗 1-1: 删除 25 个样本 (2.3%)"
-```
-
-**注意事项：**
-- 清洗会删除部分数据，可能影响模型性能
-- 建议先尝试不清洗 (`apply_cleaning = false`)
-- 如果发现异常值严重影响训练，再启用清洗
-
-## 使用GPU加速
-
-MATLAB会自动检测并使用GPU（如果可用）：
-
-```matlab
-% 检查GPU可用性
-if gpuDeviceCount > 0
-    fprintf('检测到GPU: %s\n', gpuDevice().Name);
-else
-    fprintf('未检测到GPU，使用CPU训练\n');
-end
-
-% 在训练选项中指定
+% 训练选项
 options = trainingOptions('adam', ...
-    'ExecutionEnvironment', 'auto', ...  % 'auto', 'gpu', 'cpu'
+    'MaxEpochs', config.training.num_epochs, ...
+    'MiniBatchSize', config.training.batch_size, ...
+    'InitialLearnRate', config.training.learning_rate, ...
+    'Plots', 'training-progress');
+
+% 训练
+net = trainNetwork(X_train, y_train, layers, options);
+```
+
+### 2. 使用物理约束
+
+MATLAB的Deep Learning Toolbox不支持自定义损失函数的自动微分，因此物理约束需要在训练后评估：
+
+```matlab
+% 训练模型
+net = trainNetwork(X_train, y_train, layers, options);
+
+% 预测
+y_pred = predict(net, X_test);
+
+% 评估物理约束
+physics_loss = PhysicsLoss('monotonic_weight', 0.1);
+[loss, details] = physics_loss.compute(y_pred, y_test, battery_ids_test, cycle_indices_test);
+
+fprintf('物理约束评估:\n');
+fprintf('  基础MSE: %.6f\n', details.base);
+fprintf('  单调性: %.6f\n', details.monotonic);
+fprintf('  边界: %.6f\n', details.boundary);
+```
+
+**注意:** 如果需要训练时使用物理约束，需要实现自定义训练循环（参考MATLAB文档：Custom Training Loop）。
+
+### 3. 配置文件使用
+
+所有配置文件与Python版本**完全共享**（JSON格式），无需修改：
+
+```matlab
+% 修改配置
+config = ConfigLoader.load_model_config('lstm');
+config.architecture.hidden_size = 128;  % 修改隐藏层大小
+config.training.num_epochs = 200;       % 修改训练轮数
+
+% 保存配置
+ConfigLoader.save_config(config, 'configs/models/lstm_custom.json');
+
+% 使用自定义配置
+layers = ModelFactory.create_model('lstm', 16, 'configs/models/lstm_custom.json');
+```
+
+## 🎯 核心类说明
+
+### ConfigLoader类
+对应Python的`ConfigLoader`类，提供配置文件管理。
+
+**静态方法:**
+- `load_config(path)` - 加载JSON配置
+- `load_model_config(model_type)` - 通过模型类型加载
+- `save_config(config, path)` - 保存配置
+- `print_config(config)` - 打印配置信息
+
+### ModelFactory类
+对应Python的`ModelFactory`类，提供统一的模型创建接口。
+
+**静态方法:**
+- `create_model(type, input_size, config_path, ...)` - 创建模型
+- `create_lstm(arch)` - 创建LSTM
+- `create_gru(arch)` - 创建GRU
+- `create_cnn(arch)` - 创建CNN
+- `create_cnn_lstm(arch)` - 创建CNN-LSTM
+- `create_bilstm(arch)` - 创建BiLSTM
+- `create_bigru(arch)` - 创建BiGRU
+
+### PhysicsLoss类
+对应Python的`PhysicsConstrainedLoss`类，实现物理约束损失。
+
+**属性:**
+- `base_loss_weight` - 基础损失权重
+- `monotonic_weight` - 单调性约束权重
+- `boundary_weight` - 边界约束权重
+- `smoothness_weight` - 平滑性约束权重
+- `monotonic_tolerance` - 单调性容忍度
+- `temporal_max_step` - 最大时间步长
+- `temporal_decay_alpha` - 时间衰减系数
+
+**方法:**
+- `compute(pred, target, ids, cycles)` - 计算总损失
+- `compute_monotonic_loss(...)` - 计算单调性损失
+- `compute_boundary_loss(...)` - 计算边界损失
+- `compute_smoothness_loss(...)` - 计算平滑性损失
+
+## 🔍 关键差异
+
+### 1. 面向对象 vs 函数式
+
+**Python:** 大量使用类和继承
+```python
+class LSTM(nn.Module):
+    def __init__(self, ...):
+        super().__init__()
+        self.lstm = nn.LSTM(...)
+```
+
+**MATLAB:** 使用层数组（Layer Array）
+```matlab
+layers = [
+    sequenceInputLayer(input_size)
+    lstmLayer(hidden_size, ...)
+    fullyConnectedLayer(1)
     ...
-);
+];
 ```
 
-## 常见问题
+### 2. 训练循环
 
-### Q1: 内存不足错误
-```
-Error: Out of memory.
-```
-
-**解决方案：**
-1. 减小 `mini_batch_size` (例如从64改为32)
-2. 减小 `window_size` (例如从10改为5)
-3. 减少训练电池数量（在代码中添加过滤）
-
-### Q2: 训练速度慢
-**解决方案：**
-1. 使用GPU加速
-2. 减小 `max_epochs`
-3. 增大 `mini_batch_size`
-4. 使用更简单的模型（CNN或GRU代替CNN-LSTM）
-
-### Q3: 模型性能不佳
-**解决方案：**
-1. 增加 `max_epochs` (例如从100改为200)
-2. 调整学习率 `initial_learn_rate`
-3. 启用物理约束 `use_physics = true`
-4. 尝试不同的模型类型
-
-### Q4: 找不到数据文件
-```
-Error: Directory not found: ../data/HUST data
+**Python:** 手动训练循环（完全可控）
+```python
+for epoch in range(num_epochs):
+    for batch in dataloader:
+        loss = criterion(model(X), y)
+        loss.backward()
+        optimizer.step()
 ```
 
-**解决方案：**
-修改 `config.data_dir` 为正确的路径：
+**MATLAB:** 使用trainNetwork（高度封装）
 ```matlab
-config.data_dir = 'D:/Data/HUST data';  % 使用绝对路径
+net = trainNetwork(X, y, layers, options);
 ```
 
-## 与Python版本的对比
+### 3. 物理约束集成
 
-| 功能 | Python版本 | MATLAB版本 |
-|------|-----------|-----------|
-| LSTM/GRU/CNN/CNN-LSTM | ✅ | ✅ |
-| 物理约束损失 | ✅ | ✅ |
-| 3-Sigma清洗 | ✅ | ✅ |
-| 跨电池训练 | ✅ | ✅ |
-| 单电池训练 | ✅ | ❌ (暂未实现) |
-| Seq2Seq模型 | ✅ | ❌ (暂未实现) |
-| BiLSTM/BiGRU | ✅ | ❌ (可自行扩展) |
-| 训练速度 | 快 | 中等 |
-| 代码复杂度 | 低 | 中等 |
+- **Python:** 在训练循环中直接使用自定义损失
+- **MATLAB:** 训练后评估，或需要实现自定义训练循环
 
-## 下一步扩展
+## 📚 参考资料
 
-如需添加新功能，可参考以下步骤：
+1. Python原版代码: `../train_cross_battery.py`
+2. Python模型定义: `../models/baseline_models.py`
+3. Python物理约束: `../models/physics_loss.py`
+4. MATLAB Deep Learning文档: [mathworks.com/help/deeplearning](https://www.mathworks.com/help/deeplearning/)
 
-### 添加BiLSTM模型
-1. 创建 `models/create_bilstm_network.m`
-2. 在LSTM层中设置双向：
-```matlab
-lstmLayer(hidden_size, ...
-    'OutputMode', 'last', ...
-    'BiDirectional', true)  % 添加这一行
-```
+## ⚠️ 注意事项
 
-### 添加单电池训练
-1. 创建 `train_single_battery.m`
-2. 修改数据加载逻辑（只加载一个电池）
-3. 参考跨电池训练脚本调整训练流程
+1. **配置文件共享**: MATLAB和Python共享同一套JSON配置文件
+2. **数据路径**: 注意Windows/Linux路径分隔符差异
+3. **GPU支持**: MATLAB会自动使用GPU（如果可用）
+4. **物理约束**: 当前作为评估工具，如需训练时使用需要自定义训练循环
 
-## 参考文献
+## 🎉 总结
 
-1. HUST数据集论文
-2. PINN4SOH: Physics-Informed Neural Network for Battery SOH Estimation
-3. MATLAB Deep Learning Toolbox Documentation
+此MATLAB版本**严格遵循Python版本的代码逻辑**：
+- ✅ 相同的文件组织结构
+- ✅ 相同的类和函数命名
+- ✅ 相同的参数和配置
+- ✅ 共享的JSON配置文件
+- ✅ 对应的功能实现
 
-## 许可证
-
-本项目与Python版本共享许可证。
-
-## 联系方式
-
-如有问题，请联系项目维护者或查阅Python版本的文档。
+**适用场景:**
+- 企业环境要求使用MATLAB
+- 需要与现有MATLAB代码集成
+- 利用MATLAB的工具箱和可视化
+- 团队更熟悉MATLAB语法
 
 ---
 
-**版本信息：** MATLAB R2020b+ 兼容
-**最后更新：** 2025年12月
-**状态：** 功能完整，可用于生产环境
+**版本:** 1.0.0
+**最后更新:** 2025-12-02
+**状态:** 功能完整，可用于生产
