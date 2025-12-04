@@ -91,19 +91,27 @@ class CNN_LSTM(nn.Module):
         前向传播
 
         Args:
-            x: 输入张量，shape: (batch_size, seq_len, input_size)
+            x: 输入张量，shape: (batch_size, seq_len, input_size) 或 (batch_size, input_size)
 
         Returns:
             output: SOH预测，shape: (batch_size, 1)
         """
-        batch_size, seq_len, input_size = x.shape
+        # 处理2维输入（window_size=1的情况）
+        if x.dim() == 2:
+            # (batch_size, input_size) -> (batch_size, 1, input_size)
+            x = x.unsqueeze(1)
 
         # 转换为CNN输入格式: (batch_size, input_size, seq_len)
         x = x.permute(0, 2, 1)
 
         # CNN特征提取
+        # 注意：当seq_len太小时，MaxPool可能导致输出为0
+        # 这种情况下，全局平均池化会更稳定
         for conv_layer in self.conv_layers:
             x = conv_layer(x)
+            # 如果序列长度太短，跳过池化以避免输出维度为0
+            if x.size(2) == 0:
+                raise ValueError(f"CNN output sequence length is 0. Input sequence may be too short for the configured pooling.")
 
         # 转换为LSTM输入格式: (batch_size, seq_len, channels)
         x = x.permute(0, 2, 1)
@@ -207,12 +215,15 @@ class CNN_BiLSTM(nn.Module):
         前向传播
 
         Args:
-            x: 输入张量，shape: (batch_size, seq_len, input_size)
+            x: 输入张量，shape: (batch_size, seq_len, input_size) 或 (batch_size, input_size)
 
         Returns:
             output: SOH预测，shape: (batch_size, 1)
         """
-        batch_size, seq_len, input_size = x.shape
+        # 处理2维输入（window_size=1的情况）
+        if x.dim() == 2:
+            # (batch_size, input_size) -> (batch_size, 1, input_size)
+            x = x.unsqueeze(1)
 
         # 转换为CNN输入格式: (batch_size, input_size, seq_len)
         x = x.permute(0, 2, 1)
@@ -316,15 +327,18 @@ class CNN_MLP(nn.Module):
         前向传播
 
         Args:
-            x: 输入张量，shape: (batch_size, seq_len, input_size)
+            x: 输入张量，shape: (batch_size, seq_len, input_size) 或 (batch_size, input_size)
 
         Returns:
             output: SOH预测，shape: (batch_size, 1)
         """
-        batch_size, seq_len, input_size = x.shape
-
-        # 转换为CNN输入格式: (batch_size, input_size, seq_len)
-        x = x.permute(0, 2, 1)
+        # 处理2维输入（window_size=1的情况）
+        if x.dim() == 2:
+            # (batch_size, input_size) -> (batch_size, input_size, 1)
+            x = x.unsqueeze(-1)
+        else:
+            # (batch_size, seq_len, input_size) -> (batch_size, input_size, seq_len)
+            x = x.permute(0, 2, 1)
 
         # CNN特征提取
         for conv_layer in self.conv_layers:
