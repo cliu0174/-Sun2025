@@ -488,8 +488,8 @@ def train_cross_battery_model(
     config_model_type = config['model_type'].lower()
     is_seq2seq = 'seq2seq' in config_model_type
 
-    # 时序模型需要窗口化数据
-    needs_window = any(model_name in config_model_type for model_name in ['lstm', 'gru'])
+    # 时序模型和CNN混合模型需要窗口化数据
+    needs_window = any(model_name in config_model_type for model_name in ['lstm', 'gru', 'cnn'])
     if needs_window or is_seq2seq:
         window_size = config.get('data', {}).get('window_size', 10)
         if is_seq2seq:
@@ -1080,7 +1080,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'cnn_lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
+    MODEL_TYPE = 'cnn_mlp'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
