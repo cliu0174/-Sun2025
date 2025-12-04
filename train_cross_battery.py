@@ -410,7 +410,8 @@ def train_cross_battery_model(
     device='cuda',
     seed=42,
     apply_cleaning=False,
-    color_by_battery=True  # 新增：是否按电池着色（默认True）
+    color_by_battery=True,      # 是否按电池着色（默认True）
+    highlight_anomalies=True     # 是否突出显示异常电池（默认True）
 ):
     """
     跨电池训练模型。
@@ -423,6 +424,8 @@ def train_cross_battery_model(
         device: 计算设备
         seed: 随机种子
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
+        color_by_battery: 是否按电池着色（默认True）
+        highlight_anomalies: 是否突出显示异常电池（默认True）
     """
     set_seed(seed)
 
@@ -812,12 +815,18 @@ def train_cross_battery_model(
     test_rmse = np.sqrt(np.mean((predictions_np - targets_np) ** 2))
     test_mape = np.mean(np.abs((predictions_np - targets_np) / targets_np)) * 100
 
+    # 计算R² (决定系数)
+    ss_res = np.sum((targets_np - predictions_np) ** 2)  # 残差平方和
+    ss_tot = np.sum((targets_np - np.mean(targets_np)) ** 2)  # 总平方和
+    test_r2 = 1 - (ss_res / ss_tot)
+
     print("\n" + "="*70)
     print("测试集结果")
     print("="*70)
     print(f"MAE:  {test_mae*100:.4f}%")
     print(f"RMSE: {test_rmse*100:.4f}%")
     print(f"MAPE: {test_mape:.4f}%")
+    print(f"R²:   {test_r2:.6f}")
 
     # 10. 保存结果
     results_dir = f'results/cross_battery/{model_type}'
@@ -849,6 +858,7 @@ def train_cross_battery_model(
         'test_mae': float(test_mae),
         'test_rmse': float(test_rmse),
         'test_mape': float(test_mape),
+        'test_r2': float(test_r2),
         'best_val_mae': float(best_val_mae),
         'best_epoch': best_epoch,
         'predictions': predictions_np.tolist(),
@@ -863,7 +873,8 @@ def train_cross_battery_model(
 
     # 绘制图表
     plot_cross_battery_results(history, predictions_np, targets_np,
-                                final_battery_ids if color_by_battery else None, results_dir)
+                                final_battery_ids if color_by_battery else None,
+                                results_dir, highlight_anomalies)
 
     print(f"\n所有结果已保存到: {results_dir}/")
     print("="*70)
@@ -871,7 +882,7 @@ def train_cross_battery_model(
     return wrapper, results, data_dict
 
 
-def plot_cross_battery_results(history, predictions, targets, battery_ids, save_dir):
+def plot_cross_battery_results(history, predictions, targets, battery_ids, save_dir, highlight_anomalies=True):
     """
     绘制训练结果
 
@@ -881,6 +892,7 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         targets: 真实值
         battery_ids: 电池编号列表
         save_dir: 保存目录
+        highlight_anomalies: 是否突出显示异常电池（默认True）
     """
 
     # 1. 训练曲线
@@ -932,8 +944,8 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
         for i, battery_id in enumerate(unique_batteries):
             mask = np.array([bid == battery_id for bid in battery_ids])
 
-            # 检查是否为异常电池
-            is_problematic = battery_id in problematic_batteries
+            # 检查是否为异常电池且启用了高亮
+            is_problematic = highlight_anomalies and (battery_id in problematic_batteries)
 
             if is_problematic:
                 # 异常电池使用特殊标记：红色星形，更大，边框
@@ -947,8 +959,9 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
                               alpha=0.6, s=10, c=[colors[i]],
                               label=f'{battery_id}' if n_batteries <= 10 else None)
 
-        # 只在电池数量<=10时显示图例，或者有异常电池时总是显示
-        if n_batteries <= 10 or any(b in problematic_batteries for b in unique_batteries):
+        # 只在电池数量<=10时显示图例，或者启用高亮且有异常电池时显示
+        show_legend = n_batteries <= 10 or (highlight_anomalies and any(b in problematic_batteries for b in unique_batteries))
+        if show_legend:
             axes[0].legend(loc='best', fontsize=8, markerscale=2)
     else:
         # Standard mode: 单一颜色
@@ -976,6 +989,87 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
     plt.savefig(os.path.join(save_dir, 'predictions.png'), dpi=300)
     plt.close()
 
+    # 3. 绘制最好的3个电池的容量衰减预测曲线
+    if battery_ids is not None and len(battery_ids) > 0:
+        plot_top_batteries_capacity_curves(predictions, targets, battery_ids, save_dir, top_n=3)
+
+
+def plot_top_batteries_capacity_curves(predictions, targets, battery_ids, save_dir, top_n=3):
+    """
+    绘制预测效果最好的前N个电池的容量衰减曲线
+
+    Args:
+        predictions: 预测值 (numpy array)
+        targets: 真实值 (numpy array)
+        battery_ids: 电池编号列表
+        save_dir: 保存目录
+        top_n: 显示前N个最好的电池 (默认3)
+    """
+    print(f"\n绘制预测效果最好的前{top_n}个电池容量衰减曲线...")
+
+    # 计算每个电池的MAE
+    unique_batteries = sorted(set(battery_ids))
+    battery_errors = {}
+
+    for battery_id in unique_batteries:
+        mask = np.array([bid == battery_id for bid in battery_ids])
+        battery_preds = predictions[mask]
+        battery_targets = targets[mask]
+        battery_mae = np.mean(np.abs(battery_preds - battery_targets))
+        battery_errors[battery_id] = battery_mae
+
+    # 按MAE排序，取前N个最好的
+    sorted_batteries = sorted(battery_errors.items(), key=lambda x: x[1])
+    top_batteries = [b[0] for b in sorted_batteries[:top_n]]
+
+    print(f"  预测效果最好的{top_n}个电池:")
+    for i, (battery_id, mae) in enumerate(sorted_batteries[:top_n], 1):
+        print(f"    {i}. {battery_id}: MAE = {mae*100:.4f}%")
+
+    # 创建子图
+    _, axes = plt.subplots(1, top_n, figsize=(6*top_n, 5))
+    if top_n == 1:
+        axes = [axes]
+
+    for idx, battery_id in enumerate(top_batteries):
+        ax = axes[idx]
+
+        # 获取该电池的预测和真实值
+        mask = np.array([bid == battery_id for bid in battery_ids])
+        battery_preds = predictions[mask]
+        battery_targets = targets[mask]
+
+        # 创建cycle索引 (假设按顺序)
+        cycles = np.arange(len(battery_preds))
+
+        # 绘制真实值和预测值
+        ax.plot(cycles, battery_targets, 'o-', label='True SOH',
+                color='steelblue', markersize=4, linewidth=2, alpha=0.7)
+        ax.plot(cycles, battery_preds, 's-', label='Predicted SOH',
+                color='orangered', markersize=3, linewidth=2, alpha=0.7)
+
+        # 计算并显示指标
+        mae = np.mean(np.abs(battery_preds - battery_targets))
+        rmse = np.sqrt(np.mean((battery_preds - battery_targets) ** 2))
+        r2 = 1 - np.sum((battery_targets - battery_preds)**2) / np.sum((battery_targets - np.mean(battery_targets))**2)
+
+        ax.set_xlabel('Cycle Index', fontsize=11)
+        ax.set_ylabel('SOH', fontsize=11)
+        ax.set_title(f'Battery {battery_id}\nMAE={mae*100:.3f}%, RMSE={rmse*100:.3f}%, R²={r2:.4f}',
+                    fontsize=11, fontweight='bold')
+        ax.legend(loc='best', fontsize=10)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim([battery_targets.min() - 0.05, battery_targets.max() + 0.05])
+
+    plt.suptitle(f'Top {top_n} Best Predicted Batteries - Capacity Degradation Curves',
+                fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+
+    output_path = os.path.join(save_dir, 'top_batteries_predictions.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"  [OK] 已保存: {output_path}")
+    plt.close()
+
 
 if __name__ == "__main__":
     """
@@ -986,7 +1080,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'gru'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
+    MODEL_TYPE = 'cnn_lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
@@ -1003,8 +1097,9 @@ if __name__ == "__main__":
         test_ratio=TEST_RATIO,
         device=DEVICE,
         seed=SEED,
-        # apply_cleaning=True,  # 是否使用3-Sigma数据清洗
-        color_by_battery=True  # 是否按电池着色（True=彩色图，False=单色图）
+        apply_cleaning=False,       # 是否使用3-Sigma数据清洗
+        color_by_battery=True,       # 是否按电池着色（True=彩色图，False=单色图）
+        highlight_anomalies=False     # 是否突出显示异常电池（True=红色星形，False=普通显示）
     )
 
     print("\n" + "="*70)
@@ -1014,6 +1109,7 @@ if __name__ == "__main__":
     print(f"  MAE:  {results['test_mae']*100:.4f}%")
     print(f"  RMSE: {results['test_rmse']*100:.4f}%")
     print(f"  MAPE: {results['test_mape']:.4f}%")
+    print(f"  R²:   {results['test_r2']:.6f}")
     print(f"\n训练集: {len(data_dict['train_batteries'])} 个电池")
     print(f"验证集: {len(data_dict['val_batteries'])} 个电池")
     print(f"测试集: {len(data_dict['test_batteries'])} 个电池")
