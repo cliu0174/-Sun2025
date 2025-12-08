@@ -1080,7 +1080,7 @@ if __name__ == "__main__":
     """
 
     # ===== 配置参数 =====
-    MODEL_TYPE = 'cnn_mlp'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
+    MODEL_TYPE = 'cnn_lstm'         # 模型类型: 'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn', 'cnn_lstm'
     TRAIN_RATIO = 0.6           # 训练集比例 (60%)
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
