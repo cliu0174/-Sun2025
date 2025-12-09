@@ -528,6 +528,176 @@ class SiamesePhysicsLoss(nn.Module):
         return self.loss_details
 
 
+class TripletPhysicsLoss(nn.Module):
+    """
+    Triplet Physics-Informed Loss with Second-Order Smoothness Constraint
+
+    Key Features:
+    1. Works with triplet samples (x_1, x_2, x_3) at times (t, t+k, t+2k)
+    2. MSE component applies to ALL three samples
+    3. First-order constraint: Monotonicity (pred_2 <= pred_1, pred_3 <= pred_2)
+    4. Second-order constraint: Curvature = pred_3 - 2*pred_2 + pred_1
+       - This is the discrete second derivative (Laplacian)
+       - Minimizing curvature² eliminates high-frequency jitter (sawtooth patterns)
+    5. Split constraint: Physics only applies to cycles >= split_threshold
+
+    Advantages over Pairwise:
+    - Pairwise only constrains "velocity" (first derivative)
+    - Triplet also constrains "acceleration" (second derivative)
+    - Can suppress oscillations that pairwise cannot catch
+    """
+
+    def __init__(
+        self,
+        base_loss_weight=1.0,
+        monotonic_weight=0.1,
+        curvature_weight=0.1,
+        boundary_weight=0.05,
+        split_threshold=300,
+        monotonic_tolerance=0.0,
+        verbose=False
+    ):
+        """
+        Args:
+            base_loss_weight: Weight for MSE loss
+            monotonic_weight: Weight for monotonicity constraint (1st order)
+            curvature_weight: Weight for curvature constraint (2nd order)
+            boundary_weight: Weight for boundary constraint (SOH in [0,1])
+            split_threshold: Cycle threshold for masking physics loss
+            monotonic_tolerance: Tolerance for monotonicity (0 = strict decrease)
+            verbose: Whether to print debug info
+        """
+        super().__init__()
+
+        self.base_loss_weight = base_loss_weight
+        self.monotonic_weight = monotonic_weight
+        self.curvature_weight = curvature_weight
+        self.boundary_weight = boundary_weight
+        self.split_threshold = split_threshold
+        self.monotonic_tolerance = monotonic_tolerance
+        self.verbose = verbose
+
+        self.mse_loss = nn.MSELoss()
+        self.loss_details = {}
+
+    def forward(self, pred_1, pred_2, pred_3, true_1, true_2, true_3, cycle_indices):
+        """
+        Compute total loss for Triplet samples.
+
+        Args:
+            pred_1: (batch, 1) predictions at time t
+            pred_2: (batch, 1) predictions at time t+k
+            pred_3: (batch, 1) predictions at time t+2k
+            true_1: (batch, 1) ground truth at time t
+            true_2: (batch, 1) ground truth at time t+k
+            true_3: (batch, 1) ground truth at time t+2k
+            cycle_indices: (batch,) cycle indices at time t
+
+        Returns:
+            total_loss: scalar tensor
+        """
+        # Ensure all tensors are on the same device
+        device = pred_1.device
+
+        # 1. MSE Component (applies to ALL three samples)
+        mse_1 = self.mse_loss(pred_1, true_1)
+        mse_2 = self.mse_loss(pred_2, true_2)
+        mse_3 = self.mse_loss(pred_3, true_3)
+        base_loss = (mse_1 + mse_2 + mse_3) / 3
+
+        # 2. Create mask based on cycle_indices
+        # mask = 1 if cycle_index >= split_threshold, else 0
+        if not isinstance(cycle_indices, torch.Tensor):
+            cycle_indices = torch.tensor(cycle_indices, device=device)
+        elif cycle_indices.device != device:
+            cycle_indices = cycle_indices.to(device)
+
+        mask = (cycle_indices >= self.split_threshold).float()  # (batch,)
+
+        # 3. Monotonicity Constraint (1st order, masked)
+        # Both transitions should be non-increasing:
+        # - pred_2 <= pred_1
+        # - pred_3 <= pred_2
+
+        # Squeeze to ensure 1D
+        pred_1_flat = pred_1.squeeze() if pred_1.dim() > 1 else pred_1
+        pred_2_flat = pred_2.squeeze() if pred_2.dim() > 1 else pred_2
+        pred_3_flat = pred_3.squeeze() if pred_3.dim() > 1 else pred_3
+
+        # Calculate differences
+        diff_1_2 = pred_2_flat - pred_1_flat  # Should be <= 0
+        diff_2_3 = pred_3_flat - pred_2_flat  # Should be <= 0
+
+        # Violations: if diff > tolerance, penalize
+        violation_1_2 = torch.relu(diff_1_2 - self.monotonic_tolerance)
+        violation_2_3 = torch.relu(diff_2_3 - self.monotonic_tolerance)
+
+        # Apply mask and average
+        masked_monotonic_loss = ((violation_1_2 ** 2) + (violation_2_3 ** 2)) * mask
+        monotonic_loss = masked_monotonic_loss.mean()
+
+        # 4. Curvature Constraint (2nd order, masked) - KEY INNOVATION!
+        # Discrete second derivative (Laplacian):
+        # curvature = pred_3 - 2*pred_2 + pred_1
+        #
+        # Physical interpretation:
+        # - If points are on a straight line: curvature = 0
+        # - If there's a "bend" (change in direction): curvature != 0
+        # - Minimizing curvature² forces smooth, consistent decline
+
+        curvature = pred_3_flat - 2.0 * pred_2_flat + pred_1_flat
+
+        # Penalize curvature (any deviation from straight line)
+        curvature_violation = curvature ** 2
+
+        # Apply mask
+        masked_curvature_loss = curvature_violation * mask
+
+        # Average over batch
+        curvature_loss = masked_curvature_loss.mean()
+
+        # 5. Boundary Constraint (applies to ALL samples)
+        # Penalize if SOH goes outside [0, 1]
+        boundary_1 = torch.relu(-pred_1) + torch.relu(pred_1 - 1.0)
+        boundary_2 = torch.relu(-pred_2) + torch.relu(pred_2 - 1.0)
+        boundary_3 = torch.relu(-pred_3) + torch.relu(pred_3 - 1.0)
+        boundary_loss = (boundary_1.mean() + boundary_2.mean() + boundary_3.mean()) / 3
+
+        # 6. Total Loss
+        total_loss = (
+            self.base_loss_weight * base_loss +
+            self.monotonic_weight * monotonic_loss +
+            self.curvature_weight * curvature_loss +
+            self.boundary_weight * boundary_loss
+        )
+
+        # Record details
+        self.loss_details = {
+            'total': total_loss.item(),
+            'base': base_loss.item(),
+            'mse_1': mse_1.item(),
+            'mse_2': mse_2.item(),
+            'mse_3': mse_3.item(),
+            'monotonic': monotonic_loss.item(),
+            'curvature': curvature_loss.item(),
+            'boundary': boundary_loss.item(),
+            'mask_active_ratio': mask.mean().item()
+        }
+
+        if self.verbose:
+            print(f"[TripletPhysicsLoss] Total: {total_loss.item():.6f}, "
+                  f"Base: {base_loss.item():.6f}, "
+                  f"Mono: {monotonic_loss.item():.6f}, "
+                  f"Curv: {curvature_loss.item():.6f}, "
+                  f"Mask: {mask.mean().item()*100:.1f}%")
+
+        return total_loss
+
+    def get_loss_details(self):
+        """Get detailed loss breakdown from last forward pass."""
+        return self.loss_details
+
+
 if __name__ == "__main__":
     """测试物理约束损失函数"""
 

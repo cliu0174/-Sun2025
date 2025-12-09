@@ -339,19 +339,23 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
 
     用于在 Many-to-One 模型中应用物理约束
 
-    New Feature: Supports Siamese/Pairwise sampling mode via 'siamese_mode' parameter.
+    Supports three sampling modes:
+    1. Standard mode: Single sample (siamese_mode=False, triplet_mode=False)
+    2. Pairwise mode: Paired samples (siamese_mode=True, triplet_mode=False)
+    3. Triplet mode: Three samples (siamese_mode=False, triplet_mode=True)
 
-    IMPORTANT: Siamese mode is ONLY used for training/validation.
+    IMPORTANT: Pairwise/Triplet modes are ONLY for training/validation.
                For testing, always use mode='test' to ensure single-sample inference.
     """
-    def __init__(self, X, y, battery_ids, cycle_indices, siamese_mode=False, step_k=1, mode='train'):
+    def __init__(self, X, y, battery_ids, cycle_indices, siamese_mode=False, triplet_mode=False, step_k=1, mode='train'):
         """
         Args:
             X: (N, window_size, feature_dim) 输入窗口
             y: (N,) 目标值
             battery_ids: (N,) 电池名称数组
             cycle_indices: (N,) cycle 索引数组
-            siamese_mode: (bool) 是否启用孪生采样模式 (default=False保持兼容)
+            siamese_mode: (bool) 是否启用孪生采样模式 (default=False)
+            triplet_mode: (bool) 是否启用三元组采样模式 (default=False)
             step_k: (int) 配对步长 (default=1, 相邻样本)
             mode: (str) 'train', 'val', or 'test' - forces single-sample for test
         """
@@ -360,22 +364,30 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
         self.battery_ids = battery_ids
         self.cycle_indices = torch.LongTensor(cycle_indices)
 
-        # New: Mode and Siamese settings
+        # Mode and sampling settings
         self.mode = mode
         self.siamese_mode = siamese_mode
+        self.triplet_mode = triplet_mode
         self.step_k = step_k
+
+        # Validate: cannot enable both siamese and triplet
+        if self.siamese_mode and self.triplet_mode:
+            raise ValueError("Cannot enable both siamese_mode and triplet_mode simultaneously")
 
         # CRITICAL: Force single-sample mode for testing (no data leakage!)
         if self.mode == 'test':
             self.siamese_mode = False
-            if siamese_mode:
-                print(f"[WARNING] Test mode detected: disabling siamese_mode to prevent data leakage")
+            self.triplet_mode = False
+            if siamese_mode or triplet_mode:
+                print(f"[WARNING] Test mode detected: disabling pairwise/triplet mode to prevent data leakage")
 
-        if self.siamese_mode:
-            # Build valid pairs for siamese mode (training/validation only)
+        # Build valid indices based on mode
+        if self.triplet_mode:
+            self.valid_indices = self._build_valid_triplets()
+        elif self.siamese_mode:
             self.valid_indices = self._build_valid_pairs()
         else:
-            # Original mode: all indices are valid
+            # Standard mode: all indices are valid
             self.valid_indices = list(range(len(self.X)))
 
     def _build_valid_pairs(self):
@@ -395,6 +407,28 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
 
         return valid_indices
 
+    def _build_valid_triplets(self):
+        """
+        Build list of valid indices for Triplet mode.
+        Only keep samples that have TWO valid next samples from the SAME battery.
+        Returns samples that can form (t, t+k, t+2k) triplets.
+        """
+        valid_indices = []
+
+        for idx in range(len(self.X) - 2 * self.step_k):
+            # Check if both next samples are from same battery
+            if (self.battery_ids[idx] == self.battery_ids[idx + self.step_k] and
+                self.battery_ids[idx] == self.battery_ids[idx + 2 * self.step_k]):
+
+                # Check if cycles are exactly step_k apart for both transitions
+                cycle_diff_1 = self.cycle_indices[idx + self.step_k] - self.cycle_indices[idx]
+                cycle_diff_2 = self.cycle_indices[idx + 2 * self.step_k] - self.cycle_indices[idx + self.step_k]
+
+                if cycle_diff_1 == self.step_k and cycle_diff_2 == self.step_k:
+                    valid_indices.append(idx)
+
+        return valid_indices
+
     def __len__(self):
         return len(self.valid_indices)
 
@@ -402,24 +436,34 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
         """
         Returns sample(s) based on mode.
 
-        Original mode (siamese_mode=False):
+        Standard mode (siamese_mode=False, triplet_mode=False):
             Returns single sample dict
 
-        Siamese mode (siamese_mode=True):
-            Returns paired samples dict
+        Pairwise mode (siamese_mode=True, triplet_mode=False):
+            Returns paired samples dict (t, t+k)
+
+        Triplet mode (siamese_mode=False, triplet_mode=True):
+            Returns triplet samples dict (t, t+k, t+2k)
         """
         real_idx = self.valid_indices[idx]
 
-        if not self.siamese_mode:
-            # Original behavior: return single sample
+        if self.triplet_mode:
+            # Triplet mode: return three samples
+            idx_2 = real_idx + self.step_k
+            idx_3 = real_idx + 2 * self.step_k
+
             return {
-                'window': self.X[real_idx],
-                'target_soh': self.y[real_idx],
-                'battery_id': self.battery_ids[real_idx],
-                'cycle_idx': self.cycle_indices[real_idx]
+                'x_1': self.X[real_idx],
+                'x_2': self.X[idx_2],
+                'x_3': self.X[idx_3],
+                'y_1': self.y[real_idx],
+                'y_2': self.y[idx_2],
+                'y_3': self.y[idx_3],
+                'cycle_index': self.cycle_indices[real_idx],
+                'battery_id': self.battery_ids[real_idx]
             }
-        else:
-            # Siamese mode: return paired samples
+        elif self.siamese_mode:
+            # Pairwise mode: return paired samples
             next_idx = real_idx + self.step_k
 
             return {
@@ -429,6 +473,14 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
                 'y_next': self.y[next_idx],
                 'cycle_index': self.cycle_indices[real_idx],
                 'battery_id': self.battery_ids[real_idx]
+            }
+        else:
+            # Standard mode: return single sample
+            return {
+                'window': self.X[real_idx],
+                'target_soh': self.y[real_idx],
+                'battery_id': self.battery_ids[real_idx],
+                'cycle_idx': self.cycle_indices[real_idx]
             }
 
 

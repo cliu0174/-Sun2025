@@ -51,7 +51,7 @@
     "l2_weight": 0.0
   },
   "physics_constraints": {
-    "enabled": true,
+    "enabled": false,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.5,
     "boundary_weight": 0.0,
@@ -64,12 +64,19 @@
       "decay_alpha": 0.2
     },
     "siamese_sampling": {
-      "enabled": true,
+      "enabled": false,
       "split_threshold": 300,
       "step_k": 1,
       "description": "孪生采样：前split_threshold循环无约束，后期强制单调"
     },
-    "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
+    "triplet_sampling": {
+      "enabled": true,
+      "split_threshold": 300,
+      "step_k": 1,
+      "description": "三元组采样：二阶曲率约束，消除预测曲线锯齿"
+    },
+    "curvature_weight": 0.05,
+    "description": "物理约束：软单调性 + 二阶曲率约束 + 边界约束"
   },
   "visualization": {
     "color_by_battery": true

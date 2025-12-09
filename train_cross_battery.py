@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
 # 导入模型工厂和物理约束
-from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss, SiamesePhysicsLoss
+from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss
 from data_loaders import load_single_hust_battery
 from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
 
@@ -208,7 +208,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     return data_dict
 
 
-def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False, siamese_mode=False, step_k=1):
+def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False, siamese_mode=False, triplet_mode=False, step_k=1):
     """
     创建PyTorch DataLoader，支持窗口化数据和物理约束。
 
@@ -219,13 +219,14 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         seq2seq: 是否使用Seq2Seq模式（Many-to-Many）
         use_physics: 是否使用物理约束（需要 battery_id 和 cycle_idx）
         siamese_mode: 是否使用孪生采样模式（向后兼容：默认False）
-        step_k: 孪生采样的步长（默认1=相邻）
+        triplet_mode: 是否使用三元组采样模式（向后兼容：默认False）
+        step_k: 采样的步长（默认1=相邻）
     """
     from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 
     def custom_collate_fn(batch):
-        """自定义 collate function，处理带元数据的 batch（支持孪生模式）"""
-        # 检查是否为孪生模式
+        """自定义 collate function，处理带元数据的 batch（支持标准/孪生/三元组模式）"""
+        # 检查数据格式
         if 'window' in batch[0]:
             # 标准模式
             windows = torch.stack([item['window'] for item in batch])
@@ -235,6 +236,26 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             return {
                 'window': windows,
                 'target_soh': targets,
+                'battery_id': battery_ids,
+                'cycle_idx': cycle_indices
+            }
+        elif 'x_1' in batch[0]:
+            # 三元组模式
+            x_1 = torch.stack([item['x_1'] for item in batch])
+            x_2 = torch.stack([item['x_2'] for item in batch])
+            x_3 = torch.stack([item['x_3'] for item in batch])
+            y_1 = torch.cat([item['y_1'].unsqueeze(0) for item in batch], dim=0)
+            y_2 = torch.cat([item['y_2'].unsqueeze(0) for item in batch], dim=0)
+            y_3 = torch.cat([item['y_3'].unsqueeze(0) for item in batch], dim=0)
+            battery_ids = [item['battery_id'] for item in batch]
+            cycle_indices = torch.stack([item['cycle_index'] for item in batch])
+            return {
+                'x_1': x_1,
+                'x_2': x_2,
+                'x_3': x_3,
+                'y_1': y_1,
+                'y_2': y_2,
+                'y_3': y_3,
                 'battery_id': battery_ids,
                 'cycle_idx': cycle_indices
             }
@@ -275,7 +296,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, step_k=step_k, mode='train')
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, triplet_mode=triplet_mode, step_k=step_k, mode='train')
             train_datasets.append(dataset)
 
         # 验证集
@@ -291,7 +312,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, step_k=step_k, mode='val')
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, triplet_mode=triplet_mode, step_k=step_k, mode='val')
             val_datasets.append(dataset)
 
         # 测试集
@@ -308,7 +329,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
             # CRITICAL: Test set MUST use mode='test' to prevent data leakage
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=False, step_k=step_k, mode='test')
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=False, triplet_mode=False, step_k=step_k, mode='test')
             test_datasets.append(dataset)
 
         # 合并所有电池的 dataset
@@ -507,13 +528,27 @@ def train_cross_battery_model(
         split_threshold = siamese_config.get('split_threshold', 300)
         step_k = siamese_config.get('step_k', 1)
 
-        if siamese_mode:
+        # 读取三元组采样配置（向后兼容：默认关闭）
+        triplet_config = physics_config.get('triplet_sampling', {})
+        triplet_mode = triplet_config.get('enabled', False)
+
+        # Validate: cannot enable both siamese and triplet
+        if siamese_mode and triplet_mode:
+            raise ValueError("Cannot enable both siamese_sampling and triplet_sampling simultaneously")
+
+        if triplet_mode:
+            print(f"\n  三元组采样: 启用")
+            print(f"    分段阈值: {split_threshold} cycles")
+            print(f"    配对步长: {step_k}")
+            print(f"    曲率权重: {physics_config.get('curvature_weight', 0.1)}")
+        elif siamese_mode:
             print(f"\n  孪生采样: 启用")
             print(f"    分段阈值: {split_threshold} cycles")
             print(f"    配对步长: {step_k}")
     else:
         print("\n物理约束: 未启用")
         siamese_mode = False
+        triplet_mode = False
         split_threshold = 300
         step_k = 1
 
@@ -541,6 +576,7 @@ def train_cross_battery_model(
         seq2seq=is_seq2seq,
         use_physics=use_physics,  # 传递物理约束标志
         siamese_mode=siamese_mode,  # 传递孪生采样标志（向后兼容：默认False）
+        triplet_mode=triplet_mode,  # 传递三元组采样标志（向后兼容：默认False）
         step_k=step_k  # 传递配对步长
     )
 
@@ -558,9 +594,23 @@ def train_cross_battery_model(
 
     optimizer = wrapper.get_optimizer()
 
-    # 8. 创建损失函数（支持物理约束和孪生采样）
+    # 8. 创建损失函数（支持物理约束、孪生采样、三元组采样）
     if use_physics:
-        if siamese_mode:
+        if triplet_mode:
+            # 三元组采样模式：使用 TripletPhysicsLoss
+            criterion = TripletPhysicsLoss(
+                base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+                monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+                curvature_weight=physics_config.get('curvature_weight', 0.1),
+                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                split_threshold=split_threshold,
+                monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.0),
+                verbose=False
+            ).to(device)
+            print(f"\n损失函数: TripletPhysicsLoss (三元组采样 + 二阶曲率约束)")
+            print(f"  分段阈值: {split_threshold} cycles")
+            print(f"  曲率权重: {physics_config.get('curvature_weight', 0.1)}")
+        elif siamese_mode:
             # 孪生采样模式：使用 SiamesePhysicsLoss
             criterion = SiamesePhysicsLoss(
                 base_loss_weight=physics_config.get('base_loss_weight', 1.0),
@@ -631,9 +681,34 @@ def train_cross_battery_model(
             # 处理不同类型的batch
             # 检查batch类型（dict表示有元数据，tuple表示无元数据）
             if isinstance(batch, dict):
-                # 检查是否为孪生模式（通过 'x_t' key 判断）
-                if 'x_t' in batch:
-                    # 孪生模式：配对样本
+                # 检查数据格式：triplet / pairwise / standard
+                if 'x_1' in batch:
+                    # Triplet mode: 三元组样本
+                    x_1 = batch['x_1'].to(device)
+                    x_2 = batch['x_2'].to(device)
+                    x_3 = batch['x_3'].to(device)
+                    y_1 = batch['y_1'].to(device)
+                    y_2 = batch['y_2'].to(device)
+                    y_3 = batch['y_3'].to(device)
+                    cycle_indices = batch['cycle_idx']
+
+                    optimizer.zero_grad()
+
+                    # 三次前向传播
+                    pred_1 = model(x_1)
+                    pred_2 = model(x_2)
+                    pred_3 = model(x_3)
+
+                    # 三元组模式损失计算（TripletPhysicsLoss）
+                    loss = criterion(pred_1, pred_2, pred_3, y_1, y_2, y_3, cycle_indices)
+
+                    loss.backward()
+                    optimizer.step()
+
+                    train_loss += loss.item() * x_1.size(0)
+
+                elif 'x_t' in batch:
+                    # Pairwise mode: 配对样本
                     x_t = batch['x_t'].to(device)
                     x_next = batch['x_next'].to(device)
                     y_t = batch['y_t'].to(device)
@@ -727,9 +802,50 @@ def train_cross_battery_model(
                 # 处理不同类型的batch
                 # 检查batch类型（dict表示有元数据，tuple表示无元数据）
                 if isinstance(batch, dict):
-                    # 检查是否为孪生模式（通过 'x_t' key 判断）
-                    if 'x_t' in batch:
-                        # 孪生模式：配对样本
+                    # 检查数据格式：triplet / pairwise / standard
+                    if 'x_1' in batch:
+                        # Triplet mode: 三元组样本
+                        x_1 = batch['x_1'].to(device)
+                        x_2 = batch['x_2'].to(device)
+                        x_3 = batch['x_3'].to(device)
+                        y_1 = batch['y_1'].to(device)
+                        y_2 = batch['y_2'].to(device)
+                        y_3 = batch['y_3'].to(device)
+                        cycle_indices = batch['cycle_idx']
+
+                        # 三次前向传播
+                        pred_1 = model(x_1)
+                        pred_2 = model(x_2)
+                        pred_3 = model(x_3)
+
+                        # 三元组模式损失计算（TripletPhysicsLoss）
+                        loss = criterion(pred_1, pred_2, pred_3, y_1, y_2, y_3, cycle_indices)
+
+                        # 获取详细损失（TripletPhysicsLoss）
+                        details = criterion.get_loss_details()
+                        physics_loss_details['base'] += details['base'] * x_1.size(0)
+                        physics_loss_details['monotonic'] += details['monotonic'] * x_1.size(0)
+                        physics_loss_details['boundary'] += details['boundary'] * x_1.size(0)
+                        # Triplet特有：曲率损失
+                        if 'curvature' not in physics_loss_details:
+                            physics_loss_details['curvature'] = 0.0
+                        physics_loss_details['curvature'] += details['curvature'] * x_1.size(0)
+                        # 累积mask比例
+                        if 'mask_active_ratio' in details:
+                            physics_loss_details['mask_active_ratio'] += details['mask_active_ratio']
+                            mask_batch_count += 1
+
+                        # 用于MAE/RMSE计算：取三个预测的平均
+                        predictions = (pred_1 + pred_2 + pred_3) / 3.0
+                        targets = (y_1 + y_2 + y_3) / 3.0
+
+                        # 累积验证损失和MAE/RMSE
+                        val_loss += loss.item() * x_1.size(0)
+                        val_mae += torch.abs(predictions - targets).sum().item()
+                        val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * x_1.size(0)
+
+                    elif 'x_t' in batch:
+                        # Pairwise mode: 配对样本
                         x_t = batch['x_t'].to(device)
                         x_next = batch['x_next'].to(device)
                         y_t = batch['y_t'].to(device)
@@ -855,18 +971,33 @@ def train_cross_battery_model(
                 print(f"    基础损失 (MSE):  {physics_loss_details['base']:.6f}")
                 print(f"    单调性损失:      {physics_loss_details['monotonic']:.6f}")
                 print(f"    边界损失:        {physics_loss_details['boundary']:.6f}")
-                print(f"    平滑性损失:      {physics_loss_details['smoothness']:.6f}")
 
-                # 如果是孪生模式，显示Mask激活比例
-                if siamese_mode and physics_loss_details['mask_active_ratio'] > 0:
+                # Triplet模式显示曲率损失，Pairwise模式显示平滑性损失
+                if triplet_mode and 'curvature' in physics_loss_details:
+                    print(f"    曲率损失 (2阶):  {physics_loss_details['curvature']:.6f}")
+                else:
+                    print(f"    平滑性损失:      {physics_loss_details['smoothness']:.6f}")
+
+                # 显示Mask激活比例（Pairwise和Triplet模式都有）
+                if (siamese_mode or triplet_mode) and physics_loss_details['mask_active_ratio'] > 0:
                     print(f"    Mask激活比例:    {physics_loss_details['mask_active_ratio']*100:.1f}% (cycle >= {split_threshold})")
 
                 # 计算加权后的贡献
+                # Triplet模式使用curvature，Pairwise模式使用smoothness
+                if triplet_mode and 'curvature' in physics_loss_details:
+                    second_order_weight = physics_config.get('curvature_weight', 0.1)
+                    second_order_loss = physics_loss_details['curvature']
+                    second_order_name = "曲率"
+                else:
+                    second_order_weight = physics_config.get('smoothness_weight', 0.0)
+                    second_order_loss = physics_loss_details['smoothness']
+                    second_order_name = "平滑性"
+
                 total_weighted = (
                     physics_config.get('base_loss_weight', 1.0) * physics_loss_details['base'] +
                     physics_config.get('monotonic_weight', 0.1) * physics_loss_details['monotonic'] +
                     physics_config.get('boundary_weight', 0.05) * physics_loss_details['boundary'] +
-                    physics_config.get('smoothness_weight', 0.0) * physics_loss_details['smoothness']
+                    second_order_weight * second_order_loss
                 )
 
                 print(f"  加权后贡献比例:")
@@ -874,12 +1005,12 @@ def train_cross_battery_model(
                     base_contrib = physics_config.get('base_loss_weight', 1.0) * physics_loss_details['base']
                     mono_contrib = physics_config.get('monotonic_weight', 0.1) * physics_loss_details['monotonic']
                     bound_contrib = physics_config.get('boundary_weight', 0.05) * physics_loss_details['boundary']
-                    smooth_contrib = physics_config.get('smoothness_weight', 0.0) * physics_loss_details['smoothness']
+                    second_order_contrib = second_order_weight * second_order_loss
 
                     print(f"    基础:   {base_contrib:.6f} ({base_contrib/total_weighted*100:.1f}%)")
                     print(f"    单调性: {mono_contrib:.6f} ({mono_contrib/total_weighted*100:.1f}%)")
                     print(f"    边界:   {bound_contrib:.6f} ({bound_contrib/total_weighted*100:.1f}%)")
-                    print(f"    平滑性: {smooth_contrib:.6f} ({smooth_contrib/total_weighted*100:.1f}%)")
+                    print(f"    {second_order_name}: {second_order_contrib:.6f} ({second_order_contrib/total_weighted*100:.1f}%)")
 
         # Early stopping检查
         if config['training']['early_stopping'].get('enabled', False):
