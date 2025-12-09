@@ -338,30 +338,98 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
     支持物理约束的 Dataset: 返回 battery_id 和 cycle_idx
 
     用于在 Many-to-One 模型中应用物理约束
+
+    New Feature: Supports Siamese/Pairwise sampling mode via 'siamese_mode' parameter.
+
+    IMPORTANT: Siamese mode is ONLY used for training/validation.
+               For testing, always use mode='test' to ensure single-sample inference.
     """
-    def __init__(self, X, y, battery_ids, cycle_indices):
+    def __init__(self, X, y, battery_ids, cycle_indices, siamese_mode=False, step_k=1, mode='train'):
         """
         Args:
             X: (N, window_size, feature_dim) 输入窗口
             y: (N,) 目标值
             battery_ids: (N,) 电池名称数组
             cycle_indices: (N,) cycle 索引数组
+            siamese_mode: (bool) 是否启用孪生采样模式 (default=False保持兼容)
+            step_k: (int) 配对步长 (default=1, 相邻样本)
+            mode: (str) 'train', 'val', or 'test' - forces single-sample for test
         """
         self.X = torch.FloatTensor(X)
         self.y = torch.FloatTensor(y).unsqueeze(1) if y.ndim == 1 else torch.FloatTensor(y)
         self.battery_ids = battery_ids
         self.cycle_indices = torch.LongTensor(cycle_indices)
 
+        # New: Mode and Siamese settings
+        self.mode = mode
+        self.siamese_mode = siamese_mode
+        self.step_k = step_k
+
+        # CRITICAL: Force single-sample mode for testing (no data leakage!)
+        if self.mode == 'test':
+            self.siamese_mode = False
+            if siamese_mode:
+                print(f"[WARNING] Test mode detected: disabling siamese_mode to prevent data leakage")
+
+        if self.siamese_mode:
+            # Build valid pairs for siamese mode (training/validation only)
+            self.valid_indices = self._build_valid_pairs()
+        else:
+            # Original mode: all indices are valid
+            self.valid_indices = list(range(len(self.X)))
+
+    def _build_valid_pairs(self):
+        """
+        Build list of valid indices for Siamese mode.
+        Only keep samples that have a valid next sample from the SAME battery.
+        """
+        valid_indices = []
+
+        for idx in range(len(self.X) - self.step_k):
+            # Check if next sample is from same battery
+            if self.battery_ids[idx] == self.battery_ids[idx + self.step_k]:
+                # Check if cycles are exactly step_k apart
+                cycle_diff = self.cycle_indices[idx + self.step_k] - self.cycle_indices[idx]
+                if cycle_diff == self.step_k:
+                    valid_indices.append(idx)
+
+        return valid_indices
+
     def __len__(self):
-        return len(self.X)
+        return len(self.valid_indices)
 
     def __getitem__(self, idx):
-        return {
-            'window': self.X[idx],
-            'target_soh': self.y[idx],
-            'battery_id': self.battery_ids[idx],
-            'cycle_idx': self.cycle_indices[idx]
-        }
+        """
+        Returns sample(s) based on mode.
+
+        Original mode (siamese_mode=False):
+            Returns single sample dict
+
+        Siamese mode (siamese_mode=True):
+            Returns paired samples dict
+        """
+        real_idx = self.valid_indices[idx]
+
+        if not self.siamese_mode:
+            # Original behavior: return single sample
+            return {
+                'window': self.X[real_idx],
+                'target_soh': self.y[real_idx],
+                'battery_id': self.battery_ids[real_idx],
+                'cycle_idx': self.cycle_indices[real_idx]
+            }
+        else:
+            # Siamese mode: return paired samples
+            next_idx = real_idx + self.step_k
+
+            return {
+                'x_t': self.X[real_idx],
+                'x_next': self.X[next_idx],
+                'y_t': self.y[real_idx],
+                'y_next': self.y[next_idx],
+                'cycle_index': self.cycle_indices[real_idx],
+                'battery_id': self.battery_ids[real_idx]
+            }
 
 
 # 更新 DataLoader 创建函数

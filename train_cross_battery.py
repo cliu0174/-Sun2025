@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
 # 导入模型工厂和物理约束
-from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss
+from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss, SiamesePhysicsLoss
 from data_loaders import load_single_hust_battery
 from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
 
@@ -208,7 +208,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     return data_dict
 
 
-def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False):
+def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False, siamese_mode=False, step_k=1):
     """
     创建PyTorch DataLoader，支持窗口化数据和物理约束。
 
@@ -218,23 +218,42 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         window_size: 窗口大小（LSTM/GRU使用>1的值，其他模型使用1）
         seq2seq: 是否使用Seq2Seq模式（Many-to-Many）
         use_physics: 是否使用物理约束（需要 battery_id 和 cycle_idx）
+        siamese_mode: 是否使用孪生采样模式（向后兼容：默认False）
+        step_k: 孪生采样的步长（默认1=相邻）
     """
     from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 
     def custom_collate_fn(batch):
-        """自定义 collate function，处理带元数据的 batch"""
-        windows = torch.stack([item['window'] for item in batch])
-        # 注意：target_soh 已经是 (1,) 形状，用 cat 而不是 stack 来避免额外维度
-        targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
-        battery_ids = [item['battery_id'] for item in batch]
-        cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
-
-        return {
-            'window': windows,
-            'target_soh': targets,
-            'battery_id': battery_ids,
-            'cycle_idx': cycle_indices
-        }
+        """自定义 collate function，处理带元数据的 batch（支持孪生模式）"""
+        # 检查是否为孪生模式
+        if 'window' in batch[0]:
+            # 标准模式
+            windows = torch.stack([item['window'] for item in batch])
+            targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
+            battery_ids = [item['battery_id'] for item in batch]
+            cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
+            return {
+                'window': windows,
+                'target_soh': targets,
+                'battery_id': battery_ids,
+                'cycle_idx': cycle_indices
+            }
+        else:
+            # 孪生模式
+            x_t = torch.stack([item['x_t'] for item in batch])
+            x_next = torch.stack([item['x_next'] for item in batch])
+            y_t = torch.cat([item['y_t'].unsqueeze(0) for item in batch], dim=0)
+            y_next = torch.cat([item['y_next'].unsqueeze(0) for item in batch], dim=0)
+            battery_ids = [item['battery_id'] for item in batch]
+            cycle_indices = torch.stack([item['cycle_index'] for item in batch])
+            return {
+                'x_t': x_t,
+                'x_next': x_next,
+                'y_t': y_t,
+                'y_next': y_next,
+                'battery_id': battery_ids,
+                'cycle_idx': cycle_indices
+            }
 
     # 根据是否使用物理约束选择不同的数据处理方式
     if use_physics and window_size > 1:
@@ -256,7 +275,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, step_k=step_k, mode='train')
             train_datasets.append(dataset)
 
         # 验证集
@@ -272,7 +291,7 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, step_k=step_k, mode='val')
             val_datasets.append(dataset)
 
         # 测试集
@@ -288,7 +307,8 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc)
+            # CRITICAL: Test set MUST use mode='test' to prevent data leakage
+            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=False, step_k=step_k, mode='test')
             test_datasets.append(dataset)
 
         # 合并所有电池的 dataset
@@ -480,8 +500,22 @@ def train_cross_battery_model(
         print(f"  时间衰减最大步长: {physics_config.get('temporal_decay', {}).get('max_step', 20)}")
         print(f"  时间衰减类型: {physics_config.get('temporal_decay', {}).get('decay_type', 'exp')}")
         print(f"  时间衰减系数: {physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2)}")
+
+        # 读取孪生采样配置（向后兼容：默认关闭）
+        siamese_config = physics_config.get('siamese_sampling', {})
+        siamese_mode = siamese_config.get('enabled', False)
+        split_threshold = siamese_config.get('split_threshold', 300)
+        step_k = siamese_config.get('step_k', 1)
+
+        if siamese_mode:
+            print(f"\n  孪生采样: 启用")
+            print(f"    分段阈值: {split_threshold} cycles")
+            print(f"    配对步长: {step_k}")
     else:
         print("\n物理约束: 未启用")
+        siamese_mode = False
+        split_threshold = 300
+        step_k = 1
 
     # 6. 创建数据加载器（根据模型类型设置窗口大小和Seq2Seq模式）
     # 检测是否为Seq2Seq模型（从配置文件中的model_type判断）
@@ -505,7 +539,9 @@ def train_cross_battery_model(
         batch_size=config['training']['batch_size'],
         window_size=window_size,
         seq2seq=is_seq2seq,
-        use_physics=use_physics  # 传递物理约束标志
+        use_physics=use_physics,  # 传递物理约束标志
+        siamese_mode=siamese_mode,  # 传递孪生采样标志（向后兼容：默认False）
+        step_k=step_k  # 传递配对步长
     )
 
     # 7. 创建模型
@@ -522,21 +558,36 @@ def train_cross_battery_model(
 
     optimizer = wrapper.get_optimizer()
 
-    # 8. 创建损失函数（支持物理约束）
+    # 8. 创建损失函数（支持物理约束和孪生采样）
     if use_physics:
-        criterion = PhysicsConstrainedLoss(
-            base_loss_weight=physics_config.get('base_loss_weight', 1.0),
-            monotonic_weight=physics_config.get('monotonic_weight', 0.1),
-            boundary_weight=physics_config.get('boundary_weight', 0.05),
-            smoothness_weight=physics_config.get('smoothness_weight', 0.0),
-            monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
-            temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
-            temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
-            temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),
-            temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
-            verbose=False
-        ).to(device)
-        print("\n损失函数: PhysicsConstrainedLoss (物理约束)")
+        if siamese_mode:
+            # 孪生采样模式：使用 SiamesePhysicsLoss
+            criterion = SiamesePhysicsLoss(
+                base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+                monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+                smoothness_weight=physics_config.get('smoothness_weight', 0.01),
+                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                split_threshold=split_threshold,
+                monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.0),
+                verbose=False
+            ).to(device)
+            print(f"\n损失函数: SiamesePhysicsLoss (孪生采样 + 分段约束)")
+            print(f"  分段阈值: {split_threshold} cycles")
+        else:
+            # 标准模式：使用 PhysicsConstrainedLoss
+            criterion = PhysicsConstrainedLoss(
+                base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+                monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                smoothness_weight=physics_config.get('smoothness_weight', 0.0),
+                monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
+                temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
+                temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
+                temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),
+                temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
+                verbose=False
+            ).to(device)
+            print("\n损失函数: PhysicsConstrainedLoss (物理约束)")
     else:
         criterion = wrapper.criterion
         print(f"\n损失函数: {type(criterion).__name__} (标准)")
@@ -580,12 +631,50 @@ def train_cross_battery_model(
             # 处理不同类型的batch
             # 检查batch类型（dict表示有元数据，tuple表示无元数据）
             if isinstance(batch, dict):
-                # 带元数据的 batch（窗口化数据）
-                features = batch['window'].to(device)
-                targets = batch['target_soh'].to(device)
-                battery_ids = batch['battery_id']
-                cycle_indices = batch['cycle_idx']
-                # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+                # 检查是否为孪生模式（通过 'x_t' key 判断）
+                if 'x_t' in batch:
+                    # 孪生模式：配对样本
+                    x_t = batch['x_t'].to(device)
+                    x_next = batch['x_next'].to(device)
+                    y_t = batch['y_t'].to(device)
+                    y_next = batch['y_next'].to(device)
+                    battery_ids = batch['battery_id']
+                    cycle_indices = batch['cycle_idx']
+
+                    optimizer.zero_grad()
+
+                    # 两次前向传播
+                    pred_t = model(x_t)
+                    pred_next = model(x_next)
+
+                    # 孪生模式损失计算（SiamesePhysicsLoss）
+                    loss = criterion(pred_t, pred_next, y_t, y_next, cycle_indices)
+
+                    loss.backward()
+                    optimizer.step()
+
+                    train_loss += loss.item() * x_t.size(0)
+                else:
+                    # 标准模式：带元数据的 batch（窗口化数据）
+                    features = batch['window'].to(device)
+                    targets = batch['target_soh'].to(device)
+                    battery_ids = batch['battery_id']
+                    cycle_indices = batch['cycle_idx']
+                    # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+
+                    optimizer.zero_grad()
+                    predictions = model(features)
+
+                    # 计算损失
+                    if use_physics and battery_ids is not None:
+                        loss = criterion(predictions, targets, battery_ids, cycle_indices)
+                    else:
+                        loss = criterion(predictions, targets)
+
+                    loss.backward()
+                    optimizer.step()
+
+                    train_loss += loss.item() * features.size(0)
             else:
                 # 传统 tuple batch（window_size=1的情况）
                 features, targets = batch
@@ -598,19 +687,16 @@ def train_cross_battery_model(
                 if not is_seq2seq:
                     targets = targets.unsqueeze(1)
 
-            optimizer.zero_grad()
-            predictions = model(features)
+                optimizer.zero_grad()
+                predictions = model(features)
 
-            # 计算损失
-            if use_physics and battery_ids is not None:
-                loss = criterion(predictions, targets, battery_ids, cycle_indices)
-            else:
+                # 计算损失
                 loss = criterion(predictions, targets)
 
-            loss.backward()
-            optimizer.step()
+                loss.backward()
+                optimizer.step()
 
-            train_loss += loss.item() * features.size(0)
+                train_loss += loss.item() * features.size(0)
 
         train_loss /= len(train_loader.dataset)
 
@@ -631,20 +717,75 @@ def train_cross_battery_model(
                 'base': 0.0,
                 'monotonic': 0.0,
                 'boundary': 0.0,
-                'smoothness': 0.0
+                'smoothness': 0.0,
+                'mask_active_ratio': 0.0  # 用于孪生模式
             }
+            mask_batch_count = 0  # 用于计算mask平均值的batch计数
 
         with torch.no_grad():
             for batch in val_loader:
                 # 处理不同类型的batch
                 # 检查batch类型（dict表示有元数据，tuple表示无元数据）
                 if isinstance(batch, dict):
-                    # 带元数据的 batch（窗口化数据）
-                    features = batch['window'].to(device)
-                    targets = batch['target_soh'].to(device)
-                    battery_ids = batch['battery_id']
-                    cycle_indices = batch['cycle_idx']
-                    # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+                    # 检查是否为孪生模式（通过 'x_t' key 判断）
+                    if 'x_t' in batch:
+                        # 孪生模式：配对样本
+                        x_t = batch['x_t'].to(device)
+                        x_next = batch['x_next'].to(device)
+                        y_t = batch['y_t'].to(device)
+                        y_next = batch['y_next'].to(device)
+                        battery_ids = batch['battery_id']
+                        cycle_indices = batch['cycle_idx']
+
+                        # 两次前向传播
+                        pred_t = model(x_t)
+                        pred_next = model(x_next)
+
+                        # 孪生模式损失计算（SiamesePhysicsLoss）
+                        loss = criterion(pred_t, pred_next, y_t, y_next, cycle_indices)
+
+                        # 获取详细损失（SiamesePhysicsLoss）
+                        details = criterion.get_loss_details()
+                        physics_loss_details['base'] += details['base'] * x_t.size(0)
+                        physics_loss_details['monotonic'] += details['monotonic'] * x_t.size(0)
+                        physics_loss_details['boundary'] += details['boundary'] * x_t.size(0)
+                        physics_loss_details['smoothness'] += details['smoothness'] * x_t.size(0)
+                        # 累积mask比例（用于孪生模式）
+                        if 'mask_active_ratio' in details:
+                            physics_loss_details['mask_active_ratio'] += details['mask_active_ratio']
+                            mask_batch_count += 1
+
+                        # 计算MAE和RMSE（取两个预测的平均）
+                        val_loss += loss.item() * x_t.size(0)
+                        val_mae += (torch.mean(torch.abs(pred_t - y_t)).item() +
+                                   torch.mean(torch.abs(pred_next - y_next)).item()) / 2 * x_t.size(0)
+                        val_rmse += (torch.sqrt(torch.mean((pred_t - y_t) ** 2)).item() +
+                                    torch.sqrt(torch.mean((pred_next - y_next) ** 2)).item()) / 2 * x_t.size(0)
+                    else:
+                        # 标准模式：带元数据的 batch（窗口化数据）
+                        features = batch['window'].to(device)
+                        targets = batch['target_soh'].to(device)
+                        battery_ids = batch['battery_id']
+                        cycle_indices = batch['cycle_idx']
+                        # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
+
+                        predictions = model(features)
+
+                        # 计算损失
+                        if use_physics and battery_ids is not None:
+                            loss = criterion(predictions, targets, battery_ids, cycle_indices)
+                            # 获取详细损失
+                            details = criterion.get_loss_details()
+                            physics_loss_details['base'] += details['base'] * features.size(0)
+                            physics_loss_details['monotonic'] += details['monotonic'] * features.size(0)
+                            physics_loss_details['boundary'] += details['boundary'] * features.size(0)
+                            physics_loss_details['smoothness'] += details['smoothness'] * features.size(0)
+                        else:
+                            loss = criterion(predictions, targets)
+
+                        val_loss += loss.item() * features.size(0)
+                        val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
+                        val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * features.size(0)
                 else:
                     # 传统 tuple batch（window_size=1的情况）
                     features, targets = batch
@@ -657,23 +798,14 @@ def train_cross_battery_model(
                     if not is_seq2seq:
                         targets = targets.unsqueeze(1)
 
-                predictions = model(features)
+                    predictions = model(features)
 
-                # 计算损失
-                if use_physics and battery_ids is not None:
-                    loss = criterion(predictions, targets, battery_ids, cycle_indices)
-                    # 获取详细损失
-                    details = criterion.get_loss_details()
-                    physics_loss_details['base'] += details['base'] * features.size(0)
-                    physics_loss_details['monotonic'] += details['monotonic'] * features.size(0)
-                    physics_loss_details['boundary'] += details['boundary'] * features.size(0)
-                    physics_loss_details['smoothness'] += details['smoothness'] * features.size(0)
-                else:
+                    # 计算损失
                     loss = criterion(predictions, targets)
 
-                val_loss += loss.item() * features.size(0)
-                val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
-                val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * features.size(0)
+                    val_loss += loss.item() * features.size(0)
+                    val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
+                    val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * features.size(0)
 
         val_loss /= len(val_loader.dataset)
         val_mae /= len(val_loader.dataset)
@@ -682,7 +814,12 @@ def train_cross_battery_model(
         # 计算平均物理损失详情
         if use_physics:
             for key in physics_loss_details:
-                physics_loss_details[key] /= len(val_loader.dataset)
+                if key == 'mask_active_ratio' and mask_batch_count > 0:
+                    # mask_active_ratio 按batch数量平均
+                    physics_loss_details[key] /= mask_batch_count
+                else:
+                    # 其他损失按样本数量平均
+                    physics_loss_details[key] /= len(val_loader.dataset)
 
         # 记录历史
         history['train_loss'].append(train_loss)
@@ -719,6 +856,10 @@ def train_cross_battery_model(
                 print(f"    单调性损失:      {physics_loss_details['monotonic']:.6f}")
                 print(f"    边界损失:        {physics_loss_details['boundary']:.6f}")
                 print(f"    平滑性损失:      {physics_loss_details['smoothness']:.6f}")
+
+                # 如果是孪生模式，显示Mask激活比例
+                if siamese_mode and physics_loss_details['mask_active_ratio'] > 0:
+                    print(f"    Mask激活比例:    {physics_loss_details['mask_active_ratio']*100:.1f}% (cycle >= {split_threshold})")
 
                 # 计算加权后的贡献
                 total_weighted = (
@@ -767,18 +908,21 @@ def train_cross_battery_model(
         for batch in test_loader:
             # 处理不同类型的batch
             # 检查batch类型（dict表示有元数据，tuple表示无元数据）
+            # IMPORTANT: Test set always uses single-sample mode (no siamese pairs)
+            #            This ensures realistic inference without data leakage
             if isinstance(batch, dict):
-                # 物理约束模式：带元数据的 batch
+                # Single-sample mode with metadata: expect 'window' key (NOT 'x_t')
                 features = batch['window'].to(device)
                 targets = batch['target_soh'].cpu().numpy()
                 battery_ids_batch = batch['battery_id']  # 提取电池ID
             else:
-                # 标准模式：tuple batch
+                # Standard mode: tuple batch (legacy support)
                 features, targets = batch
                 features = features.to(device)
                 targets = targets.cpu().numpy()
                 battery_ids_batch = None
 
+            # Single forward pass (no paired inference)
             predictions = model(features).cpu().numpy()
 
             # 处理输出形状

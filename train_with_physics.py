@@ -15,7 +15,7 @@ import json
 from tqdm import tqdm
 
 # 导入模型和数据加载器
-from models import PhysicsConstrainedLoss, ConfigLoader, ModelFactory
+from models import PhysicsConstrainedLoss, SiamesePhysicsLoss, ConfigLoader, ModelFactory
 from data_loaders.data_loader_hust import (
     load_single_hust_battery,
     apply_windowing_with_metadata,
@@ -27,7 +27,9 @@ def load_batteries_with_windowing(data_dir='data/HUST data',
                                   train_ratio=0.6,
                                   window_size=40,
                                   max_batteries=None,
-                                  apply_cleaning=False):
+                                  apply_cleaning=False,
+                                  siamese_mode=False,
+                                  step_k=1):
     """
     加载多个电池数据并应用窗口，附加 battery_id 和 cycle_idx
 
@@ -37,6 +39,8 @@ def load_batteries_with_windowing(data_dir='data/HUST data',
         window_size: 窗口大小
         max_batteries: 最多加载多少个电池
         apply_cleaning: 是否应用数据清洗
+        siamese_mode: 是否使用孪生采样模式 (default=False保持兼容)
+        step_k: 孪生采样的步长 (default=1, 相邻样本)
 
     Returns:
         train_datasets: 训练集 Dataset 列表
@@ -48,7 +52,8 @@ def load_batteries_with_windowing(data_dir='data/HUST data',
     if max_batteries is not None:
         csv_files = csv_files[:max_batteries]
 
-    print(f"加载 {len(csv_files)} 个电池数据...")
+    mode_str = "孪生采样" if siamese_mode else "标准"
+    print(f"加载 {len(csv_files)} 个电池数据 ({mode_str}模式)...")
 
     train_datasets = []
     test_datasets = []
@@ -84,9 +89,17 @@ def load_batteries_with_windowing(data_dir='data/HUST data',
                 mode='many_to_one'
             )
 
-            # 创建 Dataset
-            train_dataset = HUSTBatteryDatasetWithMetadata(X_train, y_train, bid_train, cyc_train)
-            test_dataset = HUSTBatteryDatasetWithMetadata(X_test, y_test, bid_test, cyc_test)
+            # 创建 Dataset (支持孪生模式切换)
+            train_dataset = HUSTBatteryDatasetWithMetadata(
+                X_train, y_train, bid_train, cyc_train,
+                siamese_mode=siamese_mode,
+                step_k=step_k
+            )
+            test_dataset = HUSTBatteryDatasetWithMetadata(
+                X_test, y_test, bid_test, cyc_test,
+                siamese_mode=siamese_mode,
+                step_k=step_k
+            )
 
             train_datasets.append(train_dataset)
             test_datasets.append(test_dataset)
@@ -105,23 +118,47 @@ def custom_collate_fn(batch):
     """
     自定义 collate function，处理带元数据的 batch
 
+    Supports both standard and Siamese modes:
+    - Standard mode: returns single windows
+    - Siamese mode: returns paired windows (x_t, x_next)
+
     Args:
         batch: list of dicts
 
     Returns:
         dict with batched tensors and lists
     """
-    windows = torch.stack([item['window'] for item in batch])
-    targets = torch.stack([item['target_soh'] for item in batch])
-    battery_ids = [item['battery_id'] for item in batch]
-    cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
+    # Check mode by examining first item's keys
+    if 'window' in batch[0]:
+        # Standard mode
+        windows = torch.stack([item['window'] for item in batch])
+        targets = torch.stack([item['target_soh'] for item in batch])
+        battery_ids = [item['battery_id'] for item in batch]
+        cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
 
-    return {
-        'window': windows,
-        'target_soh': targets,
-        'battery_id': battery_ids,
-        'cycle_idx': cycle_indices
-    }
+        return {
+            'window': windows,
+            'target_soh': targets,
+            'battery_id': battery_ids,
+            'cycle_idx': cycle_indices
+        }
+    else:
+        # Siamese mode
+        x_t = torch.stack([item['x_t'] for item in batch])
+        x_next = torch.stack([item['x_next'] for item in batch])
+        y_t = torch.stack([item['y_t'] for item in batch])
+        y_next = torch.stack([item['y_next'] for item in batch])
+        cycle_indices = torch.stack([item['cycle_index'] for item in batch])
+        battery_ids = [item['battery_id'] for item in batch]
+
+        return {
+            'x_t': x_t,
+            'x_next': x_next,
+            'y_t': y_t,
+            'y_next': y_next,
+            'cycle_index': cycle_indices,
+            'battery_id': battery_ids
+        }
 
 
 def train_with_physics_constraints(
@@ -134,10 +171,15 @@ def train_with_physics_constraints(
     max_batteries=None,
     apply_cleaning=False,
     use_physics=True,
-    save_results=True
+    save_results=True,
+    siamese_mode=False,
+    split_threshold=300,
+    step_k=1
 ):
     """
     使用物理约束训练 Many-to-One 模型
+
+    Supports both standard and Siamese/Pairwise sampling modes.
 
     Args:
         model_type: 模型类型 ('lstm', 'gru', 'bilstm', 'bigru')
@@ -148,6 +190,9 @@ def train_with_physics_constraints(
         apply_cleaning: 是否应用数据清洗
         use_physics: 是否使用物理约束
         save_results: 是否保存结果
+        siamese_mode: 是否使用孪生采样 (default=False保持兼容)
+        split_threshold: 分段约束阈值 (仅Siamese模式, default=300)
+        step_k: 配对步长 (仅Siamese模式, default=1)
     """
     # 设置随机种子
     torch.manual_seed(seed)
@@ -164,13 +209,23 @@ def train_with_physics_constraints(
     num_epochs = config['training']['num_epochs']
     learning_rate = config['training']['learning_rate']
 
-    # 加载数据
+    # 读取孪生采样配置（如果命令行未指定，则从配置文件读取）
+    if siamese_mode is False and split_threshold == 300 and step_k == 1:
+        # 使用默认值，检查配置文件
+        siamese_config = config.get('physics_constraints', {}).get('siamese_sampling', {})
+        siamese_mode = siamese_config.get('enabled', False)
+        split_threshold = siamese_config.get('split_threshold', 300)
+        step_k = siamese_config.get('step_k', 1)
+
+    # 加载数据 (支持孪生模式)
     train_datasets, test_datasets, battery_names = load_batteries_with_windowing(
         data_dir='data/HUST data',
         train_ratio=train_ratio + val_ratio,  # 先合并训练+验证
         window_size=window_size,
         max_batteries=max_batteries,
-        apply_cleaning=apply_cleaning
+        apply_cleaning=apply_cleaning,
+        siamese_mode=siamese_mode,
+        step_k=step_k
     )
 
     # 合并所有电池的数据
@@ -223,22 +278,41 @@ def train_with_physics_constraints(
     # 创建损失函数
     if use_physics and config.get('physics_constraints', {}).get('enabled', False):
         physics_config = config['physics_constraints']
-        criterion = PhysicsConstrainedLoss(
-            base_loss_weight=physics_config.get('base_loss_weight', 1.0),
-            monotonic_weight=physics_config.get('monotonic_weight', 0.1),
-            boundary_weight=physics_config.get('boundary_weight', 0.05),
-            smoothness_weight=physics_config.get('smoothness_weight', 0.0),
-            monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
-            temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
-            temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
-            temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),
-            temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
-            verbose=False
-        ).to(device)
-        print(f"\n损失函数: PhysicsConstrainedLoss")
-        print(f"  单调性权重: {physics_config.get('monotonic_weight', 0.1)}")
-        print(f"  容忍度: {physics_config.get('monotonic_tolerance', 0.01)}")
-        print(f"  时间衰减: {physics_config.get('temporal_decay', {}).get('enabled', True)}")
+
+        if siamese_mode:
+            # Siamese mode: use SiamesePhysicsLoss with split constraint
+            criterion = SiamesePhysicsLoss(
+                base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+                monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+                smoothness_weight=physics_config.get('smoothness_weight', 0.01),
+                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                split_threshold=split_threshold,
+                monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.0),
+                verbose=False
+            ).to(device)
+            print(f"\n损失函数: SiamesePhysicsLoss (孪生采样 + 分段约束)")
+            print(f"  分段阈值: {split_threshold} cycles")
+            print(f"  单调性权重: {physics_config.get('monotonic_weight', 0.1)}")
+            print(f"  平滑性权重: {physics_config.get('smoothness_weight', 0.01)}")
+            print(f"  容忍度: {physics_config.get('monotonic_tolerance', 0.0)}")
+        else:
+            # Standard mode: use PhysicsConstrainedLoss
+            criterion = PhysicsConstrainedLoss(
+                base_loss_weight=physics_config.get('base_loss_weight', 1.0),
+                monotonic_weight=physics_config.get('monotonic_weight', 0.1),
+                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                smoothness_weight=physics_config.get('smoothness_weight', 0.0),
+                monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
+                temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
+                temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
+                temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),
+                temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
+                verbose=False
+            ).to(device)
+            print(f"\n损失函数: PhysicsConstrainedLoss (标准模式)")
+            print(f"  单调性权重: {physics_config.get('monotonic_weight', 0.1)}")
+            print(f"  容忍度: {physics_config.get('monotonic_tolerance', 0.01)}")
+            print(f"  时间衰减: {physics_config.get('temporal_decay', {}).get('enabled', True)}")
     else:
         criterion = nn.MSELoss()
         print(f"\n损失函数: MSELoss (无物理约束)")
@@ -261,23 +335,39 @@ def train_with_physics_constraints(
         train_batches = 0
 
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
-            windows = batch['window'].to(device)
-            targets = batch['target_soh'].to(device)
-            battery_ids = batch['battery_id']
-            cycle_indices = batch['cycle_idx']
-
             optimizer.zero_grad()
 
-            # 前向传播
-            outputs = model(windows)
+            if siamese_mode:
+                # Siamese mode: paired samples
+                x_t = batch['x_t'].to(device)
+                x_next = batch['x_next'].to(device)
+                y_t = batch['y_t'].to(device)
+                y_next = batch['y_next'].to(device)
+                cycle_indices = batch['cycle_index'].to(device)
 
-            # 计算损失（传入 battery_ids 和 cycle_indices）
-            if isinstance(criterion, PhysicsConstrainedLoss):
-                loss = criterion(outputs, targets, battery_ids, cycle_indices)
+                # Two forward passes
+                pred_t = model(x_t)
+                pred_next = model(x_next)
+
+                # Compute loss with Siamese physics loss
+                loss = criterion(pred_t, pred_next, y_t, y_next, cycle_indices)
             else:
-                loss = criterion(outputs, targets)
+                # Standard mode: single samples
+                windows = batch['window'].to(device)
+                targets = batch['target_soh'].to(device)
+                battery_ids = batch['battery_id']
+                cycle_indices = batch['cycle_idx']
 
-            # 反向传播
+                # Forward pass
+                outputs = model(windows)
+
+                # Compute loss
+                if isinstance(criterion, PhysicsConstrainedLoss):
+                    loss = criterion(outputs, targets, battery_ids, cycle_indices)
+                else:
+                    loss = criterion(outputs, targets)
+
+            # Backward pass
             loss.backward()
             optimizer.step()
 
@@ -294,17 +384,31 @@ def train_with_physics_constraints(
 
         with torch.no_grad():
             for batch in val_loader:
-                windows = batch['window'].to(device)
-                targets = batch['target_soh'].to(device)
-                battery_ids = batch['battery_id']
-                cycle_indices = batch['cycle_idx']
+                if siamese_mode:
+                    # Siamese mode: paired samples
+                    x_t = batch['x_t'].to(device)
+                    x_next = batch['x_next'].to(device)
+                    y_t = batch['y_t'].to(device)
+                    y_next = batch['y_next'].to(device)
+                    cycle_indices = batch['cycle_index'].to(device)
 
-                outputs = model(windows)
+                    pred_t = model(x_t)
+                    pred_next = model(x_next)
 
-                if isinstance(criterion, PhysicsConstrainedLoss):
-                    loss = criterion(outputs, targets, battery_ids, cycle_indices)
+                    loss = criterion(pred_t, pred_next, y_t, y_next, cycle_indices)
                 else:
-                    loss = criterion(outputs, targets)
+                    # Standard mode
+                    windows = batch['window'].to(device)
+                    targets = batch['target_soh'].to(device)
+                    battery_ids = batch['battery_id']
+                    cycle_indices = batch['cycle_idx']
+
+                    outputs = model(windows)
+
+                    if isinstance(criterion, PhysicsConstrainedLoss):
+                        loss = criterion(outputs, targets, battery_ids, cycle_indices)
+                    else:
+                        loss = criterion(outputs, targets)
 
                 val_loss += loss.item()
                 val_batches += 1
@@ -317,9 +421,14 @@ def train_with_physics_constraints(
             print(f"Epoch {epoch+1}/{num_epochs}: Train Loss = {avg_train_loss:.6f}, Val Loss = {avg_val_loss:.6f}")
 
             # 如果使用物理约束，打印详细损失
-            if isinstance(criterion, PhysicsConstrainedLoss):
+            if isinstance(criterion, (PhysicsConstrainedLoss, SiamesePhysicsLoss)):
                 details = criterion.get_loss_details()
-                print(f"  [详细] Base: {details['base']:.6f}, Mono: {details['monotonic']:.6f}, Bound: {details['boundary']:.6f}")
+                if siamese_mode:
+                    print(f"  [详细] Base: {details['base']:.6f}, Mono: {details['monotonic']:.6f}, "
+                          f"Smooth: {details['smoothness']:.6f}, Bound: {details['boundary']:.6f}, "
+                          f"Mask: {details['mask_active_ratio']*100:.1f}%")
+                else:
+                    print(f"  [详细] Base: {details['base']:.6f}, Mono: {details['monotonic']:.6f}, Bound: {details['boundary']:.6f}")
 
         # 保存最佳模型
         if avg_val_loss < best_val_loss:
@@ -393,6 +502,13 @@ if __name__ == "__main__":
     parser.add_argument('--no_physics', action='store_true', help='Disable physics constraints')
     parser.add_argument('--cleaning', action='store_true', help='Enable data cleaning')
 
+    # New: Siamese mode arguments
+    parser.add_argument('--siamese', action='store_true', help='Enable Siamese/Pairwise sampling mode')
+    parser.add_argument('--split_threshold', type=int, default=300,
+                       help='Split threshold for masking physics loss (cycles, default=300)')
+    parser.add_argument('--step_k', type=int, default=1,
+                       help='Step size for pairing (default=1 for consecutive samples)')
+
     args = parser.parse_args()
 
     # 训练
@@ -401,7 +517,10 @@ if __name__ == "__main__":
         device=args.device,
         max_batteries=args.max_batteries,
         apply_cleaning=args.cleaning,
-        use_physics=not args.no_physics
+        use_physics=not args.no_physics,
+        siamese_mode=args.siamese,
+        split_threshold=args.split_threshold,
+        step_k=args.step_k
     )
 
     print("\n" + "="*70)

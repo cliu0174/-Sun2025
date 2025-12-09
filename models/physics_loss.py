@@ -379,6 +379,155 @@ class PhysicsConstrainedLoss(nn.Module):
         return self.loss_details
 
 
+class SiamesePhysicsLoss(nn.Module):
+    """
+    Siamese Physics-Informed Loss with Split Constraint
+
+    Key Features:
+    1. Works with paired samples (x_t, x_next) from Dataset
+    2. MSE component applies to ALL samples
+    3. Physics component (monotonicity + smoothness) only applies to samples
+       where cycle_index >= split_threshold (using a mask)
+
+    This allows early cycles (with capacity rise) to learn freely from MSE,
+    while late cycles are constrained by physics.
+    """
+
+    def __init__(
+        self,
+        base_loss_weight=1.0,
+        monotonic_weight=0.1,
+        smoothness_weight=0.01,
+        boundary_weight=0.05,
+        split_threshold=300,
+        monotonic_tolerance=0.0,
+        verbose=False
+    ):
+        """
+        Args:
+            base_loss_weight: Weight for MSE loss
+            monotonic_weight: Weight for monotonicity constraint
+            smoothness_weight: Weight for smoothness constraint
+            boundary_weight: Weight for boundary constraint (SOH in [0,1])
+            split_threshold: Cycle threshold for masking physics loss
+                            (e.g., 300 means physics only applies to cycles >= 300)
+            monotonic_tolerance: Tolerance for monotonicity (0 = strict decrease)
+            verbose: Whether to print debug info
+        """
+        super().__init__()
+
+        self.base_loss_weight = base_loss_weight
+        self.monotonic_weight = monotonic_weight
+        self.smoothness_weight = smoothness_weight
+        self.boundary_weight = boundary_weight
+        self.split_threshold = split_threshold
+        self.monotonic_tolerance = monotonic_tolerance
+        self.verbose = verbose
+
+        self.mse_loss = nn.MSELoss()
+        self.loss_details = {}
+
+    def forward(self, pred_t, pred_next, true_t, true_next, cycle_indices):
+        """
+        Compute total loss for Siamese samples.
+
+        Args:
+            pred_t: (batch, 1) predictions at time t
+            pred_next: (batch, 1) predictions at time t+k
+            true_t: (batch, 1) ground truth at time t
+            true_next: (batch, 1) ground truth at time t+k
+            cycle_indices: (batch,) cycle indices at time t
+
+        Returns:
+            total_loss: scalar tensor
+        """
+        # Ensure all tensors are on the same device
+        device = pred_t.device
+
+        # 1. MSE Component (applies to ALL samples)
+        mse_t = self.mse_loss(pred_t, true_t)
+        mse_next = self.mse_loss(pred_next, true_next)
+        base_loss = (mse_t + mse_next) / 2
+
+        # 2. Create mask based on cycle_indices
+        # mask = 1 if cycle_index >= split_threshold, else 0
+        if not isinstance(cycle_indices, torch.Tensor):
+            cycle_indices = torch.tensor(cycle_indices, device=device)
+        elif cycle_indices.device != device:
+            cycle_indices = cycle_indices.to(device)
+
+        mask = (cycle_indices >= self.split_threshold).float()  # (batch,)
+
+        # 3. Monotonicity Constraint (masked)
+        # pred_next should be <= pred_t (capacity decreases)
+        # violation = max(0, pred_next - pred_t - tolerance)
+
+        # Squeeze to ensure 1D
+        pred_t_flat = pred_t.squeeze() if pred_t.dim() > 1 else pred_t
+        pred_next_flat = pred_next.squeeze() if pred_next.dim() > 1 else pred_next
+
+        # Calculate difference: diff = pred_next - pred_t
+        diff = pred_next_flat - pred_t_flat
+
+        # Violation: if diff > tolerance, penalize
+        monotonic_violation = torch.relu(diff - self.monotonic_tolerance)
+
+        # Apply mask: only penalize violations for cycles >= split_threshold
+        masked_monotonic_loss = (monotonic_violation ** 2) * mask
+
+        # Average over batch
+        monotonic_loss = masked_monotonic_loss.mean()
+
+        # 4. Smoothness Constraint (masked)
+        # Penalize if diff is too large (in absolute value)
+        # This prevents sudden jumps even if direction is correct
+        smoothness_violation = diff ** 2  # Squared difference
+
+        # Apply mask
+        masked_smoothness_loss = smoothness_violation * mask
+
+        # Average over batch
+        smoothness_loss = masked_smoothness_loss.mean()
+
+        # 5. Boundary Constraint (applies to ALL samples)
+        # Penalize if SOH goes outside [0, 1]
+        boundary_t = torch.relu(-pred_t) + torch.relu(pred_t - 1.0)
+        boundary_next = torch.relu(-pred_next) + torch.relu(pred_next - 1.0)
+        boundary_loss = (boundary_t.mean() + boundary_next.mean()) / 2
+
+        # 6. Total Loss
+        total_loss = (
+            self.base_loss_weight * base_loss +
+            self.monotonic_weight * monotonic_loss +
+            self.smoothness_weight * smoothness_loss +
+            self.boundary_weight * boundary_loss
+        )
+
+        # Record details
+        self.loss_details = {
+            'total': total_loss.item(),
+            'base': base_loss.item(),
+            'mse_t': mse_t.item(),
+            'mse_next': mse_next.item(),
+            'monotonic': monotonic_loss.item(),
+            'smoothness': smoothness_loss.item(),
+            'boundary': boundary_loss.item(),
+            'mask_active_ratio': mask.mean().item()  # % of samples where physics applies
+        }
+
+        if self.verbose:
+            print(f"[SiamesePhysicsLoss] Total: {total_loss.item():.6f}, "
+                  f"Base: {base_loss.item():.6f}, "
+                  f"Mono: {monotonic_loss.item():.6f}, "
+                  f"Mask active: {mask.mean().item()*100:.1f}%")
+
+        return total_loss
+
+    def get_loss_details(self):
+        """Get detailed loss breakdown from last forward pass."""
+        return self.loss_details
+
+
 if __name__ == "__main__":
     """测试物理约束损失函数"""
 

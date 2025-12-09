@@ -64,6 +64,12 @@
       "decay_type": "exp",
       "decay_alpha": 0.2
     },
+    "siamese_sampling": {
+      "enabled": false,
+      "split_threshold": 300,
+      "step_k": 1,
+      "description": "孪生采样：前split_threshold循环无约束，后期强制单调"
+    },
     "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
   },
   "visualization": {

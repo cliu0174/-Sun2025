@@ -17,7 +17,7 @@ from .model_factory import (
 )
 
 # Physics-constrained loss
-from .physics_loss import PhysicsConstrainedLoss
+from .physics_loss import PhysicsConstrainedLoss, SiamesePhysicsLoss
 
 __all__ = [
     # Baseline Models (Many-to-One)
@@ -48,4 +48,5 @@ __all__ = [
 
     # Physics constraints
     'PhysicsConstrainedLoss',
+    'SiamesePhysicsLoss',
 ]
