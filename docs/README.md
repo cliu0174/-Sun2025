@@ -78,9 +78,15 @@ docs/
 
 ## 📖 使用指南
 
+### 推理相关
+- **[INFERENCE_QUICK_START.md](guides/INFERENCE_QUICK_START.md)** - ⭐ 模型推理快速上手（新）
+
+### 物理约束相关
 - **[PHYSICS_CONSTRAINTS_USAGE.md](guides/PHYSICS_CONSTRAINTS_USAGE.md)** - 物理约束使用指南
 - **[PHYSICS_CONSTRAINTS_SUMMARY.md](guides/PHYSICS_CONSTRAINTS_SUMMARY.md)** - 物理约束功能总结
 - **[QUICK_START_PHYSICS.md](guides/QUICK_START_PHYSICS.md)** - 物理约束快速上手
+
+### 其他
 - **[USAGE_GUIDE.md](guides/USAGE_GUIDE.md)** - 通用使用指南
 - **[DATA_CLEANING_GUIDE.md](guides/DATA_CLEANING_GUIDE.md)** - 数据清洗指南
 
