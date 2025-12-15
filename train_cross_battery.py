@@ -133,7 +133,8 @@ def split_batteries(battery_names, train_ratio=0.6, val_ratio=0.2, test_ratio=0.
     return train_batteries, val_batteries, test_batteries
 
 
-def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries):
+def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries,
+                               add_noise=False, noise_level='medium', noise_seed=42):
     """
     准备跨电池的训练/验证/测试数据。
 
@@ -142,6 +143,9 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         train_batteries: 训练集电池列表
         val_batteries: 验证集电池列表
         test_batteries: 测试集电池列表
+        add_noise: bool, 是否对训练/验证集添加噪声 (默认False,保持向后兼容)
+        noise_level: str, 噪声级别 ('none', 'light', 'medium', 'heavy')
+        noise_seed: int, 噪声随机种子 (确保可复现)
 
     Returns:
         data_dict: 包含train/val/test的数据字典
@@ -187,6 +191,41 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     train_features_scaled = scaler.fit_transform(train_features)
     val_features_scaled = scaler.transform(val_features)
     test_features_scaled = scaler.transform(test_features)
+
+    # 数据增强: 对训练集和验证集添加噪声 (测试集保持干净)
+    if add_noise:
+        from utils.data_augmentation import add_degradation_noise, get_noise_preset
+
+        noise_params = get_noise_preset(noise_level)
+        print(f"\n{'='*70}")
+        print(f"数据增强: {noise_params['description']}")
+        print(f"{'='*70}")
+
+        # 训练集加噪
+        print("\n对训练集添加噪声:")
+        train_features_scaled, train_targets, train_battery_ids = add_degradation_noise(
+            train_features_scaled, train_targets, train_battery_ids,
+            feature_noise_std=noise_params['feature_noise_std'],
+            target_noise_std=noise_params['target_noise_std'],
+            drop_ratio=noise_params['drop_ratio'],
+            seed=noise_seed,
+            verbose=True
+        )
+
+        # 验证集加噪 (使用不同的种子,避免与训练集完全相同)
+        print("\n对验证集添加噪声:")
+        val_features_scaled, val_targets, val_battery_ids = add_degradation_noise(
+            val_features_scaled, val_targets, val_battery_ids,
+            feature_noise_std=noise_params['feature_noise_std'],
+            target_noise_std=noise_params['target_noise_std'],
+            drop_ratio=noise_params['drop_ratio'],
+            seed=noise_seed + 1000,  # 不同的种子
+            verbose=True
+        )
+
+        print(f"\n{'='*70}")
+        print("⚠️  测试集保持干净 (用于公平对比)")
+        print(f"{'='*70}")
 
     data_dict = {
         'train_features': train_features_scaled,
@@ -452,7 +491,10 @@ def train_cross_battery_model(
     seed=42,
     apply_cleaning=False,
     color_by_battery=True,      # 是否按电池着色（默认True）
-    highlight_anomalies=True     # 是否突出显示异常电池（默认True）
+    highlight_anomalies=True,    # 是否突出显示异常电池（默认True）
+    add_noise=False,             # 是否添加噪声（默认False，保持向后兼容）
+    noise_level='medium',        # 噪声级别 ('none', 'light', 'medium', 'heavy')
+    noise_seed=None              # 噪声随机种子（None=使用主seed）
 ):
     """
     跨电池训练模型。
@@ -467,14 +509,25 @@ def train_cross_battery_model(
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
         color_by_battery: 是否按电池着色（默认True）
         highlight_anomalies: 是否突出显示异常电池（默认True）
+        add_noise: 是否对训练/验证集添加噪声（默认False，保持向后兼容）
+        noise_level: 噪声级别 ('none', 'light', 'medium', 'heavy')
+        noise_seed: 噪声随机种子（None表示使用主seed）
     """
     set_seed(seed)
+
+    # 处理噪声种子
+    if noise_seed is None:
+        noise_seed = seed
 
     print("\n" + "="*70)
     print(f"跨电池训练: {model_type.upper()}")
     print(f"数据划分: Train/Val/Test = {train_ratio*100:.0f}%/{val_ratio*100:.0f}%/{test_ratio*100:.0f}%")
     if apply_cleaning:
         print("数据清洗: 启用 (3-Sigma)")
+    if add_noise:
+        from utils.data_augmentation import NOISE_PRESETS
+        noise_desc = NOISE_PRESETS[noise_level]['description']
+        print(f"数据增强: 启用 ({noise_desc})")
     print("="*70)
 
     # 1. 加载所有电池数据
@@ -490,7 +543,12 @@ def train_cross_battery_model(
     )
 
     # 3. 准备数据
-    data_dict = prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries)
+    data_dict = prepare_cross_battery_data(
+        all_data, train_batteries, val_batteries, test_batteries,
+        add_noise=add_noise,
+        noise_level=noise_level,
+        noise_seed=noise_seed
+    )
 
     # 4. 加载模型配置
     config = ConfigLoader.load_model_config(model_type)
@@ -1360,7 +1418,14 @@ if __name__ == "__main__":
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    SEED = 42                   # 随机种子（确保可复现）
+    SEED = 42                # 随机种子（确保可复现）
+
+    # ===== 数据增强开关 (验证物理约束在噪声数据上的作用) =====
+    ADD_NOISE = True           # 是否添加噪声 (False=干净数据, True=噪声数据)
+    NOISE_LEVEL = 'light'      # 噪声级别: 'light', 'medium', 'heavy'
+                                # light:  5% drop, σ_feat=0.01, σ_targ=0.005
+                                # medium: 15% drop, σ_feat=0.05, σ_targ=0.02
+                                # heavy:  30% drop, σ_feat=0.10, σ_targ=0.05
 
     # ===== 开始训练 =====
     print(f"\n使用设备: {DEVICE}\n")
@@ -1374,7 +1439,10 @@ if __name__ == "__main__":
         seed=SEED,
         apply_cleaning=False,       # 是否使用3-Sigma数据清洗
         color_by_battery=True,       # 是否按电池着色（True=彩色图，False=单色图）
-        highlight_anomalies=False     # 是否突出显示异常电池（True=红色星形，False=普通显示）
+        highlight_anomalies=False,   # 是否突出显示异常电池（True=红色星形，False=普通显示）
+        add_noise=ADD_NOISE,         # 是否添加噪声（用于验证物理约束鲁棒性）
+        noise_level=NOISE_LEVEL,     # 噪声级别
+        noise_seed=SEED              # 噪声随机种子（确保可复现）
     )
 
     print("\n" + "="*70)
