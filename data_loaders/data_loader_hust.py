@@ -420,11 +420,13 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
             if (self.battery_ids[idx] == self.battery_ids[idx + self.step_k] and
                 self.battery_ids[idx] == self.battery_ids[idx + 2 * self.step_k]):
 
-                # Check if cycles are exactly step_k apart for both transitions
+                # Check if cycles are equally spaced (compatible with sparse sampling)
                 cycle_diff_1 = self.cycle_indices[idx + self.step_k] - self.cycle_indices[idx]
                 cycle_diff_2 = self.cycle_indices[idx + 2 * self.step_k] - self.cycle_indices[idx + self.step_k]
 
-                if cycle_diff_1 == self.step_k and cycle_diff_2 == self.step_k:
+                # Modified logic: allow any equal spacing (not just step_k)
+                # This makes triplet sampling compatible with sparse sampling scenarios
+                if cycle_diff_1 > 0 and cycle_diff_1 == cycle_diff_2:
                     valid_indices.append(idx)
 
         return valid_indices

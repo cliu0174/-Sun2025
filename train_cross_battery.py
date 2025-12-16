@@ -21,6 +21,34 @@ from sklearn.preprocessing import StandardScaler
 from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss
 from data_loaders import load_single_hust_battery
 from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
+import time
+
+
+def safe_savefig(fig_or_plt, filepath, **kwargs):
+    """
+    安全保存图片，如果文件被占用则使用带时间戳的文件名
+
+    Args:
+        fig_or_plt: matplotlib figure 或 plt 模块
+        filepath: 目标文件路径
+        **kwargs: 传递给 savefig 的其他参数
+
+    Returns:
+        actual_path: 实际保存的文件路径
+    """
+    try:
+        fig_or_plt.savefig(filepath, **kwargs)
+        return filepath
+    except PermissionError:
+        # 文件被占用，添加时间戳创建新文件名
+        dir_name = os.path.dirname(filepath)
+        base_name = os.path.basename(filepath)
+        name, ext = os.path.splitext(base_name)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        new_filepath = os.path.join(dir_name, f"{name}_{timestamp}{ext}")
+        fig_or_plt.savefig(new_filepath, **kwargs)
+        print(f"  [WARN] 原文件被占用，已保存为新文件")
+        return new_filepath
 
 
 def set_seed(seed=42):
@@ -134,7 +162,10 @@ def split_batteries(battery_names, train_ratio=0.6, val_ratio=0.2, test_ratio=0.
 
 
 def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries,
-                               add_noise=False, noise_level='medium', noise_seed=42):
+                               degradation_scenario='none',
+                               noise_level='medium',
+                               sparse_sampling_level='moderate',
+                               seed=42):
     """
     准备跨电池的训练/验证/测试数据。
 
@@ -143,9 +174,13 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         train_batteries: 训练集电池列表
         val_batteries: 验证集电池列表
         test_batteries: 测试集电池列表
-        add_noise: bool, 是否对训练/验证集添加噪声 (默认False,保持向后兼容)
-        noise_level: str, 噪声级别 ('none', 'light', 'medium', 'heavy')
-        noise_seed: int, 噪声随机种子 (确保可复现)
+        degradation_scenario: str, 数据退化场景选择
+            - 'none': 无退化 (干净数据)
+            - 'scenario1': 场景一 - 随机噪声+丢弃
+            - 'scenario2': 场景二 - 规律稀疏采样
+        noise_level: str, 场景一的噪声级别 ('light', 'medium', 'heavy')
+        sparse_sampling_level: str, 场景二的采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
+        seed: int, 随机种子 (确保可复现)
 
     Returns:
         data_dict: 包含train/val/test的数据字典
@@ -192,13 +227,14 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     val_features_scaled = scaler.transform(val_features)
     test_features_scaled = scaler.transform(test_features)
 
-    # 数据增强: 对训练集和验证集添加噪声 (测试集保持干净)
-    if add_noise:
+    # 数据退化场景应用 (训练集和验证集, 测试集保持干净)
+    if degradation_scenario == 'scenario1':
+        # 场景一: 随机噪声 + 随机丢弃
         from utils.data_augmentation import add_degradation_noise, get_noise_preset
 
         noise_params = get_noise_preset(noise_level)
         print(f"\n{'='*70}")
-        print(f"数据增强: {noise_params['description']}")
+        print(f"场景一: 随机退化 - {noise_params['description']}")
         print(f"{'='*70}")
 
         # 训练集加噪
@@ -208,7 +244,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
             feature_noise_std=noise_params['feature_noise_std'],
             target_noise_std=noise_params['target_noise_std'],
             drop_ratio=noise_params['drop_ratio'],
-            seed=noise_seed,
+            seed=seed,
             verbose=True
         )
 
@@ -219,13 +255,56 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
             feature_noise_std=noise_params['feature_noise_std'],
             target_noise_std=noise_params['target_noise_std'],
             drop_ratio=noise_params['drop_ratio'],
-            seed=noise_seed + 1000,  # 不同的种子
+            seed=seed + 1000,  # 不同的种子
             verbose=True
         )
 
         print(f"\n{'='*70}")
         print("⚠️  测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
+
+    elif degradation_scenario == 'scenario2':
+        # 场景二: 规律稀疏采样
+        from utils.data_augmentation import (
+            apply_sparse_sampling_by_battery,
+            get_sparse_sampling_preset
+        )
+
+        sampling_params = get_sparse_sampling_preset(sparse_sampling_level)
+        print(f"\n{'='*70}")
+        print(f"场景二: 稀疏采样 - {sampling_params['description']}")
+        print(f"{'='*70}")
+
+        # 训练集稀疏采样
+        print("\n对训练集进行稀疏采样:")
+        train_features_scaled, train_targets, train_battery_ids = apply_sparse_sampling_by_battery(
+            train_features_scaled, train_targets, train_battery_ids,
+            sampling_interval=sampling_params['sampling_interval'],
+            offset=0,
+            verbose=True
+        )
+
+        # 验证集稀疏采样
+        print("\n对验证集进行稀疏采样:")
+        val_features_scaled, val_targets, val_battery_ids = apply_sparse_sampling_by_battery(
+            val_features_scaled, val_targets, val_battery_ids,
+            sampling_interval=sampling_params['sampling_interval'],
+            offset=0,
+            verbose=True
+        )
+
+        print(f"\n{'='*70}")
+        print("⚠️  测试集保持干净 (用于公平对比)")
+        print(f"{'='*70}")
+
+    elif degradation_scenario == 'none':
+        print(f"\n{'='*70}")
+        print("无数据退化 - 使用干净数据")
+        print(f"{'='*70}")
+
+    else:
+        raise ValueError(f"Unknown degradation scenario: {degradation_scenario}. "
+                        f"Available: 'none', 'scenario1', 'scenario2'")
 
     data_dict = {
         'train_features': train_features_scaled,
@@ -490,11 +569,11 @@ def train_cross_battery_model(
     device='cuda',
     seed=42,
     apply_cleaning=False,
-    color_by_battery=True,      # 是否按电池着色（默认True）
-    highlight_anomalies=True,    # 是否突出显示异常电池（默认True）
-    add_noise=False,             # 是否添加噪声（默认False，保持向后兼容）
-    noise_level='medium',        # 噪声级别 ('none', 'light', 'medium', 'heavy')
-    noise_seed=None              # 噪声随机种子（None=使用主seed）
+    color_by_battery=True,              # 是否按电池着色（默认True）
+    highlight_anomalies=True,            # 是否突出显示异常电池（默认True）
+    degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2')
+    noise_level='medium',                # 场景一噪声级别 ('light', 'medium', 'heavy')
+    sparse_sampling_level='moderate'     # 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
 ):
     """
     跨电池训练模型。
@@ -509,25 +588,30 @@ def train_cross_battery_model(
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
         color_by_battery: 是否按电池着色（默认True）
         highlight_anomalies: 是否突出显示异常电池（默认True）
-        add_noise: 是否对训练/验证集添加噪声（默认False，保持向后兼容）
-        noise_level: 噪声级别 ('none', 'light', 'medium', 'heavy')
-        noise_seed: 噪声随机种子（None表示使用主seed）
+        degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2')
+        noise_level: 场景一噪声级别 ('light', 'medium', 'heavy')
+        sparse_sampling_level: 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
     """
     set_seed(seed)
-
-    # 处理噪声种子
-    if noise_seed is None:
-        noise_seed = seed
 
     print("\n" + "="*70)
     print(f"跨电池训练: {model_type.upper()}")
     print(f"数据划分: Train/Val/Test = {train_ratio*100:.0f}%/{val_ratio*100:.0f}%/{test_ratio*100:.0f}%")
     if apply_cleaning:
         print("数据清洗: 启用 (3-Sigma)")
-    if add_noise:
+
+    # 显示退化场景信息
+    if degradation_scenario == 'scenario1':
         from utils.data_augmentation import NOISE_PRESETS
         noise_desc = NOISE_PRESETS[noise_level]['description']
-        print(f"数据增强: 启用 ({noise_desc})")
+        print(f"数据退化: 场景一 ({noise_desc})")
+    elif degradation_scenario == 'scenario2':
+        from utils.data_augmentation import SPARSE_SAMPLING_PRESETS
+        sampling_desc = SPARSE_SAMPLING_PRESETS[sparse_sampling_level]['description']
+        print(f"数据退化: 场景二 ({sampling_desc})")
+    else:
+        print("数据退化: 无 (干净数据)")
+
     print("="*70)
 
     # 1. 加载所有电池数据
@@ -545,9 +629,10 @@ def train_cross_battery_model(
     # 3. 准备数据
     data_dict = prepare_cross_battery_data(
         all_data, train_batteries, val_batteries, test_batteries,
-        add_noise=add_noise,
+        degradation_scenario=degradation_scenario,
         noise_level=noise_level,
-        noise_seed=noise_seed
+        sparse_sampling_level=sparse_sampling_level,
+        seed=seed
     )
 
     # 4. 加载模型配置
@@ -583,12 +668,21 @@ def train_cross_battery_model(
         # 读取孪生采样配置（向后兼容：默认关闭）
         siamese_config = physics_config.get('siamese_sampling', {})
         siamese_mode = siamese_config.get('enabled', False)
-        split_threshold = siamese_config.get('split_threshold', 300)
-        step_k = siamese_config.get('step_k', 1)
 
         # 读取三元组采样配置（向后兼容：默认关闭）
         triplet_config = physics_config.get('triplet_sampling', {})
         triplet_mode = triplet_config.get('enabled', False)
+
+        # 根据启用的模式读取对应的参数
+        if triplet_mode:
+            split_threshold = triplet_config.get('split_threshold', 200)
+            step_k = triplet_config.get('step_k', 1)
+        elif siamese_mode:
+            split_threshold = siamese_config.get('split_threshold', 300)
+            step_k = siamese_config.get('step_k', 1)
+        else:
+            split_threshold = 300
+            step_k = 1
 
         # Validate: cannot enable both siamese and triplet
         if siamese_mode and triplet_mode:
@@ -1252,7 +1346,8 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
     axes[2].grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, 'training_history.png'), dpi=300)
+    saved_path = safe_savefig(plt, os.path.join(save_dir, 'training_history.png'), dpi=300)
+    print(f"  [OK] 训练历史已保存: {os.path.basename(saved_path)}")
     plt.close()
 
     # 2. 预测对比（根据电池ID着色）
@@ -1319,7 +1414,8 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
     axes[1].grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, 'predictions.png'), dpi=300)
+    saved_path = safe_savefig(plt, os.path.join(save_dir, 'predictions.png'), dpi=300)
+    print(f"  [OK] 预测结果已保存: {os.path.basename(saved_path)}")
     plt.close()
 
     # 3. 绘制最好的3个电池的容量衰减预测曲线
@@ -1399,8 +1495,8 @@ def plot_top_batteries_capacity_curves(predictions, targets, battery_ids, save_d
     plt.tight_layout()
 
     output_path = os.path.join(save_dir, 'top_batteries_predictions.png')
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"  [OK] 已保存: {output_path}")
+    saved_path = safe_savefig(plt, output_path, dpi=300, bbox_inches='tight')
+    print(f"  [OK] 顶部电池预测已保存: {os.path.basename(saved_path)}")
     plt.close()
 
 
@@ -1418,14 +1514,26 @@ if __name__ == "__main__":
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    SEED = 42                # 随机种子（确保可复现）
+    SEED = 66              # 随机种子（确保可复现）
 
-    # ===== 数据增强开关 (验证物理约束在噪声数据上的作用) =====
-    ADD_NOISE = True           # 是否添加噪声 (False=干净数据, True=噪声数据)
-    NOISE_LEVEL = 'light'      # 噪声级别: 'light', 'medium', 'heavy'
-                                # light:  5% drop, σ_feat=0.01, σ_targ=0.005
-                                # medium: 15% drop, σ_feat=0.05, σ_targ=0.02
-                                # heavy:  30% drop, σ_feat=0.10, σ_targ=0.05
+    # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
+    # 场景选择: 'none', 'scenario1', 'scenario2'
+    DEGRADATION_SCENARIO = 'scenario2'  # 'none': 无退化 (干净数据)
+                                    # 'scenario1': 随机噪声+随机丢弃
+                                    # 'scenario2': 规律稀疏采样
+
+    # 场景一参数 (仅当 DEGRADATION_SCENARIO='scenario1' 时生效)
+    NOISE_LEVEL = 'light'           # 噪声级别: 'light', 'medium', 'heavy'
+                                     # light:  5% drop, σ_feat=0.01, σ_targ=0.005
+                                     # medium: 15% drop, σ_feat=0.05, σ_targ=0.02
+                                     # heavy:  30% drop, σ_feat=0.10, σ_targ=0.05
+
+    # 场景二参数 (仅当 DEGRADATION_SCENARIO='scenario2' 时生效)
+    SPARSE_SAMPLING_LEVEL = 'dense'  # 稀疏采样级别: 'dense', 'moderate', 'sparse', 'very_sparse'
+                                         # dense:       每2个循环保留1个 (50%)
+                                         # moderate:    每5个循环保留1个 (20%)
+                                         # sparse:      每10个循环保留1个 (10%)
+                                         # very_sparse: 每20个循环保留1个 (5%)
 
     # ===== 开始训练 =====
     print(f"\n使用设备: {DEVICE}\n")
@@ -1437,12 +1545,12 @@ if __name__ == "__main__":
         test_ratio=TEST_RATIO,
         device=DEVICE,
         seed=SEED,
-        apply_cleaning=False,       # 是否使用3-Sigma数据清洗
-        color_by_battery=True,       # 是否按电池着色（True=彩色图，False=单色图）
-        highlight_anomalies=False,   # 是否突出显示异常电池（True=红色星形，False=普通显示）
-        add_noise=ADD_NOISE,         # 是否添加噪声（用于验证物理约束鲁棒性）
-        noise_level=NOISE_LEVEL,     # 噪声级别
-        noise_seed=SEED              # 噪声随机种子（确保可复现）
+        apply_cleaning=False,                # 是否使用3-Sigma数据清洗
+        color_by_battery=True,                # 是否按电池着色（True=彩色图，False=单色图）
+        highlight_anomalies=False,            # 是否突出显示异常电池（True=红色星形，False=普通显示）
+        degradation_scenario=DEGRADATION_SCENARIO,  # 数据退化场景选择
+        noise_level=NOISE_LEVEL,              # 场景一: 噪声级别
+        sparse_sampling_level=SPARSE_SAMPLING_LEVEL  # 场景二: 稀疏采样级别
     )
 
     print("\n" + "="*70)

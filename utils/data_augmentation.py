@@ -2,11 +2,16 @@
 数据增强工具: 用于验证物理约束在噪声数据上的鲁棒性
 
 功能:
-1. 特征加高斯噪声
-2. 容量加高斯噪声
-3. 随机丢弃循环样本
+场景一 - 随机退化:
+  1. 特征加高斯噪声
+  2. 容量加高斯噪声
+  3. 随机丢弃循环样本
 
-用途: 模拟实测数据质量问题,验证物理约束的作用
+场景二 - 稀疏采样:
+  1. 规律间隔采样 (每N个循环保留1个)
+  2. 模拟HPPC/DST等定期测试场景
+
+用途: 模拟不同数据退化场景,验证物理约束的作用
 """
 
 import numpy as np
@@ -183,6 +188,167 @@ def get_noise_preset(preset_name='medium'):
         raise ValueError(f"Unknown preset: {preset_name}. Available: {list(NOISE_PRESETS.keys())}")
 
     return NOISE_PRESETS[preset_name]
+
+
+# ============================================================================
+# 场景二: 稀疏采样 (Regular Sparse Sampling)
+# ============================================================================
+
+def sparse_sampling(features, targets, battery_ids, sampling_interval=5,
+                    offset=0, verbose=True):
+    """
+    规律间隔稀疏采样 (模拟定期HPPC/DST测试场景)
+
+    保留每隔 sampling_interval 个样本中的一个,模拟实际应用中只在特定循环
+    进行容量测试的情况 (如HPPC测试)。
+
+    Args:
+        features: (N, feature_dim) 特征数组
+        targets: (N,) 目标数组
+        battery_ids: (N,) 电池ID数组
+        sampling_interval: int, 采样间隔 (例如5表示每5个循环保留1个)
+        offset: int, 起始偏移 (0-based索引)
+        verbose: bool, 是否打印统计信息
+
+    Returns:
+        sampled_features, sampled_targets, sampled_battery_ids
+
+    Example:
+        如果 sampling_interval=5, offset=0:
+        原始索引: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...]
+        保留索引: [0,       5,          10, ...]  (每5个保留1个)
+
+        如果 sampling_interval=5, offset=2:
+        保留索引: [   2,          7,             12, ...]
+    """
+    if sampling_interval <= 0:
+        raise ValueError(f"sampling_interval must be > 0, got {sampling_interval}")
+
+    n_total = len(features)
+
+    # 计算保留的索引
+    keep_indices = np.arange(offset, n_total, sampling_interval)
+
+    if verbose:
+        print("\n" + "="*70)
+        print("场景二: 稀疏采样 (模拟定期容量测试)")
+        print("="*70)
+        print(f"原始样本数: {n_total}")
+        print(f"采样间隔: 每 {sampling_interval} 个循环保留 1 个")
+        print(f"起始偏移: {offset}")
+        print(f"保留样本数: {len(keep_indices)}")
+        print(f"实际保留率: {len(keep_indices)/n_total*100:.1f}%")
+        print("="*70)
+
+    return features[keep_indices], targets[keep_indices], battery_ids[keep_indices]
+
+
+def apply_sparse_sampling_by_battery(features, targets, battery_ids,
+                                     sampling_interval=5, offset=0, verbose=True):
+    """
+    按电池分组进行稀疏采样
+
+    对每个电池独立应用稀疏采样,保持每个电池的时序结构。
+    这对于跨电池训练特别重要,确保每个电池都按相同间隔采样。
+
+    Args:
+        features: (N, feature_dim) 特征数组
+        targets: (N,) 目标数组
+        battery_ids: (N,) 电池ID数组
+        sampling_interval: int, 采样间隔
+        offset: int, 起始偏移
+        verbose: bool, 是否打印详细信息
+
+    Returns:
+        sampled_features, sampled_targets, sampled_battery_ids
+    """
+    unique_batteries = np.unique(battery_ids)
+
+    sampled_features_list = []
+    sampled_targets_list = []
+    sampled_ids_list = []
+
+    if verbose:
+        print("\n" + "="*70)
+        print("场景二: 按电池稀疏采样")
+        print("="*70)
+        print(f"总电池数: {len(unique_batteries)}")
+        print(f"采样间隔: 每 {sampling_interval} 个循环保留 1 个")
+
+    total_original = 0
+    total_sampled = 0
+
+    for battery_id in unique_batteries:
+        # 找到该电池的所有样本
+        mask = (battery_ids == battery_id)
+        battery_features = features[mask]
+        battery_targets = targets[mask]
+        battery_ids_arr = battery_ids[mask]
+
+        # 对该电池进行稀疏采样
+        sampled_feat, sampled_targ, sampled_ids = sparse_sampling(
+            battery_features, battery_targets, battery_ids_arr,
+            sampling_interval=sampling_interval,
+            offset=offset,
+            verbose=False
+        )
+
+        sampled_features_list.append(sampled_feat)
+        sampled_targets_list.append(sampled_targ)
+        sampled_ids_list.append(sampled_ids)
+
+        total_original += len(battery_features)
+        total_sampled += len(sampled_feat)
+
+    # 合并所有电池的采样结果
+    final_features = np.vstack(sampled_features_list)
+    final_targets = np.concatenate(sampled_targets_list)
+    final_ids = np.concatenate(sampled_ids_list)
+
+    if verbose:
+        print(f"原始总样本数: {total_original}")
+        print(f"采样后总样本数: {total_sampled}")
+        print(f"总体保留率: {total_sampled/total_original*100:.1f}%")
+        print("="*70)
+
+    return final_features, final_targets, final_ids
+
+
+# 稀疏采样预设 (常见的测试间隔)
+SPARSE_SAMPLING_PRESETS = {
+    'dense': {
+        'sampling_interval': 2,
+        'description': '密集采样 (每2个循环测试1次, 保留50%)'
+    },
+    'moderate': {
+        'sampling_interval': 5,
+        'description': '中等采样 (每5个循环测试1次, 保留20%)'
+    },
+    'sparse': {
+        'sampling_interval': 10,
+        'description': '稀疏采样 (每10个循环测试1次, 保留10%)'
+    },
+    'very_sparse': {
+        'sampling_interval': 20,
+        'description': '极稀疏采样 (每20个循环测试1次, 保留5%)'
+    }
+}
+
+
+def get_sparse_sampling_preset(preset_name='moderate'):
+    """
+    获取稀疏采样预设参数
+
+    Args:
+        preset_name: str, 预设名称 ('dense', 'moderate', 'sparse', 'very_sparse')
+
+    Returns:
+        dict: 采样参数字典
+    """
+    if preset_name not in SPARSE_SAMPLING_PRESETS:
+        raise ValueError(f"Unknown preset: {preset_name}. Available: {list(SPARSE_SAMPLING_PRESETS.keys())}")
+
+    return SPARSE_SAMPLING_PRESETS[preset_name]
 
 
 if __name__ == "__main__":
