@@ -166,6 +166,8 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
                                noise_level='medium',
                                sparse_sampling_level='moderate',
                                sparse_sampling_interval=None,
+                               random_missing_level='moderate',
+                               random_missing_rate=None,
                                seed=42):
     """
     准备跨电池的训练/验证/测试数据。
@@ -178,13 +180,19 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         degradation_scenario: str, 数据退化场景选择
             - 'none': 无退化 (干净数据)
             - 'scenario1': 场景一 - 随机噪声+丢弃
-            - 'scenario2': 场景二 - 规律稀疏采样
+            - 'scenario2': 场景二 - 规律稀疏采样 (Uniform Subsampling)
+            - 'scenario3': 场景三 - 随机缺失 (Random Missing)
         noise_level: str, 场景一的噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: str, 场景二的采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
                               如果 sparse_sampling_interval 不为 None，则忽略此参数
         sparse_sampling_interval: int or None, 场景二的手动间隔设置
                                  如果设置，则直接使用此值，忽略 sparse_sampling_level
                                  例如: interval=3 表示每3个循环保留1个
+        random_missing_level: str, 场景三的缺失级别 ('light', 'moderate', 'heavy')
+                             如果 random_missing_rate 不为 None，则忽略此参数
+        random_missing_rate: float or None, 场景三的手动缺失率设置
+                            如果设置，则直接使用此值，忽略 random_missing_level
+                            例如: rate=0.4 表示随机丢弃40%数据
         seed: int, 随机种子 (确保可复现)
 
     Returns:
@@ -312,6 +320,50 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         print("⚠️  测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
+    elif degradation_scenario == 'scenario3':
+        # 场景三: 随机缺失 (Random Missing)
+        from utils.data_augmentation import (
+            random_missing_by_battery,
+            get_random_missing_preset
+        )
+
+        # 优先使用手动设置的缺失率，否则使用预设级别
+        if random_missing_rate is not None:
+            missing_rate = random_missing_rate
+            retention_rate = (1 - missing_rate) * 100
+            description = f"手动缺失率 (随机丢弃{missing_rate*100:.0f}%, 保留率≈{retention_rate:.1f}%)"
+            print(f"\n{'='*70}")
+            print(f"场景三: 随机缺失 - {description}")
+            print(f"{'='*70}")
+        else:
+            missing_params = get_random_missing_preset(random_missing_level)
+            missing_rate = missing_params['missing_rate']
+            print(f"\n{'='*70}")
+            print(f"场景三: 随机缺失 - {missing_params['description']}")
+            print(f"{'='*70}")
+
+        # 训练集随机缺失
+        print("\n对训练集进行随机缺失:")
+        train_features_scaled, train_targets, train_battery_ids = random_missing_by_battery(
+            train_features_scaled, train_targets, train_battery_ids,
+            missing_rate=missing_rate,
+            seed=seed,
+            verbose=True
+        )
+
+        # 验证集随机缺失 (使用不同的种子，避免与训练集完全相同)
+        print("\n对验证集进行随机缺失:")
+        val_features_scaled, val_targets, val_battery_ids = random_missing_by_battery(
+            val_features_scaled, val_targets, val_battery_ids,
+            missing_rate=missing_rate,
+            seed=seed + 2000,  # 不同的种子
+            verbose=True
+        )
+
+        print(f"\n{'='*70}")
+        print("⚠️  测试集保持干净 (用于公平对比)")
+        print(f"{'='*70}")
+
     elif degradation_scenario == 'none':
         print(f"\n{'='*70}")
         print("无数据退化 - 使用干净数据")
@@ -319,7 +371,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
 
     else:
         raise ValueError(f"Unknown degradation scenario: {degradation_scenario}. "
-                        f"Available: 'none', 'scenario1', 'scenario2'")
+                        f"Available: 'none', 'scenario1', 'scenario2', 'scenario3'")
 
     data_dict = {
         'train_features': train_features_scaled,
@@ -586,10 +638,12 @@ def train_cross_battery_model(
     apply_cleaning=False,
     color_by_battery=True,              # 是否按电池着色（默认True）
     highlight_anomalies=True,            # 是否突出显示异常电池（默认True）
-    degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2')
+    degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3')
     noise_level='medium',                # 场景一噪声级别 ('light', 'medium', 'heavy')
     sparse_sampling_level='moderate',    # 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
-    sparse_sampling_interval=None        # 场景二手动间隔 (优先级高于 sparse_sampling_level)
+    sparse_sampling_interval=None,       # 场景二手动间隔 (优先级高于 sparse_sampling_level)
+    random_missing_level='moderate',     # 场景三缺失级别 ('light', 'moderate', 'heavy')
+    random_missing_rate=None             # 场景三手动缺失率 (优先级高于 random_missing_level)
 ):
     """
     跨电池训练模型。
@@ -604,11 +658,14 @@ def train_cross_battery_model(
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
         color_by_battery: 是否按电池着色（默认True）
         highlight_anomalies: 是否突出显示异常电池（默认True）
-        degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2')
+        degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3')
         noise_level: 场景一噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
         sparse_sampling_interval: 场景二手动间隔 (如果设置，则忽略 sparse_sampling_level)
                                  例如: interval=3 表示每3个循环保留1个
+        random_missing_level: 场景三缺失级别 ('light', 'moderate', 'heavy')
+        random_missing_rate: 场景三手动缺失率 (如果设置，则忽略 random_missing_level)
+                            例如: rate=0.4 表示随机丢弃40%数据
     """
     set_seed(seed)
 
@@ -625,8 +682,20 @@ def train_cross_battery_model(
         print(f"数据退化: 场景一 ({noise_desc})")
     elif degradation_scenario == 'scenario2':
         from utils.data_augmentation import SPARSE_SAMPLING_PRESETS
-        sampling_desc = SPARSE_SAMPLING_PRESETS[sparse_sampling_level]['description']
-        print(f"数据退化: 场景二 ({sampling_desc})")
+        if sparse_sampling_interval is not None:
+            retention_rate = 100.0 / sparse_sampling_interval
+            print(f"数据退化: 场景二 (手动间隔={sparse_sampling_interval}, 保留率≈{retention_rate:.1f}%)")
+        else:
+            sampling_desc = SPARSE_SAMPLING_PRESETS[sparse_sampling_level]['description']
+            print(f"数据退化: 场景二 ({sampling_desc})")
+    elif degradation_scenario == 'scenario3':
+        from utils.data_augmentation import RANDOM_MISSING_PRESETS
+        if random_missing_rate is not None:
+            retention_rate = (1 - random_missing_rate) * 100
+            print(f"数据退化: 场景三 (手动缺失率={random_missing_rate*100:.0f}%, 保留率≈{retention_rate:.1f}%)")
+        else:
+            missing_desc = RANDOM_MISSING_PRESETS[random_missing_level]['description']
+            print(f"数据退化: 场景三 ({missing_desc})")
     else:
         print("数据退化: 无 (干净数据)")
 
@@ -651,6 +720,8 @@ def train_cross_battery_model(
         noise_level=noise_level,
         sparse_sampling_level=sparse_sampling_level,
         sparse_sampling_interval=sparse_sampling_interval,
+        random_missing_level=random_missing_level,
+        random_missing_rate=random_missing_rate,
         seed=seed
     )
 

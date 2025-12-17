@@ -351,6 +351,144 @@ def get_sparse_sampling_preset(preset_name='moderate'):
     return SPARSE_SAMPLING_PRESETS[preset_name]
 
 
+# ===== 场景三: Random Missing (随机缺失) =====
+
+def random_missing_by_battery(features, targets, battery_ids,
+                              missing_rate=0.3, seed=None, verbose=True):
+    """
+    按电池分组进行随机缺失采样 (模拟传感器随机故障)
+
+    与 sparse_sampling 的区别:
+    - sparse_sampling: 规律间隔 (如每5个保留1个)
+    - random_missing: 随机丢弃 (如随机丢弃30%)
+
+    特点:
+    1. 每个电池独立进行随机缺失
+    2. 保持原始 cycle 索引顺序
+    3. 时序结构被破坏 (不规则间隔)
+
+    Args:
+        features: (N, seq_len, feature_dim) 或 (N, feature_dim) 特征数组
+        targets: (N,) 目标数组
+        battery_ids: (N,) 电池ID数组 (list 或 ndarray)
+        missing_rate: float, 缺失比例 (0~1), 例如 0.3 表示随机丢弃 30%
+        seed: int, 随机种子 (确保可复现)
+        verbose: bool, 是否打印统计信息
+
+    Returns:
+        sampled_features, sampled_targets, sampled_battery_ids
+
+    Example:
+        missing_rate=0.3 表示保留 70% 的样本
+        原始: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        可能: [0, 2, 3, 5, 7, 9] (随机保留 70%)
+    """
+    if not (0 <= missing_rate < 1):
+        raise ValueError(f"missing_rate must be in [0, 1), got {missing_rate}")
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    # 转换 battery_ids 为 numpy array (如果是 list)
+    if isinstance(battery_ids, list):
+        battery_ids = np.array(battery_ids)
+
+    # 获取唯一电池
+    unique_batteries = np.unique(battery_ids)
+
+    sampled_features_list = []
+    sampled_targets_list = []
+    sampled_battery_ids_list = []
+
+    total_original = len(features)
+    total_retained = 0
+
+    if verbose:
+        print("\n" + "="*70)
+        print("场景三: Random Missing (随机缺失)")
+        print("="*70)
+        print(f"缺失率: {missing_rate*100:.1f}% (保留 {(1-missing_rate)*100:.1f}%)")
+        print(f"原始样本数: {total_original}")
+        print(f"电池数量: {len(unique_batteries)}")
+        print("-"*70)
+
+    # 对每个电池独立进行随机缺失
+    for battery_id in unique_batteries:
+        # 找出该电池的所有样本索引
+        mask = (battery_ids == battery_id)
+        indices = np.where(mask)[0]
+
+        n_battery_samples = len(indices)
+        n_keep = int(n_battery_samples * (1 - missing_rate))
+
+        # 随机选择要保留的索引
+        keep_positions = np.random.choice(n_battery_samples, size=n_keep, replace=False)
+        keep_positions = np.sort(keep_positions)  # 保持时序顺序
+
+        keep_indices = indices[keep_positions]
+
+        # 提取该电池保留的样本
+        sampled_features_list.append(features[keep_indices])
+        sampled_targets_list.append(targets[keep_indices])
+        sampled_battery_ids_list.append(battery_ids[keep_indices])
+
+        total_retained += n_keep
+
+        if verbose:
+            retention = n_keep / n_battery_samples * 100
+            print(f"  电池 {battery_id}: {n_battery_samples} → {n_keep} ({retention:.1f}%)")
+
+    # 合并所有电池的样本
+    sampled_features = np.concatenate(sampled_features_list, axis=0)
+    sampled_targets = np.concatenate(sampled_targets_list, axis=0)
+    sampled_battery_ids = np.concatenate(sampled_battery_ids_list, axis=0)
+
+    if verbose:
+        print("-"*70)
+        print(f"总保留样本数: {total_retained}")
+        print(f"实际保留率: {total_retained/total_original*100:.1f}%")
+        print("="*70)
+
+    return sampled_features, sampled_targets, sampled_battery_ids
+
+
+# Random Missing 预设配置
+RANDOM_MISSING_PRESETS = {
+    'light': {
+        'missing_rate': 0.2,  # 丢弃 20%, 保留 80%
+        'description': '轻度缺失 (保留80%)'
+    },
+    'moderate': {
+        'missing_rate': 0.4,  # 丢弃 40%, 保留 60%
+        'description': '中度缺失 (保留60%)'
+    },
+    'heavy': {
+        'missing_rate': 0.6,  # 丢弃 60%, 保留 40%
+        'description': '重度缺失 (保留40%)'
+    }
+}
+
+
+def get_random_missing_preset(preset_name):
+    """
+    获取 Random Missing 预设配置
+
+    Args:
+        preset_name: str, 预设名称
+            - 'light': 保留 80% (缺失 20%)
+            - 'moderate': 保留 60% (缺失 40%)
+            - 'heavy': 保留 40% (缺失 60%)
+
+    Returns:
+        配置字典 {'missing_rate': float, 'description': str}
+    """
+    if preset_name not in RANDOM_MISSING_PRESETS:
+        available = ', '.join(RANDOM_MISSING_PRESETS.keys())
+        raise ValueError(f"Unknown preset '{preset_name}'. Available: {available}")
+
+    return RANDOM_MISSING_PRESETS[preset_name].copy()
+
+
 if __name__ == "__main__":
     """测试数据增强功能"""
     print("Testing data augmentation utilities...")
