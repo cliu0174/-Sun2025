@@ -165,6 +165,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
                                degradation_scenario='none',
                                noise_level='medium',
                                sparse_sampling_level='moderate',
+                               sparse_sampling_interval=None,
                                seed=42):
     """
     准备跨电池的训练/验证/测试数据。
@@ -180,6 +181,10 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
             - 'scenario2': 场景二 - 规律稀疏采样
         noise_level: str, 场景一的噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: str, 场景二的采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
+                              如果 sparse_sampling_interval 不为 None，则忽略此参数
+        sparse_sampling_interval: int or None, 场景二的手动间隔设置
+                                 如果设置，则直接使用此值，忽略 sparse_sampling_level
+                                 例如: interval=3 表示每3个循环保留1个
         seed: int, 随机种子 (确保可复现)
 
     Returns:
@@ -270,16 +275,26 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
             get_sparse_sampling_preset
         )
 
-        sampling_params = get_sparse_sampling_preset(sparse_sampling_level)
-        print(f"\n{'='*70}")
-        print(f"场景二: 稀疏采样 - {sampling_params['description']}")
-        print(f"{'='*70}")
+        # 优先使用手动设置的间隔，否则使用预设级别
+        if sparse_sampling_interval is not None:
+            sampling_interval = sparse_sampling_interval
+            retention_rate = 100.0 / sampling_interval
+            description = f"手动间隔 (每{sampling_interval}个循环保留1个, 保留率≈{retention_rate:.1f}%)"
+            print(f"\n{'='*70}")
+            print(f"场景二: 稀疏采样 - {description}")
+            print(f"{'='*70}")
+        else:
+            sampling_params = get_sparse_sampling_preset(sparse_sampling_level)
+            sampling_interval = sampling_params['sampling_interval']
+            print(f"\n{'='*70}")
+            print(f"场景二: 稀疏采样 - {sampling_params['description']}")
+            print(f"{'='*70}")
 
         # 训练集稀疏采样
         print("\n对训练集进行稀疏采样:")
         train_features_scaled, train_targets, train_battery_ids = apply_sparse_sampling_by_battery(
             train_features_scaled, train_targets, train_battery_ids,
-            sampling_interval=sampling_params['sampling_interval'],
+            sampling_interval=sampling_interval,
             offset=0,
             verbose=True
         )
@@ -288,7 +303,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         print("\n对验证集进行稀疏采样:")
         val_features_scaled, val_targets, val_battery_ids = apply_sparse_sampling_by_battery(
             val_features_scaled, val_targets, val_battery_ids,
-            sampling_interval=sampling_params['sampling_interval'],
+            sampling_interval=sampling_interval,
             offset=0,
             verbose=True
         )
@@ -573,7 +588,8 @@ def train_cross_battery_model(
     highlight_anomalies=True,            # 是否突出显示异常电池（默认True）
     degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2')
     noise_level='medium',                # 场景一噪声级别 ('light', 'medium', 'heavy')
-    sparse_sampling_level='moderate'     # 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
+    sparse_sampling_level='moderate',    # 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
+    sparse_sampling_interval=None        # 场景二手动间隔 (优先级高于 sparse_sampling_level)
 ):
     """
     跨电池训练模型。
@@ -591,6 +607,8 @@ def train_cross_battery_model(
         degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2')
         noise_level: 场景一噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
+        sparse_sampling_interval: 场景二手动间隔 (如果设置，则忽略 sparse_sampling_level)
+                                 例如: interval=3 表示每3个循环保留1个
     """
     set_seed(seed)
 
@@ -632,6 +650,7 @@ def train_cross_battery_model(
         degradation_scenario=degradation_scenario,
         noise_level=noise_level,
         sparse_sampling_level=sparse_sampling_level,
+        sparse_sampling_interval=sparse_sampling_interval,
         seed=seed
     )
 
@@ -1514,11 +1533,11 @@ if __name__ == "__main__":
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    SEED = 66              # 随机种子（确保可复现）
+    SEED = 42             # 随机种子（确保可复现）
 
     # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
     # 场景选择: 'none', 'scenario1', 'scenario2'
-    DEGRADATION_SCENARIO = 'scenario2'  # 'none': 无退化 (干净数据)
+    DEGRADATION_SCENARIO = 'none'  # 'none': 无退化 (干净数据)
                                     # 'scenario1': 随机噪声+随机丢弃
                                     # 'scenario2': 规律稀疏采样
 
@@ -1529,11 +1548,18 @@ if __name__ == "__main__":
                                      # heavy:  30% drop, σ_feat=0.10, σ_targ=0.05
 
     # 场景二参数 (仅当 DEGRADATION_SCENARIO='scenario2' 时生效)
-    SPARSE_SAMPLING_LEVEL = 'dense'  # 稀疏采样级别: 'dense', 'moderate', 'sparse', 'very_sparse'
+    # 方式1: 使用预设级别
+    SPARSE_SAMPLING_LEVEL = 'moderate'  # 稀疏采样级别: 'dense', 'moderate', 'sparse', 'very_sparse'
                                          # dense:       每2个循环保留1个 (50%)
                                          # moderate:    每5个循环保留1个 (20%)
                                          # sparse:      每10个循环保留1个 (10%)
                                          # very_sparse: 每20个循环保留1个 (5%)
+
+    # 方式2: 手动设置间隔 (如果设置，将忽略 SPARSE_SAMPLING_LEVEL)
+    SPARSE_SAMPLING_INTERVAL = 4     # 手动设置采样间隔 (None=使用预设级别, 整数=手动间隔)
+                                         # 例如: 3 表示每3个循环保留1个 (保留率≈33.3%)
+                                         #      7 表示每7个循环保留1个 (保留率≈14.3%)
+                                         #      15 表示每15个循环保留1个 (保留率≈6.7%)
 
     # ===== 开始训练 =====
     print(f"\n使用设备: {DEVICE}\n")
@@ -1550,7 +1576,8 @@ if __name__ == "__main__":
         highlight_anomalies=False,            # 是否突出显示异常电池（True=红色星形，False=普通显示）
         degradation_scenario=DEGRADATION_SCENARIO,  # 数据退化场景选择
         noise_level=NOISE_LEVEL,              # 场景一: 噪声级别
-        sparse_sampling_level=SPARSE_SAMPLING_LEVEL  # 场景二: 稀疏采样级别
+        sparse_sampling_level=SPARSE_SAMPLING_LEVEL,  # 场景二: 稀疏采样级别
+        sparse_sampling_interval=SPARSE_SAMPLING_INTERVAL  # 场景二: 手动间隔（优先级更高）
     )
 
     print("\n" + "="*70)
