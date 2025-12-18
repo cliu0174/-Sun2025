@@ -36,7 +36,7 @@ CONFIG = {
     'output_dir': 'inference_results',                                     # 结果保存目录
 
     # 推理模式选择（三选一）
-    'mode': 'batch',  # 'single' = 单电池, 'batch' = 批量, 'test_set' = 测试集
+    'mode': 'single',  # 'single' = 单电池, 'batch' = 批量, 'test_set' = 测试集
 
     # 单电池模式配置（mode='single'时使用）
     'single_battery_id': '4-3',
