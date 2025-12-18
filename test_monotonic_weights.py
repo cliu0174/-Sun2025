@@ -28,14 +28,20 @@ CONFIG = {
     'val_ratio': 0.2,
     'test_ratio': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'seed': 517,
+    'seed': 999,
 
     # 数据退化场景
-    'degradation_scenario': 'scenario2',  # 'none', 'scenario1', 'scenario2'
-    'sparse_sampling_interval': 4,        # 稀疏采样间隔
+    'degradation_scenario': 'scenario2',  # 'none', 'scenario1', 'scenario2', 'scenario3'
+
+    # Scenario 2 参数 (规律稀疏采样)
+    'sparse_sampling_interval': 2,        # 稀疏采样间隔
+
+    # Scenario 3 参数 (随机缺失)
+    'random_missing_rate': 0.5,          # 随机缺失率 (例如: 0.4 表示丢弃40%，保留60%)
+                                          # None = 不使用 Scenario 3
 
     # 单调性权重范围
-    'monotonic_weights': [0.2, 0.3, 0.5, 0.6, 0.8],
+    'monotonic_weights': [0.1, 0.3, 0.5],
 
     # 输出目录
     'output_dir': 'results/monotonic_weight_test',
@@ -45,7 +51,7 @@ CONFIG = {
 
 def modify_config_monotonic_weight(model_type, monotonic_weight):
     """
-    修改模型配置文件中的单调性权重
+    修改模型配置文件中的单调性权重，并确保其他物理约束参数一致
 
     Args:
         model_type: 模型类型
@@ -57,17 +63,23 @@ def modify_config_monotonic_weight(model_type, monotonic_weight):
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
 
-    # 修改单调性权重
+    # 修改物理约束参数，确保一致性
     if 'physics_constraints' in config:
         config['physics_constraints']['monotonic_weight'] = monotonic_weight
         # ⭐ 关键：确保物理约束启用！
         config['physics_constraints']['enabled'] = True
 
+        # ⭐ 显式设置其他参数，确保批量测试一致性
+        config['physics_constraints']['monotonic_tolerance'] = 0.01  # 软约束容差
+        config['physics_constraints']['boundary_weight'] = 0.0       # 边界约束（不使用）
+        config['physics_constraints']['smoothness_weight'] = 0.0     # 平滑性约束（不使用）
+        config['physics_constraints']['curvature_weight'] = 0.0      # 曲率约束（不使用）
+
     # 保存配置
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
-    print(f"  [OK] 已修改配置: monotonic_weight = {monotonic_weight}, enabled = True")
+    print(f"  [OK] 已修改配置: monotonic_weight = {monotonic_weight}, tolerance = 0.01, enabled = True")
 
 
 def run_single_experiment(weight, config):
@@ -83,6 +95,17 @@ def run_single_experiment(weight, config):
     """
     print(f"\n{'='*70}")
     print(f"运行实验: monotonic_weight = {weight}")
+
+    # 显示场景信息
+    if config['degradation_scenario'] == 'scenario2' and config.get('sparse_sampling_interval'):
+        retention_rate = 100.0 / config['sparse_sampling_interval']
+        print(f"场景: Scenario 2 (Uniform, interval={config['sparse_sampling_interval']}, 保留率≈{retention_rate:.1f}%)")
+    elif config['degradation_scenario'] == 'scenario3' and config.get('random_missing_rate'):
+        retention_rate = (1 - config['random_missing_rate']) * 100
+        print(f"场景: Scenario 3 (Random Missing, 缺失率={config['random_missing_rate']*100:.0f}%, 保留率≈{retention_rate:.1f}%)")
+    else:
+        print(f"场景: {config['degradation_scenario']}")
+
     print(f"{'='*70}")
 
     # 修改配置文件
@@ -92,32 +115,73 @@ def run_single_experiment(weight, config):
     import time
     time.sleep(0.5)
 
-    # 验证配置是否修改成功
+    # 验证配置是否修改成功（扩展验证所有关键参数）
     config_path = f'configs/models/{config["model_type"]}_config.json'
     with open(config_path, 'r', encoding='utf-8') as f:
         verify_config = json.load(f)
-    actual_weight = verify_config.get('physics_constraints', {}).get('monotonic_weight', None)
-    print(f"  [VERIFY] 配置文件中的权重: {actual_weight}")
 
+    physics = verify_config.get('physics_constraints', {})
+    actual_weight = physics.get('monotonic_weight', None)
+
+    print(f"  [VERIFY] 配置文件中的权重: {actual_weight}")
+    print(f"  [VERIFY] 完整物理约束配置:")
+    print(f"    enabled: {physics.get('enabled')}")
+    print(f"    monotonic_tolerance: {physics.get('monotonic_tolerance')}")
+    print(f"    boundary_weight: {physics.get('boundary_weight')}")
+    print(f"    smoothness_weight: {physics.get('smoothness_weight')}")
+    print(f"    curvature_weight: {physics.get('curvature_weight')}")
+
+    # 验证关键参数
     if actual_weight != weight:
-        print(f"  [ERROR] 权重验证失败！预期 {weight}，实际 {actual_weight}")
+        print(f"  [ERROR] monotonic_weight 验证失败！预期 {weight}，实际 {actual_weight}")
         raise ValueError(f"配置修改失败")
+
+    if physics.get('monotonic_tolerance') != 0.01:
+        print(f"  [WARNING] monotonic_tolerance 不是预期值 0.01，实际: {physics.get('monotonic_tolerance')}")
+
+    if physics.get('enabled') != True:
+        print(f"  [WARNING] physics_constraints 未启用！")
+
+    # 检查其他权重是否为 0（确保批量测试一致性）
+    unexpected_params = []
+    if physics.get('boundary_weight', 0.0) != 0.0:
+        unexpected_params.append(f"boundary_weight={physics.get('boundary_weight')}")
+    if physics.get('smoothness_weight', 0.0) != 0.0:
+        unexpected_params.append(f"smoothness_weight={physics.get('smoothness_weight')}")
+    if physics.get('curvature_weight', 0.0) != 0.0:
+        unexpected_params.append(f"curvature_weight={physics.get('curvature_weight')}")
+
+    if unexpected_params:
+        print(f"  [WARNING] 检测到非零参数: {', '.join(unexpected_params)}")
+        print(f"  [WARNING] 这可能影响批量测试一致性！")
+    else:
+        print(f"  [OK] 所有约束参数已正确设置")
 
     # 运行训练
     try:
-        wrapper, results, data_dict = train_cross_battery_model(
-            model_type=config['model_type'],
-            train_ratio=config['train_ratio'],
-            val_ratio=config['val_ratio'],
-            test_ratio=config['test_ratio'],
-            device=config['device'],
-            seed=config['seed'],
-            apply_cleaning=False,
-            color_by_battery=True,
-            highlight_anomalies=False,
-            degradation_scenario=config['degradation_scenario'],
-            sparse_sampling_interval=config['sparse_sampling_interval']
-        )
+        # 根据场景选择参数
+        train_params = {
+            'model_type': config['model_type'],
+            'train_ratio': config['train_ratio'],
+            'val_ratio': config['val_ratio'],
+            'test_ratio': config['test_ratio'],
+            'device': config['device'],
+            'seed': config['seed'],
+            'apply_cleaning': False,
+            'color_by_battery': True,
+            'highlight_anomalies': False,
+            'degradation_scenario': config['degradation_scenario']
+        }
+
+        # 添加 Scenario 2 参数
+        if 'sparse_sampling_interval' in config and config['sparse_sampling_interval'] is not None:
+            train_params['sparse_sampling_interval'] = config['sparse_sampling_interval']
+
+        # 添加 Scenario 3 参数
+        if 'random_missing_rate' in config and config['random_missing_rate'] is not None:
+            train_params['random_missing_rate'] = config['random_missing_rate']
+
+        wrapper, results, data_dict = train_cross_battery_model(**train_params)
 
         # 验证损失函数是否使用了正确的权重
         if hasattr(wrapper, 'criterion') and hasattr(wrapper.criterion, 'monotonic_weight'):
@@ -418,8 +482,15 @@ def main():
     print(f"\n实验配置:")
     print(f"  模型类型: {CONFIG['model_type']}")
     print(f"  数据场景: {CONFIG['degradation_scenario']}")
-    if CONFIG.get('sparse_sampling_interval'):
-        print(f"  稀疏间隔: {CONFIG['sparse_sampling_interval']}")
+
+    # 显示场景参数
+    if CONFIG['degradation_scenario'] == 'scenario2' and CONFIG.get('sparse_sampling_interval'):
+        retention_rate = 100.0 / CONFIG['sparse_sampling_interval']
+        print(f"  稀疏间隔: {CONFIG['sparse_sampling_interval']} (保留率≈{retention_rate:.1f}%)")
+    elif CONFIG['degradation_scenario'] == 'scenario3' and CONFIG.get('random_missing_rate'):
+        retention_rate = (1 - CONFIG['random_missing_rate']) * 100
+        print(f"  缺失率: {CONFIG['random_missing_rate']*100:.0f}% (保留率≈{retention_rate:.1f}%)")
+
     print(f"  测试权重: {CONFIG['monotonic_weights']}")
     print(f"  输出目录: {CONFIG['output_dir']}/{CONFIG['timestamp']}")
 

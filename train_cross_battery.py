@@ -1604,13 +1604,14 @@ if __name__ == "__main__":
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    SEED = 42             # 随机种子（确保可复现）
+    SEED = 999             # 随机种子（确保可复现）
 
     # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
-    # 场景选择: 'none', 'scenario1', 'scenario2'
-    DEGRADATION_SCENARIO = 'none'  # 'none': 无退化 (干净数据)
+    # 场景选择: 'none', 'scenario1', 'scenario2', 'scenario3'
+    DEGRADATION_SCENARIO = 'scenario2'  # 'none': 无退化 (干净数据)
                                     # 'scenario1': 随机噪声+随机丢弃
-                                    # 'scenario2': 规律稀疏采样
+                                    # 'scenario2': 规律稀疏采样 (Uniform Subsampling)
+                                    # 'scenario3': 随机缺失 (Random Missing)
 
     # 场景一参数 (仅当 DEGRADATION_SCENARIO='scenario1' 时生效)
     NOISE_LEVEL = 'light'           # 噪声级别: 'light', 'medium', 'heavy'
@@ -1620,17 +1621,30 @@ if __name__ == "__main__":
 
     # 场景二参数 (仅当 DEGRADATION_SCENARIO='scenario2' 时生效)
     # 方式1: 使用预设级别
-    SPARSE_SAMPLING_LEVEL = 'moderate'  # 稀疏采样级别: 'dense', 'moderate', 'sparse', 'very_sparse'
+    SPARSE_SAMPLING_LEVEL = 'dense'  # 稀疏采样级别: 'dense', 'moderate', 'sparse', 'very_sparse'
                                          # dense:       每2个循环保留1个 (50%)
                                          # moderate:    每5个循环保留1个 (20%)
                                          # sparse:      每10个循环保留1个 (10%)
                                          # very_sparse: 每20个循环保留1个 (5%)
 
     # 方式2: 手动设置间隔 (如果设置，将忽略 SPARSE_SAMPLING_LEVEL)
-    SPARSE_SAMPLING_INTERVAL = 4     # 手动设置采样间隔 (None=使用预设级别, 整数=手动间隔)
+    SPARSE_SAMPLING_INTERVAL = None     # 手动设置采样间隔 (None=使用预设级别, 整数=手动间隔)
                                          # 例如: 3 表示每3个循环保留1个 (保留率≈33.3%)
                                          #      7 表示每7个循环保留1个 (保留率≈14.3%)
                                          #      15 表示每15个循环保留1个 (保留率≈6.7%)
+
+    # 场景三参数 (仅当 DEGRADATION_SCENARIO='scenario3' 时生效)
+    # 方式1: 使用预设级别
+    RANDOM_MISSING_LEVEL = 'light'  # 随机缺失级别: 'light', 'moderate', 'heavy'
+                                       # light:    20% 缺失 (保留80%)
+                                       # moderate: 40% 缺失 (保留60%)
+                                       # heavy:    60% 缺失 (保留40%)
+
+    # 方式2: 手动设置缺失率 (如果设置，将忽略 RANDOM_MISSING_LEVEL)
+    RANDOM_MISSING_RATE = None         # 手动设置缺失率 (None=使用预设级别, 0-1之间的浮点数=手动缺失率)
+                                       # 例如: 0.2 表示随机丢弃20%数据 (保留80%)
+                                       #      0.35 表示随机丢弃35%数据 (保留65%)
+                                       #      0.5 表示随机丢弃50%数据 (保留50%)
 
     # ===== 开始训练 =====
     print(f"\n使用设备: {DEVICE}\n")
@@ -1648,7 +1662,9 @@ if __name__ == "__main__":
         degradation_scenario=DEGRADATION_SCENARIO,  # 数据退化场景选择
         noise_level=NOISE_LEVEL,              # 场景一: 噪声级别
         sparse_sampling_level=SPARSE_SAMPLING_LEVEL,  # 场景二: 稀疏采样级别
-        sparse_sampling_interval=SPARSE_SAMPLING_INTERVAL  # 场景二: 手动间隔（优先级更高）
+        sparse_sampling_interval=SPARSE_SAMPLING_INTERVAL,  # 场景二: 手动间隔（优先级更高）
+        random_missing_level=RANDOM_MISSING_LEVEL,  # 场景三: 随机缺失级别
+        random_missing_rate=RANDOM_MISSING_RATE     # 场景三: 手动缺失率（优先级更高）
     )
 
     print("\n" + "="*70)

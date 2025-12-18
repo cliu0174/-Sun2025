@@ -22,13 +22,13 @@ from train_cross_battery import train_cross_battery_model
 CONFIG = {
     # 基础配置
     'model_type': 'cnn_lstm',
-    'seed': 42,
+    'seed': 517,
 
     # 测试的缺失率
-    'missing_rates': [0.2, 0.4, 0.6],  # 20%, 40%, 60% 缺失
+    'missing_rates': [0.2, 0.4, 0.5, 0.7, 0.8],  # 20%, 40%, 60% 缺失
 
     # 是否同时测试 Uniform Subsampling 对比
-    'test_uniform_comparison': True,
+    'test_uniform_comparison': False,
 
     # 结果保存路径
     'results_dir': 'results/random_missing_test',
