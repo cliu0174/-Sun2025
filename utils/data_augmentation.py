@@ -489,6 +489,209 @@ def get_random_missing_preset(preset_name):
     return RANDOM_MISSING_PRESETS[preset_name].copy()
 
 
+# ===== 场景四: Consecutive Cycle Drop (连续循环缺失) =====
+
+def consecutive_cycle_drop_by_battery(features, targets, battery_ids,
+                                      cycle_drop_rate=0.3, num_gaps=2, seed=None,
+                                      verbose=True, show_battery_details=False):
+    """
+    按电池分组进行连续循环缺失 (模拟传感器/采集故障)
+
+    与其他场景的区别:
+    - Scenario 1 (add_degradation_noise): 随机丢弃点 + 加噪声 (跨电池丢弃)
+    - Scenario 3 (random_missing): 在每个电池内随机分散地丢弃数据点
+    - Scenario 4 (consecutive_cycle_drop): 在每个电池内随机丢弃**连续的一段**循环
+
+    特点:
+    1. 每个电池独立进行连续循环缺失
+    2. 模拟真实场景：传感器故障导致连续一段时间没有数据
+    3. 随机选择缺失段的起始位置，缺失长度根据 cycle_drop_rate 计算
+    4. 可以有多个缺失段 (由 num_gaps 控制)
+
+    Args:
+        features: (N, feature_dim) 或 (N, seq_len, feature_dim) 特征数组
+        targets: (N,) 目标数组
+        battery_ids: (N,) 电池ID数组 (list 或 ndarray)
+        cycle_drop_rate: float, 总丢弃比例 (0~1), 例如 0.3 表示总共丢弃 30% 的循环
+        num_gaps: int, 缺失段的数量 (默认2，表示有2个连续缺失段)
+        seed: int, 随机种子 (确保可复现)
+        verbose: bool, 是否打印统计信息 (总体摘要)
+        show_battery_details: bool, 是否打印每个电池的详细缺失信息 (默认False)
+
+    Returns:
+        sampled_features, sampled_targets, sampled_battery_ids
+
+    Example:
+        cycle_drop_rate=0.3, num_gaps=2 表示总共丢弃30%，分成2段连续缺失
+        原始: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]  (20个循环)
+        可能结果（丢弃6个，分2段）:
+        缺失段1: [5,6,7]    (连续3个)
+        缺失段2: [13,14,15] (连续3个)
+        保留: [0,1,2,3,4, 8,9,10,11,12, 16,17,18,19]  (14个，70%)
+    """
+    if not (0 <= cycle_drop_rate < 1):
+        raise ValueError(f"cycle_drop_rate must be in [0, 1), got {cycle_drop_rate}")
+
+    if num_gaps < 1:
+        raise ValueError(f"num_gaps must be >= 1, got {num_gaps}")
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    # 转换 battery_ids 为 numpy array (如果是 list)
+    if isinstance(battery_ids, list):
+        battery_ids = np.array(battery_ids)
+
+    # 获取唯一电池
+    unique_batteries = np.unique(battery_ids)
+
+    sampled_features_list = []
+    sampled_targets_list = []
+    sampled_battery_ids_list = []
+
+    total_original = len(features)
+    total_retained = 0
+
+    if verbose:
+        print("\n" + "="*70)
+        print("场景四: Consecutive Cycle Drop (连续循环缺失)")
+        print("="*70)
+        print(f"总丢弃率: {cycle_drop_rate*100:.1f}% (保留 {(1-cycle_drop_rate)*100:.1f}%)")
+        print(f"缺失段数量: {num_gaps}")
+        print(f"原始样本数: {total_original}")
+        print(f"电池数量: {len(unique_batteries)}")
+        if not show_battery_details:
+            print("(详细电池信息已隐藏，设置 show_battery_details=True 查看)")
+        print("-"*70)
+
+    # 对每个电池独立进行连续循环缺失
+    for battery_id in unique_batteries:
+        # 找出该电池的所有样本索引
+        mask = (battery_ids == battery_id)
+        indices = np.where(mask)[0]
+
+        n_battery_cycles = len(indices)
+        n_total_drop = int(n_battery_cycles * cycle_drop_rate)
+
+        # 如果丢弃数量太少，至少保证每段丢1个
+        if n_total_drop < num_gaps:
+            n_total_drop = min(num_gaps, n_battery_cycles - 1)
+
+        # 将总丢弃量分配到各个缺失段
+        # 使用随机划分，但保证每段至少1个
+        gap_sizes = np.ones(num_gaps, dtype=int)  # 每段至少1个
+        remaining = n_total_drop - num_gaps
+
+        if remaining > 0:
+            # 随机分配剩余的丢弃量
+            random_allocation = np.random.multinomial(remaining, [1/num_gaps]*num_gaps)
+            gap_sizes += random_allocation
+
+        # 创建掩码：True表示保留，False表示丢弃
+        keep_mask = np.ones(n_battery_cycles, dtype=bool)
+
+        # 随机选择缺失段的起始位置
+        available_positions = list(range(n_battery_cycles))
+        gap_info = []
+
+        for gap_size in gap_sizes:
+            if len(available_positions) == 0:
+                break
+
+            # 确保gap不会超出边界
+            max_start = max(0, len(available_positions) - gap_size)
+            if max_start < 0:
+                break
+
+            # 随机选择起始位置
+            start_idx = np.random.randint(0, max_start + 1)
+            actual_start = available_positions[start_idx]
+
+            # 标记这段为丢弃
+            for i in range(gap_size):
+                if actual_start + i < n_battery_cycles:
+                    keep_mask[actual_start + i] = False
+
+            gap_info.append((actual_start, actual_start + gap_size - 1))
+
+            # 从可用位置中移除这段（避免重叠）
+            # 移除start_idx及其后续gap_size个位置
+            remove_count = min(gap_size, len(available_positions) - start_idx)
+            for _ in range(remove_count):
+                if start_idx < len(available_positions):
+                    available_positions.pop(start_idx)
+
+        # 提取保留的样本
+        keep_indices = indices[keep_mask]
+
+        sampled_features_list.append(features[keep_indices])
+        sampled_targets_list.append(targets[keep_indices])
+        sampled_battery_ids_list.append(battery_ids[keep_indices])
+
+        total_retained += len(keep_indices)
+
+        # 只有在 show_battery_details=True 时才打印每个电池的详细信息
+        if show_battery_details:
+            retention = len(keep_indices) / n_battery_cycles * 100
+            print(f"  电池 {battery_id}: {n_battery_cycles} cycles → {len(keep_indices)} cycles ({retention:.1f}%)")
+            for i, (start, end) in enumerate(gap_info, 1):
+                gap_len = end - start + 1
+                print(f"    缺失段{i}: cycle [{start}~{end}] (长度={gap_len})")
+
+    # 合并所有电池的样本
+    sampled_features = np.concatenate(sampled_features_list, axis=0)
+    sampled_targets = np.concatenate(sampled_targets_list, axis=0)
+    sampled_battery_ids = np.concatenate(sampled_battery_ids_list, axis=0)
+
+    if verbose:
+        print("-"*70)
+        print(f"总保留样本数: {total_retained}")
+        print(f"实际保留率: {total_retained/total_original*100:.1f}%")
+        print("="*70)
+
+    return sampled_features, sampled_targets, sampled_battery_ids
+
+
+# Consecutive Cycle Drop 预设配置（连续缺失）
+CONSECUTIVE_CYCLE_DROP_PRESETS = {
+    'light': {
+        'cycle_drop_rate': 0.2,  # 丢弃 20%, 保留 80%
+        'num_gaps': 1,           # 1个连续缺失段
+        'description': '轻度缺失 (1段连续缺失, 保留80%循环)'
+    },
+    'moderate': {
+        'cycle_drop_rate': 0.3,  # 丢弃 30%, 保留 70%
+        'num_gaps': 2,           # 2个连续缺失段
+        'description': '中度缺失 (2段连续缺失, 保留70%循环)'
+    },
+    'heavy': {
+        'cycle_drop_rate': 0.5,  # 丢弃 50%, 保留 50%
+        'num_gaps': 3,           # 3个连续缺失段
+        'description': '重度缺失 (3段连续缺失, 保留50%循环)'
+    }
+}
+
+
+def get_consecutive_cycle_drop_preset(preset_name):
+    """
+    获取 Consecutive Cycle Drop 预设配置（连续缺失）
+
+    Args:
+        preset_name: str, 预设名称
+            - 'light': 1段连续缺失，保留 80% (丢弃 20%)
+            - 'moderate': 2段连续缺失，保留 70% (丢弃 30%)
+            - 'heavy': 3段连续缺失，保留 50% (丢弃 50%)
+
+    Returns:
+        配置字典 {'cycle_drop_rate': float, 'num_gaps': int, 'description': str}
+    """
+    if preset_name not in CONSECUTIVE_CYCLE_DROP_PRESETS:
+        available = ', '.join(CONSECUTIVE_CYCLE_DROP_PRESETS.keys())
+        raise ValueError(f"Unknown preset '{preset_name}'. Available: {available}")
+
+    return CONSECUTIVE_CYCLE_DROP_PRESETS[preset_name].copy()
+
+
 if __name__ == "__main__":
     """测试数据增强功能"""
     print("Testing data augmentation utilities...")
