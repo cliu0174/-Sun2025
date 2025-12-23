@@ -6,12 +6,13 @@
 docs/
 ├── siamese/          # Siamese/Pairwise 模式相关文档
 ├── triplet/          # Triplet 模式相关文档
+├── scenarios/        # 数据退化场景文档（NEW）
+├── batch_testing/    # 批量测试文档（NEW）
 ├── analysis/         # 分析和诊断文档
 ├── guides/           # 使用指南和教程
 ├── plans/            # 工作计划和实施方案
 ├── reports/          # 项目报告和周报
 ├── README.md         # 本文件（文档索引）
-├── CLEANUP_SUMMARY.md                    # 文档清理记录
 └── ARCHITECTURE_VISUALIZATION_PROMPT.md  # 架构可视化prompt
 ```
 
@@ -53,6 +54,48 @@ docs/
 - 相比Pairwise: 增加二阶约束
 - 物理意义: 同时约束速度和加速度
 - 效果: 更平滑的预测曲线
+
+---
+
+## 🔬 数据退化场景 (Data Degradation Scenarios)
+
+**位置**: `scenarios/` 目录
+
+### 场景总览
+- **[DATA_AUGMENTATION_GUIDE.md](scenarios/DATA_AUGMENTATION_GUIDE.md)** - 数据增强总指南 ⭐ 推荐
+
+### Scenario 1: 噪声 + 随机丢弃
+- **[NOISE_AUGMENTATION_SUMMARY.md](scenarios/NOISE_AUGMENTATION_SUMMARY.md)** - 噪声增强总结
+
+### Scenario 2: 规律稀疏采样
+- **[SPARSE_SAMPLING_MANUAL_CONTROL.md](scenarios/SPARSE_SAMPLING_MANUAL_CONTROL.md)** - 手动控制稀疏采样
+
+### Scenario 3: 随机缺失
+- **[RANDOM_MISSING_GUIDE.md](scenarios/RANDOM_MISSING_GUIDE.md)** - 随机缺失详细指南 ⭐
+- **[RANDOM_MISSING_QUICK_START.md](scenarios/RANDOM_MISSING_QUICK_START.md)** - 快速开始
+- **[SCENARIO3_IMPLEMENTATION_SUMMARY.md](scenarios/SCENARIO3_IMPLEMENTATION_SUMMARY.md)** - 实现总结
+
+### Scenario 4: 连续循环缺失
+- **[SCENARIO4_USAGE.md](scenarios/SCENARIO4_USAGE.md)** - 使用指南 ⭐
+- **[SCENARIO4_BATCH_TESTING.md](scenarios/SCENARIO4_BATCH_TESTING.md)** - 批量测试指南
+
+---
+
+## 🧪 批量测试 (Batch Testing)
+
+**位置**: `batch_testing/` 目录
+
+### 核心文档
+- **[BATCH_TESTING_SUMMARY.md](batch_testing/BATCH_TESTING_SUMMARY.md)** - 批量测试功能总结 ⭐
+- **[BATCH_TESTING_COMPLETE_GUIDE.md](batch_testing/BATCH_TESTING_COMPLETE_GUIDE.md)** - 完整指南
+- **[MONOTONIC_WEIGHT_TEST_GUIDE.md](batch_testing/MONOTONIC_WEIGHT_TEST_GUIDE.md)** - 单调权重测试指南
+
+### 快速开始
+- **[QUICK_START_WEIGHT_TEST.md](batch_testing/QUICK_START_WEIGHT_TEST.md)** - 快速开始权重测试
+- **[TEST_MONOTONIC_WEIGHTS_USAGE.md](batch_testing/TEST_MONOTONIC_WEIGHTS_USAGE.md)** - 测试脚本使用说明
+
+### 修复记录
+- **[BATCH_TESTING_FIX.md](batch_testing/BATCH_TESTING_FIX.md)** - 批量测试修复记录
 
 ---
 
@@ -108,9 +151,12 @@ docs/
 
 ---
 
-## 📝 元文档
+## 🔧 系统和修复文档
 
-- **[CLEANUP_SUMMARY.md](CLEANUP_SUMMARY.md)** - 文档清理记录（2025-12-09）
+- **[DUAL_SCENARIO_GUIDE.md](DUAL_SCENARIO_GUIDE.md)** - 双场景系统指南
+- **[QUICK_FIX_GUIDE.md](QUICK_FIX_GUIDE.md)** - 快速修复指南
+- **[TRIPLET_SPARSE_FIX_SUMMARY.md](TRIPLET_SPARSE_FIX_SUMMARY.md)** - Triplet稀疏采样修复
+- **[TRIPLET_SPARSE_SAMPLING_COMPATIBILITY_ANALYSIS.md](TRIPLET_SPARSE_SAMPLING_COMPATIBILITY_ANALYSIS.md)** - 兼容性分析
 
 ---
 
@@ -164,6 +210,9 @@ docs/
 
 ## 📝 文档更新记录
 
+- **2025-12-23**: 大规模清理重组，创建 scenarios/ 和 batch_testing/ 目录
+- **2025-12-23**: 添加 Scenario 4 (连续循环缺失) 完整文档
+- **2025-12-23**: 添加批量参数测试功能和文档
 - **2025-12-09**: 重组文档结构，分类归档
 - **2025-12-09**: 完成Triplet实现和文档
 - **2025-12-08**: 完成Siamese系列文档

@@ -168,6 +168,9 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
                                sparse_sampling_interval=None,
                                random_missing_level='moderate',
                                random_missing_rate=None,
+                               cycle_drop_level='moderate',
+                               cycle_drop_rate=None,
+                               cycle_drop_num_gaps=None,
                                seed=42):
     """
     准备跨电池的训练/验证/测试数据。
@@ -182,6 +185,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
             - 'scenario1': 场景一 - 随机噪声+丢弃
             - 'scenario2': 场景二 - 规律稀疏采样 (Uniform Subsampling)
             - 'scenario3': 场景三 - 随机缺失 (Random Missing)
+            - 'scenario4': 场景四 - 连续循环缺失 (Consecutive Cycle Drop)
         noise_level: str, 场景一的噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: str, 场景二的采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
                               如果 sparse_sampling_interval 不为 None，则忽略此参数
@@ -193,6 +197,14 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         random_missing_rate: float or None, 场景三的手动缺失率设置
                             如果设置，则直接使用此值，忽略 random_missing_level
                             例如: rate=0.4 表示随机丢弃40%数据
+        cycle_drop_level: str, 场景四的丢弃级别 ('light', 'moderate', 'heavy')
+                         如果 cycle_drop_rate/num_gaps 为 None，则使用此预设级别
+        cycle_drop_rate: float or None, 场景四的手动丢弃率设置
+                        如果设置，则忽略 cycle_drop_level 的 rate 部分
+                        例如: rate=0.3 表示随机丢弃30%循环
+        cycle_drop_num_gaps: int or None, 场景四的手动缺失段数量
+                            如果设置，则忽略 cycle_drop_level 的 num_gaps 部分
+                            例如: num_gaps=2 表示分成2段连续缺失
         seed: int, 随机种子 (确保可复现)
 
     Returns:
@@ -364,6 +376,58 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         print("⚠️  测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
+    elif degradation_scenario == 'scenario4':
+        # 场景四: 连续循环缺失 (Consecutive Cycle Drop)
+        from utils.data_augmentation import (
+            consecutive_cycle_drop_by_battery,
+            get_consecutive_cycle_drop_preset
+        )
+
+        # 优先使用手动设置，否则使用预设级别
+        if cycle_drop_rate is not None or cycle_drop_num_gaps is not None:
+            # 手动模式：至少设置了一个参数
+            preset = get_consecutive_cycle_drop_preset(cycle_drop_level)  # 先获取预设作为默认值
+            drop_rate = cycle_drop_rate if cycle_drop_rate is not None else preset['cycle_drop_rate']
+            num_gaps = cycle_drop_num_gaps if cycle_drop_num_gaps is not None else preset['num_gaps']
+
+            retention_rate = (1 - drop_rate) * 100
+            description = f"手动配置 (丢弃{drop_rate*100:.0f}%, {num_gaps}段连续缺失, 保留率≈{retention_rate:.1f}%)"
+            print(f"\n{'='*70}")
+            print(f"场景四: 连续循环缺失 - {description}")
+            print(f"{'='*70}")
+        else:
+            # 预设模式
+            preset = get_consecutive_cycle_drop_preset(cycle_drop_level)
+            drop_rate = preset['cycle_drop_rate']
+            num_gaps = preset['num_gaps']
+            print(f"\n{'='*70}")
+            print(f"场景四: 连续循环缺失 - {preset['description']}")
+            print(f"{'='*70}")
+
+        # 训练集连续循环缺失
+        print("\n对训练集进行连续循环缺失:")
+        train_features_scaled, train_targets, train_battery_ids = consecutive_cycle_drop_by_battery(
+            train_features_scaled, train_targets, train_battery_ids,
+            cycle_drop_rate=drop_rate,
+            num_gaps=num_gaps,
+            seed=seed,
+            verbose=True
+        )
+
+        # 验证集连续循环缺失 (使用不同的种子，避免与训练集完全相同)
+        print("\n对验证集进行连续循环缺失:")
+        val_features_scaled, val_targets, val_battery_ids = consecutive_cycle_drop_by_battery(
+            val_features_scaled, val_targets, val_battery_ids,
+            cycle_drop_rate=drop_rate,
+            num_gaps=num_gaps,
+            seed=seed + 3000,  # 不同的种子
+            verbose=True
+        )
+
+        print(f"\n{'='*70}")
+        print("⚠️  测试集保持干净 (用于公平对比)")
+        print(f"{'='*70}")
+
     elif degradation_scenario == 'none':
         print(f"\n{'='*70}")
         print("无数据退化 - 使用干净数据")
@@ -371,7 +435,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
 
     else:
         raise ValueError(f"Unknown degradation scenario: {degradation_scenario}. "
-                        f"Available: 'none', 'scenario1', 'scenario2', 'scenario3'")
+                        f"Available: 'none', 'scenario1', 'scenario2', 'scenario3', 'scenario4'")
 
     data_dict = {
         'train_features': train_features_scaled,
@@ -638,12 +702,15 @@ def train_cross_battery_model(
     apply_cleaning=False,
     color_by_battery=True,              # 是否按电池着色（默认True）
     highlight_anomalies=True,            # 是否突出显示异常电池（默认True）
-    degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3')
+    degradation_scenario='none',         # 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3', 'scenario4')
     noise_level='medium',                # 场景一噪声级别 ('light', 'medium', 'heavy')
     sparse_sampling_level='moderate',    # 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
     sparse_sampling_interval=None,       # 场景二手动间隔 (优先级高于 sparse_sampling_level)
     random_missing_level='moderate',     # 场景三缺失级别 ('light', 'moderate', 'heavy')
-    random_missing_rate=None             # 场景三手动缺失率 (优先级高于 random_missing_level)
+    random_missing_rate=None,            # 场景三手动缺失率 (优先级高于 random_missing_level)
+    cycle_drop_level='moderate',         # 场景四丢弃级别 ('light', 'moderate', 'heavy')
+    cycle_drop_rate=None,                # 场景四手动丢弃率
+    cycle_drop_num_gaps=None             # 场景四手动缺失段数量
 ):
     """
     跨电池训练模型。
@@ -658,7 +725,7 @@ def train_cross_battery_model(
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
         color_by_battery: 是否按电池着色（默认True）
         highlight_anomalies: 是否突出显示异常电池（默认True）
-        degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3')
+        degradation_scenario: 数据退化场景 ('none', 'scenario1', 'scenario2', 'scenario3', 'scenario4')
         noise_level: 场景一噪声级别 ('light', 'medium', 'heavy')
         sparse_sampling_level: 场景二采样级别 ('dense', 'moderate', 'sparse', 'very_sparse')
         sparse_sampling_interval: 场景二手动间隔 (如果设置，则忽略 sparse_sampling_level)
@@ -666,6 +733,11 @@ def train_cross_battery_model(
         random_missing_level: 场景三缺失级别 ('light', 'moderate', 'heavy')
         random_missing_rate: 场景三手动缺失率 (如果设置，则忽略 random_missing_level)
                             例如: rate=0.4 表示随机丢弃40%数据
+        cycle_drop_level: 场景四丢弃级别 ('light', 'moderate', 'heavy')
+        cycle_drop_rate: 场景四手动丢弃率 (如果设置，则忽略 cycle_drop_level 的 rate 部分)
+                        例如: rate=0.3 表示随机丢弃30%循环
+        cycle_drop_num_gaps: 场景四手动缺失段数量 (如果设置，则忽略 cycle_drop_level 的 num_gaps 部分)
+                            例如: num_gaps=2 表示分成2段连续缺失
     """
     set_seed(seed)
 
@@ -696,6 +768,17 @@ def train_cross_battery_model(
         else:
             missing_desc = RANDOM_MISSING_PRESETS[random_missing_level]['description']
             print(f"数据退化: 场景三 ({missing_desc})")
+    elif degradation_scenario == 'scenario4':
+        from utils.data_augmentation import CONSECUTIVE_CYCLE_DROP_PRESETS
+        if cycle_drop_rate is not None or cycle_drop_num_gaps is not None:
+            preset = CONSECUTIVE_CYCLE_DROP_PRESETS[cycle_drop_level]
+            drop_rate = cycle_drop_rate if cycle_drop_rate is not None else preset['cycle_drop_rate']
+            num_gaps = cycle_drop_num_gaps if cycle_drop_num_gaps is not None else preset['num_gaps']
+            retention_rate = (1 - drop_rate) * 100
+            print(f"数据退化: 场景四 (手动配置: 丢弃{drop_rate*100:.0f}%, {num_gaps}段连续缺失, 保留率≈{retention_rate:.1f}%)")
+        else:
+            drop_desc = CONSECUTIVE_CYCLE_DROP_PRESETS[cycle_drop_level]['description']
+            print(f"数据退化: 场景四 ({drop_desc})")
     else:
         print("数据退化: 无 (干净数据)")
 
@@ -722,6 +805,9 @@ def train_cross_battery_model(
         sparse_sampling_interval=sparse_sampling_interval,
         random_missing_level=random_missing_level,
         random_missing_rate=random_missing_rate,
+        cycle_drop_level=cycle_drop_level,
+        cycle_drop_rate=cycle_drop_rate,
+        cycle_drop_num_gaps=cycle_drop_num_gaps,
         seed=seed
     )
 
@@ -1604,14 +1690,15 @@ if __name__ == "__main__":
     VAL_RATIO = 0.2             # 验证集比例 (20%)
     TEST_RATIO = 0.2            # 测试集比例 (20%)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    SEED = 999             # 随机种子（确保可复现）
+    SEED = 42             # 随机种子（确保可复现）
 
     # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
-    # 场景选择: 'none', 'scenario1', 'scenario2', 'scenario3'
-    DEGRADATION_SCENARIO = 'scenario2'  # 'none': 无退化 (干净数据)
+    # 场景选择: 'none', 'scenario1', 'scenario2', 'scenario3', 'scenario4'
+    DEGRADATION_SCENARIO = 'scenario3'  # 'none': 无退化 (干净数据)
                                     # 'scenario1': 随机噪声+随机丢弃
                                     # 'scenario2': 规律稀疏采样 (Uniform Subsampling)
                                     # 'scenario3': 随机缺失 (Random Missing)
+                                    # 'scenario4': 随机丢弃循环 (Random Cycle Drop)
 
     # 场景一参数 (仅当 DEGRADATION_SCENARIO='scenario1' 时生效)
     NOISE_LEVEL = 'light'           # 噪声级别: 'light', 'medium', 'heavy'
@@ -1628,7 +1715,7 @@ if __name__ == "__main__":
                                          # very_sparse: 每20个循环保留1个 (5%)
 
     # 方式2: 手动设置间隔 (如果设置，将忽略 SPARSE_SAMPLING_LEVEL)
-    SPARSE_SAMPLING_INTERVAL = None     # 手动设置采样间隔 (None=使用预设级别, 整数=手动间隔)
+    SPARSE_SAMPLING_INTERVAL = 3    # 手动设置采样间隔 (None=使用预设级别, 整数=手动间隔)
                                          # 例如: 3 表示每3个循环保留1个 (保留率≈33.3%)
                                          #      7 表示每7个循环保留1个 (保留率≈14.3%)
                                          #      15 表示每15个循环保留1个 (保留率≈6.7%)
@@ -1641,10 +1728,27 @@ if __name__ == "__main__":
                                        # heavy:    60% 缺失 (保留40%)
 
     # 方式2: 手动设置缺失率 (如果设置，将忽略 RANDOM_MISSING_LEVEL)
-    RANDOM_MISSING_RATE = None         # 手动设置缺失率 (None=使用预设级别, 0-1之间的浮点数=手动缺失率)
+    RANDOM_MISSING_RATE = 0.7         # 手动设置缺失率 (None=使用预设级别, 0-1之间的浮点数=手动缺失率)
                                        # 例如: 0.2 表示随机丢弃20%数据 (保留80%)
                                        #      0.35 表示随机丢弃35%数据 (保留65%)
                                        #      0.5 表示随机丢弃50%数据 (保留50%)
+
+    # 场景四参数 (仅当 DEGRADATION_SCENARIO='scenario4' 时生效)
+    # 方式1: 使用预设级别
+    CYCLE_DROP_LEVEL = 'moderate'    # 连续循环缺失级别: 'light', 'moderate', 'heavy'
+                                      # light:    20% 丢弃, 1段连续缺失 (保留80%循环)
+                                      # moderate: 30% 丢弃, 2段连续缺失 (保留70%循环)
+                                      # heavy:    50% 丢弃, 3段连续缺失 (保留50%循环)
+
+    # 方式2: 手动设置（如果设置，将覆盖 CYCLE_DROP_LEVEL 对应参数）
+    CYCLE_DROP_RATE = None            # 手动设置丢弃率 (None=使用预设级别, 0-1之间的浮点数)
+                                      # 例如: 0.3 表示丢弃30%循环 (保留70%)
+                                      #      0.4 表示丢弃40%循环 (保留60%)
+
+    CYCLE_DROP_NUM_GAPS = None        # 手动设置缺失段数量 (None=使用预设级别, 整数)
+                                      # 例如: 1 表示1段连续缺失
+                                      #      2 表示2段连续缺失
+                                      #      3 表示3段连续缺失
 
     # ===== 开始训练 =====
     print(f"\n使用设备: {DEVICE}\n")
@@ -1664,7 +1768,10 @@ if __name__ == "__main__":
         sparse_sampling_level=SPARSE_SAMPLING_LEVEL,  # 场景二: 稀疏采样级别
         sparse_sampling_interval=SPARSE_SAMPLING_INTERVAL,  # 场景二: 手动间隔（优先级更高）
         random_missing_level=RANDOM_MISSING_LEVEL,  # 场景三: 随机缺失级别
-        random_missing_rate=RANDOM_MISSING_RATE     # 场景三: 手动缺失率（优先级更高）
+        random_missing_rate=RANDOM_MISSING_RATE,    # 场景三: 手动缺失率（优先级更高）
+        cycle_drop_level=CYCLE_DROP_LEVEL,    # 场景四: 连续循环缺失级别
+        cycle_drop_rate=CYCLE_DROP_RATE,      # 场景四: 手动丢弃率（优先级更高）
+        cycle_drop_num_gaps=CYCLE_DROP_NUM_GAPS  # 场景四: 手动缺失段数量（优先级更高）
     )
 
     print("\n" + "="*70)
