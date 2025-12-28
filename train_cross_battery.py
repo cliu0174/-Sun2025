@@ -24,6 +24,63 @@ from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBat
 import time
 
 
+def custom_collate_fn(batch):
+    """
+    自定义 collate function，处理带元数据的 batch（支持标准/孪生/三元组模式）
+
+    注意：此函数必须在模块级别定义，以支持Windows的多进程DataLoader
+    """
+    # 检查数据格式
+    if 'window' in batch[0]:
+        # 标准模式
+        windows = torch.stack([item['window'] for item in batch])
+        targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
+        battery_ids = [item['battery_id'] for item in batch]
+        cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
+        return {
+            'window': windows,
+            'target_soh': targets,
+            'battery_id': battery_ids,
+            'cycle_idx': cycle_indices
+        }
+    elif 'x_1' in batch[0]:
+        # 三元组模式
+        x_1 = torch.stack([item['x_1'] for item in batch])
+        x_2 = torch.stack([item['x_2'] for item in batch])
+        x_3 = torch.stack([item['x_3'] for item in batch])
+        y_1 = torch.cat([item['y_1'].unsqueeze(0) for item in batch], dim=0)
+        y_2 = torch.cat([item['y_2'].unsqueeze(0) for item in batch], dim=0)
+        y_3 = torch.cat([item['y_3'].unsqueeze(0) for item in batch], dim=0)
+        battery_ids = [item['battery_id'] for item in batch]
+        cycle_indices = torch.stack([item['cycle_index'] for item in batch])
+        return {
+            'x_1': x_1,
+            'x_2': x_2,
+            'x_3': x_3,
+            'y_1': y_1,
+            'y_2': y_2,
+            'y_3': y_3,
+            'battery_id': battery_ids,
+            'cycle_idx': cycle_indices
+        }
+    else:
+        # 孪生模式
+        x_t = torch.stack([item['x_t'] for item in batch])
+        x_next = torch.stack([item['x_next'] for item in batch])
+        y_t = torch.cat([item['y_t'].unsqueeze(0) for item in batch], dim=0)
+        y_next = torch.cat([item['y_next'].unsqueeze(0) for item in batch], dim=0)
+        battery_ids = [item['battery_id'] for item in batch]
+        cycle_indices = torch.stack([item['cycle_index'] for item in batch])
+        return {
+            'x_t': x_t,
+            'x_next': x_next,
+            'y_t': y_t,
+            'y_next': y_next,
+            'battery_id': battery_ids,
+            'cycle_idx': cycle_indices
+        }
+
+
 def safe_savefig(fig_or_plt, filepath, **kwargs):
     """
     安全保存图片，如果文件被占用则使用带时间戳的文件名
@@ -285,7 +342,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         )
 
         print(f"\n{'='*70}")
-        print("⚠️  测试集保持干净 (用于公平对比)")
+        print("[NOTE] 测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
     elif degradation_scenario == 'scenario2':
@@ -329,7 +386,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         )
 
         print(f"\n{'='*70}")
-        print("⚠️  测试集保持干净 (用于公平对比)")
+        print("[NOTE] 测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
     elif degradation_scenario == 'scenario3':
@@ -373,7 +430,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         )
 
         print(f"\n{'='*70}")
-        print("⚠️  测试集保持干净 (用于公平对比)")
+        print("[NOTE] 测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
     elif degradation_scenario == 'scenario4':
@@ -425,7 +482,7 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         )
 
         print(f"\n{'='*70}")
-        print("⚠️  测试集保持干净 (用于公平对比)")
+        print("[NOTE] 测试集保持干净 (用于公平对比)")
         print(f"{'='*70}")
 
     elif degradation_scenario == 'none':
@@ -472,58 +529,6 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         step_k: 采样的步长（默认1=相邻）
     """
     from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
-
-    def custom_collate_fn(batch):
-        """自定义 collate function，处理带元数据的 batch（支持标准/孪生/三元组模式）"""
-        # 检查数据格式
-        if 'window' in batch[0]:
-            # 标准模式
-            windows = torch.stack([item['window'] for item in batch])
-            targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
-            battery_ids = [item['battery_id'] for item in batch]
-            cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
-            return {
-                'window': windows,
-                'target_soh': targets,
-                'battery_id': battery_ids,
-                'cycle_idx': cycle_indices
-            }
-        elif 'x_1' in batch[0]:
-            # 三元组模式
-            x_1 = torch.stack([item['x_1'] for item in batch])
-            x_2 = torch.stack([item['x_2'] for item in batch])
-            x_3 = torch.stack([item['x_3'] for item in batch])
-            y_1 = torch.cat([item['y_1'].unsqueeze(0) for item in batch], dim=0)
-            y_2 = torch.cat([item['y_2'].unsqueeze(0) for item in batch], dim=0)
-            y_3 = torch.cat([item['y_3'].unsqueeze(0) for item in batch], dim=0)
-            battery_ids = [item['battery_id'] for item in batch]
-            cycle_indices = torch.stack([item['cycle_index'] for item in batch])
-            return {
-                'x_1': x_1,
-                'x_2': x_2,
-                'x_3': x_3,
-                'y_1': y_1,
-                'y_2': y_2,
-                'y_3': y_3,
-                'battery_id': battery_ids,
-                'cycle_idx': cycle_indices
-            }
-        else:
-            # 孪生模式
-            x_t = torch.stack([item['x_t'] for item in batch])
-            x_next = torch.stack([item['x_next'] for item in batch])
-            y_t = torch.cat([item['y_t'].unsqueeze(0) for item in batch], dim=0)
-            y_next = torch.cat([item['y_next'].unsqueeze(0) for item in batch], dim=0)
-            battery_ids = [item['battery_id'] for item in batch]
-            cycle_indices = torch.stack([item['cycle_index'] for item in batch])
-            return {
-                'x_t': x_t,
-                'x_next': x_next,
-                'y_t': y_t,
-                'y_next': y_next,
-                'battery_id': battery_ids,
-                'cycle_idx': cycle_indices
-            }
 
     # 根据是否使用物理约束选择不同的数据处理方式
     if use_physics and window_size > 1:
@@ -587,9 +592,32 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         test_dataset = ConcatDataset(test_datasets)
 
         # 创建 DataLoader
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
+        # num_workers=0 保证结果完全一致（单进程）
+        # 如需加速可改为 4 或 8（结果仍一致但更快）
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            collate_fn=custom_collate_fn,
+            num_workers=0,           # 可手动改为4-8加速训练
+            pin_memory=False
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            collate_fn=custom_collate_fn,
+            num_workers=0,
+            pin_memory=False
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            collate_fn=custom_collate_fn,
+            num_workers=0,
+            pin_memory=False
+        )
 
         # 物理约束模式下，电池ID在batch的元数据中，这里设为None
         test_battery_ids = None
@@ -675,19 +703,37 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             torch.FloatTensor(train_feat),
             train_targ_tensor
         )
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train)
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=shuffle_train,
+            num_workers=0,           # 可手动改为4-8加速训练
+            pin_memory=False
+        )
 
         val_dataset = TensorDataset(
             torch.FloatTensor(val_feat),
             val_targ_tensor
         )
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=False
+        )
 
         test_dataset = TensorDataset(
             torch.FloatTensor(test_feat),
             test_targ_tensor
         )
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=False
+        )
 
     return train_loader, val_loader, test_loader, test_battery_ids
 
@@ -1694,7 +1740,7 @@ if __name__ == "__main__":
 
     # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
     # 场景选择: 'none', 'scenario1', 'scenario2', 'scenario3', 'scenario4'
-    DEGRADATION_SCENARIO = 'scenario3'  # 'none': 无退化 (干净数据)
+    DEGRADATION_SCENARIO = 'none'  # 'none': 无退化 (干净数据)
                                     # 'scenario1': 随机噪声+随机丢弃
                                     # 'scenario2': 规律稀疏采样 (Uniform Subsampling)
                                     # 'scenario3': 随机缺失 (Random Missing)

@@ -18,7 +18,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pickle
+import csv
 from train_cross_battery import train_cross_battery_model
+
+# 设置matplotlib支持中文显示
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']  # 中文字体
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # ===== 实验配置 =====
 CONFIG = {
@@ -41,12 +46,13 @@ CONFIG = {
                                           # None = 不使用 Scenario 3
 
     # Scenario 4 参数 (连续循环缺失) - 支持批量测试
-    'cycle_drop_rates': [0.1, 0.2, 0.3],     # 循环丢弃率列表 (例如: [0.2, 0.3, 0.5])
-    'cycle_drop_num_gaps_list': [50, 100],   # 缺失段数量列表 (例如: [1, 2, 3])
+    'cycle_drop_rates': [0.025, 0.05, 0.1],     # 循环丢弃率列表 (例如: [0.2, 0.3, 0.5])
+    'cycle_drop_num_gaps_list': [10, 20, 50],   # 缺失段数量列表 (例如: [1, 2, 3])
                                               # 将测试所有 (drop_rate, num_gaps) 组合
 
     # 单调性权重范围
-    'monotonic_weights': [0.1, 0.3, 0.5],
+    # ⚠️ 重要：必须包含 0.0 作为基线（无物理约束），用于对比图
+    'monotonic_weights': [0.0, 0.1, 0.3, 0.5],
 
     # 输出目录
     'output_dir': 'results/monotonic_weight_test',
@@ -71,23 +77,84 @@ def modify_config_monotonic_weight(model_type, monotonic_weight):
     # 修改物理约束参数，确保一致性
     if 'physics_constraints' in config:
         config['physics_constraints']['monotonic_weight'] = monotonic_weight
-        # ⭐ 关键：确保物理约束启用！
-        config['physics_constraints']['enabled'] = True
 
-        # ⭐ 显式设置其他参数，确保批量测试一致性
-        config['physics_constraints']['monotonic_tolerance'] = 0.01  # 软约束容差
-        config['physics_constraints']['boundary_weight'] = 0.0       # 边界约束（不使用）
-        config['physics_constraints']['smoothness_weight'] = 0.0     # 平滑性约束（不使用）
-        config['physics_constraints']['curvature_weight'] = 0.0      # 曲率约束（不使用）
+        # ⭐ 关键：当 weight=0 时禁用物理约束，否则启用
+        if monotonic_weight == 0.0:
+            config['physics_constraints']['enabled'] = False
+            print(f"  [OK] 已修改配置: monotonic_weight = {monotonic_weight}, enabled = False (无物理约束基线)")
+        else:
+            config['physics_constraints']['enabled'] = True
+            # ⭐ 显式设置其他参数，确保批量测试一致性
+            config['physics_constraints']['monotonic_tolerance'] = 0.01  # 软约束容差
+            config['physics_constraints']['boundary_weight'] = 0.0       # 边界约束（不使用）
+            config['physics_constraints']['smoothness_weight'] = 0.0     # 平滑性约束（不使用）
+            config['physics_constraints']['curvature_weight'] = 0.0      # 曲率约束（不使用）
+            print(f"  [OK] 已修改配置: monotonic_weight = {monotonic_weight}, tolerance = 0.01, enabled = True")
 
     # 保存配置
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
-    print(f"  [OK] 已修改配置: monotonic_weight = {monotonic_weight}, tolerance = 0.01, enabled = True")
+
+def write_result_to_csv(result, csv_path, is_first=False):
+    """
+    将单个实验结果写入CSV文件
+
+    Args:
+        result: 实验结果字典
+        csv_path: CSV文件路径
+        is_first: 是否是第一次写入（需要写入表头）
+    """
+    # 检查是否是 Scenario 4 多参数测试
+    has_scenario4_params = 'cycle_drop_rate' in result
+
+    # 定义CSV列
+    if has_scenario4_params:
+        fieldnames = [
+            'timestamp', 'cycle_drop_rate', 'cycle_drop_num_gaps', 'monotonic_weight',
+            'test_mae', 'test_rmse', 'test_mape', 'test_r2',
+            'best_val_mae', 'best_epoch', 'training_time', 'status'
+        ]
+    else:
+        fieldnames = [
+            'timestamp', 'monotonic_weight',
+            'test_mae', 'test_rmse', 'test_mape', 'test_r2',
+            'best_val_mae', 'best_epoch', 'training_time', 'status'
+        ]
+
+    # 打开CSV文件（追加模式）
+    mode = 'w' if is_first else 'a'
+    with open(csv_path, mode, newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        # 写入表头（仅第一次）
+        if is_first:
+            writer.writeheader()
+
+        # 准备数据行
+        row = {}
+
+        # 添加时间戳（格式：YYYY-MM-DD HH:MM:SS）
+        row['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        if has_scenario4_params:
+            row['cycle_drop_rate'] = result.get('cycle_drop_rate', 'N/A')
+            row['cycle_drop_num_gaps'] = result.get('cycle_drop_num_gaps', 'N/A')
+
+        row['monotonic_weight'] = result['monotonic_weight']
+        row['test_mae'] = f"{result['test_mae']*100:.4f}%" if result['test_mae'] is not None else 'N/A'
+        row['test_rmse'] = f"{result['test_rmse']*100:.4f}%" if result['test_rmse'] is not None else 'N/A'
+        row['test_mape'] = f"{result['test_mape']*100:.4f}%" if result['test_mape'] is not None else 'N/A'
+        row['test_r2'] = f"{result['test_r2']:.6f}" if result['test_r2'] is not None else 'N/A'
+        row['best_val_mae'] = f"{result['best_val_mae']*100:.4f}%" if result['best_val_mae'] is not None else 'N/A'
+        row['best_epoch'] = result['best_epoch'] if result['best_epoch'] is not None else 'N/A'
+        row['training_time'] = f"{result['training_time']:.2f}s" if result['training_time'] is not None else 'N/A'
+        row['status'] = '成功' if result['success'] else f"失败: {result.get('error', 'Unknown')}"
+
+        writer.writerow(row)
 
 
-def run_single_experiment(weight, config):
+def run_single_experiment(weight, config, csv_path=None, is_first_experiment=False):
     """
     运行单个实验
 
@@ -206,15 +273,26 @@ def run_single_experiment(weight, config):
             if abs(actual_used_weight - weight) > 1e-6:
                 print(f"  [WARNING] 权重不匹配！预期 {weight}，实际使用 {actual_used_weight}")
 
-        # 提取关键指标
+        # 提取关键指标（扩展版本）
+        # 从 history 中获取最后一个 epoch 的 train_loss 和 val_loss
+        history = results.get('history', {})
+        train_loss_list = history.get('train_loss', [])
+        val_loss_list = history.get('val_loss', [])
+
         experiment_results = {
             'monotonic_weight': weight,
             'test_rmse': results['test_rmse'],
             'test_mae': results['test_mae'],
+            'test_mape': results.get('test_mape', None),  # 添加MAPE
             'test_r2': results['test_r2'],
-            'train_loss': results['train_loss'],
-            'val_loss': results['val_loss'],
+            'train_loss': train_loss_list[-1] if train_loss_list else None,  # 最后一个epoch的train_loss
+            'val_loss': val_loss_list[-1] if val_loss_list else None,        # 最后一个epoch的val_loss
+            'best_val_mae': results.get('best_val_mae', None),  # 最佳验证集MAE
+            'best_epoch': results.get('best_epoch', None),       # 最佳训练轮数
             'training_time': results.get('training_time', None),
+            'predictions': results.get('predictions', None),     # 保存预测值用于对比图
+            'targets': results.get('targets', None),             # 保存真实值用于对比图
+            'battery_ids': results.get('battery_ids', None),     # 保存电池ID
             'success': True,
             'error': None
         }
@@ -228,18 +306,29 @@ def run_single_experiment(weight, config):
         run_single_experiment._last_rmse = results['test_rmse']
 
     except Exception as e:
-        print(f"\n[ERROR] 实验失败: {str(e)}")
+        import traceback
+        print(f"\n[ERROR] 实验失败!")
+        print(f"错误类型: {type(e).__name__}")
+        print(f"错误详情:")
+        traceback.print_exc()
         experiment_results = {
             'monotonic_weight': weight,
             'test_rmse': None,
             'test_mae': None,
+            'test_mape': None,
             'test_r2': None,
             'train_loss': None,
             'val_loss': None,
+            'best_val_mae': None,
+            'best_epoch': None,
             'training_time': None,
             'success': False,
             'error': str(e)
         }
+
+    # 实时写入CSV文件
+    if csv_path is not None:
+        write_result_to_csv(experiment_results, csv_path, is_first=is_first_experiment)
 
     return experiment_results
 
@@ -375,6 +464,184 @@ def plot_standard_results(successful_results, config):
     print(f"\n[OK] 对比图已保存: {plot_path}")
 
     plt.show()
+
+
+def plot_physics_comparison(all_results, config):
+    """
+    为 Scenario 4 的每个参数组合绘制 Ground Truth vs No Physics vs Physics 对比图
+
+    Args:
+        all_results: 所有实验结果列表
+        config: 实验配置
+    """
+    import pandas as pd
+
+    # 检查是否是 Scenario 4 多参数测试
+    if config['degradation_scenario'] != 'scenario4':
+        print("\n[INFO] 物理约束对比图仅适用于 Scenario 4，跳过绘制")
+        return
+
+    # 过滤成功的实验
+    successful_results = [r for r in all_results if r['success']]
+    if len(successful_results) == 0:
+        print("\n[WARN] 没有成功的实验，无法绘制对比图")
+        return
+
+    # 检查是否有预测数据
+    if 'predictions' not in successful_results[0] or successful_results[0]['predictions'] is None:
+        print("\n[WARN] 结果中没有预测数据，无法绘制对比图")
+        return
+
+    # 转换为 DataFrame
+    df = pd.DataFrame(successful_results)
+
+    # 获取所有参数组合
+    drop_rates = sorted(df['cycle_drop_rate'].unique())
+    num_gaps_list = sorted(df['cycle_drop_num_gaps'].unique())
+
+    output_dir = os.path.join(config['output_dir'], config['timestamp'])
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"\n正在生成物理约束对比图...")
+
+    # 为每个 (drop_rate, num_gaps) 组合生成对比图
+    for drop_rate in drop_rates:
+        for num_gaps in num_gaps_list:
+            # 筛选该参数组合的所有实验
+            subset = df[(df['cycle_drop_rate'] == drop_rate) & (df['cycle_drop_num_gaps'] == num_gaps)]
+
+            if subset.empty:
+                continue
+
+            # 找出 weight=0 的结果（无物理约束）
+            no_physics = subset[subset['monotonic_weight'] == 0.0]
+            if no_physics.empty:
+                print(f"  [WARN] drop_rate={drop_rate}, num_gaps={num_gaps}: 缺少 weight=0 的基线结果，跳过")
+                continue
+
+            # 找出最佳物理约束结果（RMSE最低的非零权重）
+            with_physics_subset = subset[subset['monotonic_weight'] > 0]
+            if with_physics_subset.empty:
+                print(f"  [WARN] drop_rate={drop_rate}, num_gaps={num_gaps}: 缺少物理约束结果，跳过")
+                continue
+
+            best_physics = with_physics_subset.loc[with_physics_subset['test_rmse'].idxmin()]
+
+            # 提取数据
+            targets_all = np.array(no_physics.iloc[0]['targets'])  # Ground Truth (所有电池)
+            pred_no_physics_all = np.array(no_physics.iloc[0]['predictions'])
+            pred_with_physics_all = np.array(best_physics['predictions'])
+            battery_ids_all = np.array(no_physics.iloc[0]['battery_ids'])
+
+            # ⚠️ 对齐数组长度（使用最短长度，避免维度不匹配）
+            min_len = min(len(targets_all), len(pred_no_physics_all), len(pred_with_physics_all))
+            if len(targets_all) != len(pred_no_physics_all) or len(targets_all) != len(pred_with_physics_all):
+                print(f"  [WARN] drop_rate={drop_rate}, num_gaps={num_gaps}: 数组长度不一致 "
+                      f"(targets={len(targets_all)}, no_physics={len(pred_no_physics_all)}, "
+                      f"with_physics={len(pred_with_physics_all)})，使用最短长度={min_len}")
+                targets_all = targets_all[:min_len]
+                pred_no_physics_all = pred_no_physics_all[:min_len]
+                pred_with_physics_all = pred_with_physics_all[:min_len]
+                battery_ids_all = battery_ids_all[:min_len]
+
+            # 🔍 找出最佳物理约束权重下表现最好的电池
+            unique_batteries = np.unique(battery_ids_all)
+            best_battery_id = None
+            best_battery_mae = float('inf')
+
+            # 计算每个电池的 MAE
+            for battery_id in unique_batteries:
+                mask = battery_ids_all == battery_id
+                battery_targets = targets_all[mask]
+                battery_pred_physics = pred_with_physics_all[mask]
+
+                battery_mae = np.mean(np.abs(battery_targets - battery_pred_physics))
+
+                if battery_mae < best_battery_mae:
+                    best_battery_mae = battery_mae
+                    best_battery_id = battery_id
+
+            # 提取最佳电池的数据
+            best_battery_mask = battery_ids_all == best_battery_id
+            targets = targets_all[best_battery_mask]
+            pred_no_physics = pred_no_physics_all[best_battery_mask]
+            pred_with_physics = pred_with_physics_all[best_battery_mask]
+
+            print(f"  [INFO] drop_rate={drop_rate}, num_gaps={num_gaps}: "
+                  f"最佳电池={best_battery_id}, MAE={best_battery_mae*100:.4f}%, 样本数={len(targets)}")
+
+            # 绘制对比图
+            fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+            fig.suptitle(
+                f'Physics Constraint Comparison - Best Battery ({best_battery_id})\n'
+                f'Scenario 4: drop_rate={drop_rate}, num_gaps={num_gaps}',
+                fontsize=14, fontweight='bold'
+            )
+
+            # 左图：预测值对比曲线
+            ax1 = axes[0]
+            x_axis = np.arange(len(targets))
+
+            ax1.plot(x_axis, targets * 100, 'k-', linewidth=2.5, label='真实值 (Ground Truth)', alpha=0.8)
+            ax1.plot(x_axis, pred_no_physics * 100, 'b--', linewidth=2, label=f'无物理约束 (weight=0)', alpha=0.7)
+            ax1.plot(x_axis, pred_with_physics * 100, 'r-', linewidth=2,
+                    label=f'带物理约束 (weight={best_physics["monotonic_weight"]:.1f})', alpha=0.7)
+
+            ax1.set_xlabel('Cycle Index', fontsize=12)
+            ax1.set_ylabel('SOH (%)', fontsize=12)
+            ax1.set_title('预测曲线对比 (Prediction Curves)', fontsize=13, fontweight='bold')
+            ax1.legend(fontsize=10, loc='best')
+            ax1.grid(True, alpha=0.3)
+
+            # 计算该电池的性能指标
+            battery_rmse_no_physics = np.sqrt(np.mean((targets - pred_no_physics) ** 2))
+            battery_mae_no_physics = np.mean(np.abs(targets - pred_no_physics))
+            battery_r2_no_physics = 1 - np.sum((targets - pred_no_physics) ** 2) / np.sum((targets - np.mean(targets)) ** 2)
+
+            battery_rmse_with_physics = np.sqrt(np.mean((targets - pred_with_physics) ** 2))
+            battery_mae_with_physics = np.mean(np.abs(targets - pred_with_physics))
+            battery_r2_with_physics = 1 - np.sum((targets - pred_with_physics) ** 2) / np.sum((targets - np.mean(targets)) ** 2)
+
+            # 添加性能指标文本框
+            textstr = f'无物理约束 (No Physics):\n  RMSE: {battery_rmse_no_physics*100:.4f}%\n  MAE: {battery_mae_no_physics*100:.4f}%\n  R²: {battery_r2_no_physics:.4f}\n\n'
+            textstr += f'带物理约束 (With Physics):\n  RMSE: {battery_rmse_with_physics*100:.4f}%\n  MAE: {battery_mae_with_physics*100:.4f}%\n  R²: {battery_r2_with_physics:.4f}\n\n'
+            improvement = (battery_rmse_no_physics - battery_rmse_with_physics) / battery_rmse_no_physics * 100
+            textstr += f'改善 (Improvement): {improvement:+.2f}%'
+
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            ax1.text(0.02, 0.98, textstr, transform=ax1.transAxes, fontsize=9,
+                    verticalalignment='top', bbox=props)
+
+            # 右图：散点图（预测 vs 真实）
+            ax2 = axes[1]
+
+            ax2.scatter(targets * 100, pred_no_physics * 100, alpha=0.5, s=30,
+                       c='blue', label=f'No Physics (weight=0)')
+            ax2.scatter(targets * 100, pred_with_physics * 100, alpha=0.5, s=30,
+                       c='red', label=f'With Physics (weight={best_physics["monotonic_weight"]:.1f})')
+
+            # 绘制理想线
+            min_val = min(targets.min(), pred_no_physics.min(), pred_with_physics.min()) * 100
+            max_val = max(targets.max(), pred_no_physics.max(), pred_with_physics.max()) * 100
+            ax2.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=1.5, alpha=0.5, label='Ideal')
+
+            ax2.set_xlabel('Ground Truth SOH (%)', fontsize=12)
+            ax2.set_ylabel('Predicted SOH (%)', fontsize=12)
+            ax2.set_title('Prediction vs Ground Truth', fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=10, loc='best')
+            ax2.grid(True, alpha=0.3)
+            ax2.set_aspect('equal', adjustable='box')
+
+            plt.tight_layout()
+
+            # 保存图表
+            plot_filename = f'physics_comparison_drop{drop_rate}_gaps{num_gaps}.png'
+            plot_path = os.path.join(output_dir, plot_filename)
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            print(f"  [OK] 已保存: {plot_filename}")
+            plt.close()
+
+    print(f"\n✓ 所有物理约束对比图已保存到: {output_dir}/")
 
 
 def plot_scenario4_results(successful_results, config):
@@ -571,11 +838,18 @@ def save_results(all_results, config):
     print(f"[OK] 原始数据已保存: {results_pkl_path}")
 
     # 2. 保存结果表格（JSON）
+    # 过滤掉无法 JSON 序列化的大数据字段（predictions, targets, battery_ids）
+    results_for_json = []
+    for r in all_results:
+        r_filtered = {k: v for k, v in r.items()
+                      if k not in ['predictions', 'targets', 'battery_ids']}
+        results_for_json.append(r_filtered)
+
     results_json_path = os.path.join(output_dir, 'results_summary.json')
     with open(results_json_path, 'w', encoding='utf-8') as f:
         json.dump({
             'config': config,
-            'results': all_results
+            'results': results_for_json
         }, f, indent=2, ensure_ascii=False)
     print(f"[OK] 结果摘要已保存: {results_json_path}")
 
@@ -794,6 +1068,13 @@ def main():
         total_experiments = len(param_combinations)
         print(f"\n总实验数: {total_experiments}")
 
+    # 创建输出目录和CSV文件
+    output_dir = os.path.join(CONFIG['output_dir'], CONFIG['timestamp'])
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = os.path.join(output_dir, 'detailed_results.csv')
+
+    print(f"\n实时结果将保存到: {csv_path}")
+
     # 运行所有实验
     all_results = []
 
@@ -806,7 +1087,15 @@ def main():
         experiment_config = CONFIG.copy()
         experiment_config.update(params)
 
-        result = run_single_experiment(params['monotonic_weight'], experiment_config)
+        # 判断是否是第一个实验（需要写CSV表头）
+        is_first = (i == 1)
+
+        result = run_single_experiment(
+            params['monotonic_weight'],
+            experiment_config,
+            csv_path=csv_path,
+            is_first_experiment=is_first
+        )
 
         # 记录额外参数到结果中
         if 'cycle_drop_rate' in params:
@@ -825,10 +1114,19 @@ def main():
     # 绘制对比图
     plot_results(all_results, CONFIG)
 
+    # 绘制物理约束对比图（仅 Scenario 4）
+    plot_physics_comparison(all_results, CONFIG)
+
     print("\n" + "="*70)
     print("所有实验完成！")
     print("="*70)
     print(f"\n结果保存在: {CONFIG['output_dir']}/{CONFIG['timestamp']}/")
+    print(f"\n📊 详细结果CSV文件: {csv_path}")
+    print(f"   包含字段: Timestamp, MAE, RMSE, MAPE, R², Best Val MAE, Best Epoch, Training Time")
+
+    if CONFIG['degradation_scenario'] == 'scenario4':
+        print(f"\n🔬 物理约束对比图: physics_comparison_drop*.png")
+        print(f"   对比内容: Ground Truth vs No Physics vs Best Physics")
 
 
 if __name__ == "__main__":
