@@ -12,7 +12,7 @@ import torch.nn as nn
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
-from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
+from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN, XGBoost_Simple, XGBoost_Enhanced
 from .cnn_lstm import CNN_LSTM, CNN_BiLSTM, CNN_MLP
 
 
@@ -114,7 +114,8 @@ class ModelFactory:
     SUPPORTED_MODELS = [
         'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
         'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq',
-        'cnn_lstm', 'cnn_bilstm', 'cnn_mlp'
+        'cnn_lstm', 'cnn_bilstm', 'cnn_mlp',
+        'xgboost_simple', 'xgboost_enhanced'
     ]
 
     @staticmethod
@@ -208,6 +209,10 @@ class ModelFactory:
             config_copy = config.copy()
             config_copy['architecture'] = arch
             return ModelFactory._create_cnn_mlp(config_copy)
+        elif model_type == 'xgboost_simple':
+            return ModelFactory._create_xgboost_simple(arch)
+        elif model_type == 'xgboost_enhanced':
+            return ModelFactory._create_xgboost_enhanced(arch)
 
     @staticmethod
     def _create_fnn(arch: Dict[str, Any]) -> FNN:
@@ -353,6 +358,40 @@ class ModelFactory:
     def _create_cnn_mlp(config: Dict[str, Any]) -> CNN_MLP:
         """创建CNN-MLP模型。"""
         return CNN_MLP(config)
+
+    @staticmethod
+    def _create_xgboost_simple(arch: Dict[str, Any]) -> XGBoost_Simple:
+        """创建XGBoost_Simple模型。"""
+        return XGBoost_Simple(
+            input_size=arch['input_size'],
+            window_size=arch.get('window_size', 40),
+            n_estimators=arch.get('n_estimators', 300),
+            max_depth=arch.get('max_depth', 6),
+            learning_rate=arch.get('learning_rate', 0.05),
+            subsample=arch.get('subsample', 0.8),
+            colsample_bytree=arch.get('colsample_bytree', 0.8),
+            reg_alpha=arch.get('reg_alpha', 0.1),
+            reg_lambda=arch.get('reg_lambda', 1.0),
+            random_state=arch.get('random_state', 42)
+        )
+
+    @staticmethod
+    def _create_xgboost_enhanced(arch: Dict[str, Any]) -> XGBoost_Enhanced:
+        """创建XGBoost_Enhanced模型。"""
+        return XGBoost_Enhanced(
+            input_size=arch['input_size'],
+            window_size=arch.get('window_size', 40),
+            n_lags=arch.get('n_lags', 10),
+            rolling_windows=arch.get('rolling_windows', [5, 10, 20]),
+            n_estimators=arch.get('n_estimators', 500),
+            max_depth=arch.get('max_depth', 8),
+            learning_rate=arch.get('learning_rate', 0.03),
+            subsample=arch.get('subsample', 0.8),
+            colsample_bytree=arch.get('colsample_bytree', 0.8),
+            reg_alpha=arch.get('reg_alpha', 0.1),
+            reg_lambda=arch.get('reg_lambda', 1.0),
+            random_state=arch.get('random_state', 42)
+        )
 
     @staticmethod
     def create_loss_function(

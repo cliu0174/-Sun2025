@@ -1,10 +1,11 @@
 """
-Baseline models for battery SOH estimation: FNN, CNN, LSTM, GRU.
+Baseline models for battery SOH estimation: FNN, CNN, LSTM, GRU, XGBoost.
 用于电池SOH估计的基准模型。
 """
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class FNN(nn.Module):
@@ -689,3 +690,294 @@ if __name__ == "__main__":
     print()
 
     print("All models tested successfully!")
+
+
+# ============================================================================
+# XGBoost Baseline Models (PyTorch-compatible wrapper)
+# ============================================================================
+
+class XGBoost_Simple(nn.Module):
+    """
+    XGBoost with simple flattened window input.
+
+    Baseline 1: Demonstrates the limitation of treating temporal data as flat features.
+    Input: (batch, window_size, features) → flatten to (batch, window*features)
+    Expected RMSE: 3.5-4.5%
+
+    Purpose: Prove the necessity of temporal structure modeling.
+    """
+
+    def __init__(self, input_size=16, window_size=40,
+                 n_estimators=300, max_depth=6, learning_rate=0.05,
+                 subsample=0.8, colsample_bytree=0.8,
+                 reg_alpha=0.1, reg_lambda=1.0, random_state=42):
+        """
+        Args:
+            input_size: Number of features per cycle
+            window_size: Number of historical cycles
+            n_estimators: Number of boosting rounds
+            max_depth: Maximum tree depth
+            learning_rate: Boosting learning rate
+            subsample: Subsample ratio of training instances
+            colsample_bytree: Subsample ratio of features
+            reg_alpha: L1 regularization
+            reg_lambda: L2 regularization
+            random_state: Random seed
+        """
+        super(XGBoost_Simple, self).__init__()
+
+        try:
+            import xgboost as xgb
+        except ImportError:
+            raise ImportError("xgboost not installed. Run: pip install xgboost")
+
+        self.input_size = input_size
+        self.window_size = window_size
+        self.feature_dim = window_size * input_size
+
+        self.xgb_params = {
+            'n_estimators': n_estimators,
+            'max_depth': max_depth,
+            'learning_rate': learning_rate,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+            'reg_alpha': reg_alpha,
+            'reg_lambda': reg_lambda,
+            'random_state': random_state,
+            'objective': 'reg:squarederror',
+            'tree_method': 'hist',
+            'verbosity': 0
+        }
+
+        self.model = xgb.XGBRegressor(**self.xgb_params)
+        self.is_fitted = False
+
+    def flatten_input(self, x):
+        """Flatten 3D window to 2D."""
+        if isinstance(x, torch.Tensor):
+            x = x.cpu().numpy()
+
+        if len(x.shape) == 3:
+            batch_size = x.shape[0]
+            return x.reshape(batch_size, -1)
+        return x
+
+    def forward(self, x):
+        """
+        Forward pass for inference.
+
+        Note: Training uses fit() method instead of forward().
+        """
+        if not self.is_fitted:
+            raise RuntimeError("XGBoost model must be fitted before forward(). Use fit() method.")
+
+        x_flat = self.flatten_input(x)
+        predictions = self.model.predict(x_flat)
+
+        # Return as PyTorch tensor for compatibility
+        return torch.tensor(predictions, dtype=torch.float32).unsqueeze(1)
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None, verbose=False):
+        """
+        Fit the XGBoost model.
+
+        Args:
+            X_train: Training features (N, window, features) or (N, flat_features)
+            y_train: Training targets (N,)
+            X_val: Validation features (optional)
+            y_val: Validation targets (optional)
+            verbose: Print training progress
+        """
+        X_train_flat = self.flatten_input(X_train)
+
+        if isinstance(y_train, torch.Tensor):
+            y_train = y_train.cpu().numpy().flatten()
+
+        eval_set = None
+        if X_val is not None and y_val is not None:
+            X_val_flat = self.flatten_input(X_val)
+            if isinstance(y_val, torch.Tensor):
+                y_val = y_val.cpu().numpy().flatten()
+            eval_set = [(X_val_flat, y_val)]
+
+        self.model.fit(
+            X_train_flat, y_train,
+            eval_set=eval_set,
+            verbose=verbose
+        )
+
+        self.is_fitted = True
+        return self
+
+
+class XGBoost_Enhanced(nn.Module):
+    """
+    XGBoost with engineered rolling/lag features.
+
+    Baseline 2: Shows that even with careful feature engineering,
+    end-to-end learning (CNN-LSTM) can still outperform.
+
+    Features include:
+    - Lag features (t-1, t-2, ..., t-k)
+    - Rolling statistics (mean, std, min, max, slope)
+    - Change rates (delta, acceleration)
+    - Raw feature statistics
+
+    Expected RMSE: 2.5-3.5%
+    """
+
+    def __init__(self, input_size=16, window_size=40,
+                 n_lags=10, rolling_windows=[5, 10, 20],
+                 n_estimators=500, max_depth=8, learning_rate=0.03,
+                 subsample=0.8, colsample_bytree=0.8,
+                 reg_alpha=0.1, reg_lambda=1.0, random_state=42):
+        """
+        Args:
+            input_size: Number of features per cycle
+            window_size: Number of historical cycles
+            n_lags: Number of lag features to create
+            rolling_windows: List of window sizes for rolling statistics
+            (other params same as XGBoost_Simple)
+        """
+        super(XGBoost_Enhanced, self).__init__()
+
+        try:
+            import xgboost as xgb
+        except ImportError:
+            raise ImportError("xgboost not installed. Run: pip install xgboost")
+
+        self.input_size = input_size
+        self.window_size = window_size
+        self.n_lags = n_lags
+        self.rolling_windows = rolling_windows
+
+        # Calculate feature dimension
+        lag_feats = n_lags * input_size
+        rolling_feats = len(rolling_windows) * 5 * input_size  # 5 stats per window
+        change_feats = 2 * input_size  # delta + acceleration
+        raw_feats = input_size
+        self.feature_dim = lag_feats + rolling_feats + change_feats + raw_feats
+
+        self.xgb_params = {
+            'n_estimators': n_estimators,
+            'max_depth': max_depth,
+            'learning_rate': learning_rate,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+            'reg_alpha': reg_alpha,
+            'reg_lambda': reg_lambda,
+            'random_state': random_state,
+            'objective': 'reg:squarederror',
+            'tree_method': 'hist',
+            'verbosity': 0
+        }
+
+        self.model = xgb.XGBRegressor(**self.xgb_params)
+        self.is_fitted = False
+
+    def engineer_features(self, x):
+        """
+        Engineer temporal features from window.
+
+        Args:
+            x: (batch, window_size, input_size)
+
+        Returns:
+            Engineered features (batch, feature_dim)
+        """
+        if isinstance(x, torch.Tensor):
+            x = x.cpu().numpy()
+
+        if len(x.shape) == 2:
+            return x  # Already processed
+
+        batch_size, window_size, input_size = x.shape
+        features_list = []
+
+        # 1. Lag features (t-1, t-2, ..., t-k)
+        for lag in range(1, self.n_lags + 1):
+            if lag < window_size:
+                lag_feat = x[:, -lag, :]
+                features_list.append(lag_feat)
+            else:
+                features_list.append(np.zeros((batch_size, input_size)))
+
+        # 2. Rolling statistics
+        for window in self.rolling_windows:
+            if window <= window_size:
+                recent = x[:, -window:, :]
+
+                # Mean, Std, Min, Max
+                features_list.append(np.mean(recent, axis=1))
+                features_list.append(np.std(recent, axis=1))
+                features_list.append(np.min(recent, axis=1))
+                features_list.append(np.max(recent, axis=1))
+
+                # Slope (linear trend)
+                time_idx = np.arange(window)
+                slopes = []
+                for b in range(batch_size):
+                    slope_per_feat = []
+                    for f in range(input_size):
+                        y = recent[b, :, f]
+                        slope = np.polyfit(time_idx, y, 1)[0]
+                        slope_per_feat.append(slope)
+                    slopes.append(slope_per_feat)
+                features_list.append(np.array(slopes))
+            else:
+                for _ in range(5):
+                    features_list.append(np.zeros((batch_size, input_size)))
+
+        # 3. Change rate features
+        if window_size >= 2:
+            delta = x[:, -1, :] - x[:, -2, :]
+            features_list.append(delta)
+        else:
+            features_list.append(np.zeros((batch_size, input_size)))
+
+        if window_size >= 3:
+            delta_2 = x[:, -2, :] - x[:, -3, :]
+            acceleration = delta - delta_2
+            features_list.append(acceleration)
+        else:
+            features_list.append(np.zeros((batch_size, input_size)))
+
+        # 4. Last cycle raw features
+        features_list.append(x[:, -1, :])
+
+        # Concatenate
+        engineered = np.concatenate(features_list, axis=1)
+        return engineered
+
+    def forward(self, x):
+        """Forward pass for inference."""
+        if not self.is_fitted:
+            raise RuntimeError("XGBoost model must be fitted before forward(). Use fit() method.")
+
+        x_eng = self.engineer_features(x)
+        predictions = self.model.predict(x_eng)
+
+        return torch.tensor(predictions, dtype=torch.float32).unsqueeze(1)
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None, verbose=False):
+        """Fit the XGBoost model with engineered features."""
+        X_train_eng = self.engineer_features(X_train)
+
+        if isinstance(y_train, torch.Tensor):
+            y_train = y_train.cpu().numpy().flatten()
+
+        eval_set = None
+        if X_val is not None and y_val is not None:
+            X_val_eng = self.engineer_features(X_val)
+            if isinstance(y_val, torch.Tensor):
+                y_val = y_val.cpu().numpy().flatten()
+            eval_set = [(X_val_eng, y_val)]
+
+        self.model.fit(
+            X_train_eng, y_train,
+            eval_set=eval_set,
+            verbose=verbose
+        )
+
+        self.is_fitted = True
+        return self
