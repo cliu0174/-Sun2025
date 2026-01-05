@@ -140,6 +140,9 @@ def train_mit_model(
     if use_physics:
         from models import PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss
 
+        # 提取时间衰减配置（兼容新旧两种格式）
+        temporal_decay = physics_config.get('temporal_decay', {})
+
         if triplet_mode:
             criterion = TripletPhysicsLoss(
                 base_loss_weight=physics_config.get('base_loss_weight', 1.0),
@@ -147,7 +150,10 @@ def train_mit_model(
                 boundary_weight=physics_config.get('boundary_weight', 0.05),
                 smoothness_weight=physics_config.get('smoothness_weight', 0.0),
                 monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
-                temporal_decay_config=physics_config.get('temporal_decay', {})
+                temporal_decay_enabled=temporal_decay.get('enabled', True),
+                temporal_max_step=temporal_decay.get('max_step', 20),
+                temporal_decay_type=temporal_decay.get('decay_type', 'exp'),
+                temporal_decay_alpha=temporal_decay.get('decay_alpha', 0.2)
             )
         elif siamese_mode:
             criterion = SiamesePhysicsLoss(
@@ -156,7 +162,10 @@ def train_mit_model(
                 boundary_weight=physics_config.get('boundary_weight', 0.05),
                 smoothness_weight=physics_config.get('smoothness_weight', 0.0),
                 monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
-                temporal_decay_config=physics_config.get('temporal_decay', {})
+                temporal_decay_enabled=temporal_decay.get('enabled', True),
+                temporal_max_step=temporal_decay.get('max_step', 20),
+                temporal_decay_type=temporal_decay.get('decay_type', 'exp'),
+                temporal_decay_alpha=temporal_decay.get('decay_alpha', 0.2)
             )
         else:
             criterion = PhysicsConstrainedLoss(
@@ -165,7 +174,10 @@ def train_mit_model(
                 boundary_weight=physics_config.get('boundary_weight', 0.05),
                 smoothness_weight=physics_config.get('smoothness_weight', 0.0),
                 monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
-                temporal_decay_config=physics_config.get('temporal_decay', {})
+                temporal_decay_enabled=temporal_decay.get('enabled', True),
+                temporal_max_step=temporal_decay.get('max_step', 20),
+                temporal_decay_type=temporal_decay.get('decay_type', 'exp'),
+                temporal_decay_alpha=temporal_decay.get('decay_alpha', 0.2)
             )
     else:
         criterion = nn.MSELoss()
