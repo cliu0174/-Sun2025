@@ -305,9 +305,10 @@ def train_mit_model(
     targets = torch.cat(targets_list, dim=0).numpy()
 
     # 计算指标
-    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+    from sklearn.metrics import mean_absolute_error, r2_score
+    import numpy as np
 
-    rmse = mean_squared_error(targets, predictions, squared=False)
+    rmse = np.sqrt(np.mean((targets - predictions) ** 2))
     mae = mean_absolute_error(targets, predictions)
     r2 = r2_score(targets, predictions)
 
