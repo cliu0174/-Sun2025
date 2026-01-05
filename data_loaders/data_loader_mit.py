@@ -16,18 +16,24 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
-def load_single_mit_battery(battery_path, apply_cleaning=False):
+def load_single_mit_battery(battery_path, train_ratio=1.0, normalize_target=True, apply_cleaning=False):
     """
-    加载单个MIT电池的数据
+    加载单个MIT电池的数据（格式兼容HUST加载器）
 
     Args:
         battery_path: 电池CSV文件路径
+        train_ratio: 训练集比例 (默认1.0，全部作为训练集)
+        normalize_target: 是否归一化目标值为SOH (默认True)
         apply_cleaning: 是否应用3-Sigma数据清洗
 
     Returns:
-        features: (n_cycles, 16) numpy array
-        soh: (n_cycles,) numpy array, 归一化的SOH值
-        capacity: (n_cycles,) numpy array, 原始容量值
+        Dictionary包含：
+        - train_features: 训练集特征 (标准化后)
+        - train_capacity: 训练集SOH/容量
+        - test_features: 测试集特征
+        - test_capacity: 测试集SOH/容量
+        - scaler: StandardScaler对象
+        - cleaning_stats: 清洗统计 (可选)
     """
     # 读取CSV
     df = pd.read_csv(battery_path)
@@ -47,29 +53,65 @@ def load_single_mit_battery(battery_path, apply_cleaning=False):
     if target_column not in df.columns:
         raise ValueError(f"Target column '{target_column}' not found in {battery_path}")
 
-    # 提取特征和容量
-    features = df[feature_columns].values
-    capacity = df[target_column].values
-
     # 数据清洗（可选）
+    cleaning_stats = None
     if apply_cleaning:
         from .data_loader_hust import clean_3_sigma
         df_temp = df[feature_columns + [target_column]].copy()
-        df_clean = clean_3_sigma(df_temp, verbose=False)
-        features = df_clean[feature_columns].values
-        capacity = df_clean[target_column].values
+        df, cleaning_stats = clean_3_sigma(df_temp, verbose=False)
 
-    # 计算SOH (归一化容量)
-    # SOH = 当前容量 / 初始容量
-    initial_capacity = capacity[0]  # 第一个cycle的容量作为初始容量
-    soh = capacity / initial_capacity
+    # 划分训练集和测试集
+    split_idx = int(len(df) * train_ratio)
+    train_df = df.iloc[:split_idx]
+    test_df = df.iloc[split_idx:]
 
-    return features, soh, capacity
+    # 提取特征和容量
+    train_features = train_df[feature_columns].values
+    train_capacity = train_df[target_column].values
+
+    test_features = test_df[feature_columns].values if len(test_df) > 0 else np.array([]).reshape(0, len(feature_columns))
+    test_capacity = test_df[target_column].values if len(test_df) > 0 else np.array([])
+
+    # 标准化特征 (使用训练集的统计量)
+    scaler = StandardScaler()
+    train_features_scaled = scaler.fit_transform(train_features)
+
+    # 处理测试集为空的情况（train_ratio=1.0）
+    if len(test_features) > 0:
+        test_features_scaled = scaler.transform(test_features)
+    else:
+        test_features_scaled = np.array([]).reshape(0, len(feature_columns))
+
+    # 归一化目标值为SOH (可选)
+    if normalize_target:
+        # 使用初始容量归一化
+        initial_capacity = train_df[target_column].iloc[0]
+        train_capacity_normalized = train_capacity / initial_capacity
+        if len(test_capacity) > 0:
+            test_capacity_normalized = test_capacity / initial_capacity
+        else:
+            test_capacity_normalized = np.array([])
+    else:
+        train_capacity_normalized = train_capacity
+        test_capacity_normalized = test_capacity
+
+    result = {
+        'train_features': train_features_scaled,
+        'train_capacity': train_capacity_normalized,
+        'test_features': test_features_scaled,
+        'test_capacity': test_capacity_normalized,
+        'scaler': scaler
+    }
+
+    if cleaning_stats:
+        result['cleaning_stats'] = cleaning_stats
+
+    return result
 
 
 def load_all_mit_batteries(data_dir='data/MIT data', apply_cleaning=False):
     """
-    加载所有MIT电池数据
+    加载所有MIT电池数据（格式兼容HUST加载器）
 
     Args:
         data_dir: MIT数据集根目录
@@ -77,10 +119,14 @@ def load_all_mit_batteries(data_dir='data/MIT data', apply_cleaning=False):
 
     Returns:
         battery_names: list of str, 电池名称列表
-        all_data: dict, {battery_name: (features, soh, capacity)}
+        all_data: dict, {battery_name: {...}}，格式与HUST相同
     """
     battery_names = []
     all_data = {}
+
+    # 统计清洗效果
+    total_removed = 0
+    total_original = 0
 
     # 遍历所有批次
     batches = ['2017-05-12', '2017-06-30', '2018-04-12']
@@ -99,13 +145,21 @@ def load_all_mit_batteries(data_dir='data/MIT data', apply_cleaning=False):
                 battery_path = os.path.join(batch_dir, filename)
 
                 try:
-                    features, soh, capacity = load_single_mit_battery(
+                    data = load_single_mit_battery(
                         battery_path,
+                        train_ratio=1.0,
+                        normalize_target=True,
                         apply_cleaning=apply_cleaning
                     )
 
                     battery_names.append(battery_name)
-                    all_data[battery_name] = (features, soh, capacity)
+                    all_data[battery_name] = data
+
+                    # 统计清洗效果
+                    if apply_cleaning and data.get('cleaning_stats'):
+                        stats = data['cleaning_stats']
+                        total_removed += stats['total_removed']
+                        total_original += stats['original_size']
 
                 except Exception as e:
                     print(f"[ERROR] Failed to load {battery_name}: {e}")
@@ -114,10 +168,15 @@ def load_all_mit_batteries(data_dir='data/MIT data', apply_cleaning=False):
     print(f"\n[OK] Successfully loaded {len(battery_names)} MIT batteries")
 
     # 打印电池cycle数统计
-    cycle_counts = [len(all_data[name][0]) for name in battery_names]
+    cycle_counts = [len(all_data[name]['train_features']) for name in battery_names]
     print(f"  Min cycles: {min(cycle_counts)}")
     print(f"  Max cycles: {max(cycle_counts)}")
     print(f"  Mean cycles: {np.mean(cycle_counts):.1f}")
+
+    # 打印清洗统计
+    if apply_cleaning and total_original > 0:
+        overall_rate = (total_removed / total_original) * 100
+        print(f"[3-Sigma清洗] 原始样本: {total_original}, 删除: {total_removed}, 删除率: {overall_rate:.2f}%")
 
     return battery_names, all_data
 

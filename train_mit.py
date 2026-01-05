@@ -105,7 +105,7 @@ def train_mit_model(
         siamese_mode = physics_config.get('siamese_sampling', {}).get('enabled', False)
         triplet_mode = physics_config.get('triplet_sampling', {}).get('enabled', False)
 
-    train_loader, val_loader, test_loader = create_dataloaders(
+    train_loader, val_loader, test_loader, test_battery_ids = create_dataloaders(
         data_dict,
         batch_size=batch_size,
         window_size=window_size,
@@ -120,16 +120,17 @@ def train_mit_model(
     import torch
     import torch.nn as nn
 
-    input_size = data_dict['X_train'].shape[2]
+    input_size = data_dict['n_features']
 
-    model = ModelFactory.create_model(
+    # 使用UnifiedModelWrapper创建模型
+    wrapper = UnifiedModelWrapper(
         model_type=model_type,
         input_size=input_size,
-        config=config
+        config=config,
+        device=device
     )
 
-    model = model.to(device)
-    wrapper = UnifiedModelWrapper(model, model_type=model_type)
+    model = wrapper.model
 
     # 7. 训练模型
     optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'])
@@ -194,10 +195,20 @@ def train_mit_model(
         train_loss = 0.0
 
         for batch in train_loader:
-            features = batch['window'].to(device)
-            targets = batch['target_soh'].to(device)
-            battery_ids = batch.get('battery_id')
-            cycle_indices = batch.get('cycle_idx')
+            # 处理不同类型的batch（dict或tuple）
+            if isinstance(batch, dict):
+                features = batch['window'].to(device)
+                targets = batch['target_soh'].to(device)
+                battery_ids = batch.get('battery_id')
+                cycle_indices = batch.get('cycle_idx')
+            else:
+                # window_size=1时返回tuple
+                features, targets = batch
+                features = features.to(device)
+                targets = targets.to(device)
+                targets = targets.unsqueeze(1)  # (batch,) -> (batch, 1)
+                battery_ids = None
+                cycle_indices = None
 
             optimizer.zero_grad()
             predictions = model(features)
@@ -222,8 +233,14 @@ def train_mit_model(
 
         with torch.no_grad():
             for batch in val_loader:
-                features = batch['window'].to(device)
-                targets = batch['target_soh'].to(device)
+                if isinstance(batch, dict):
+                    features = batch['window'].to(device)
+                    targets = batch['target_soh'].to(device)
+                else:
+                    features, targets = batch
+                    features = features.to(device)
+                    targets = targets.to(device)
+                    targets = targets.unsqueeze(1)
 
                 predictions = model(features)
                 loss = nn.MSELoss()(predictions, targets)
@@ -266,9 +283,16 @@ def train_mit_model(
 
     with torch.no_grad():
         for batch in test_loader:
-            features = batch['window'].to(device)
-            targets = batch['target_soh'].to(device)
-            battery_ids = batch.get('battery_id')
+            if isinstance(batch, dict):
+                features = batch['window'].to(device)
+                targets = batch['target_soh'].to(device)
+                battery_ids = batch.get('battery_id')
+            else:
+                features, targets = batch
+                features = features.to(device)
+                targets = targets.to(device)
+                targets = targets.unsqueeze(1)
+                battery_ids = None
 
             preds = model(features)
             predictions.append(preds.cpu())
