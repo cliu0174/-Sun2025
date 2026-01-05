@@ -94,7 +94,8 @@ def train_mit_model(
 
     # 5. 创建DataLoader
     batch_size = config['training']['batch_size']
-    window_size = config['architecture'].get('window_size', 1)
+    # 强制使用window_size=40，与HUST保持一致（CNN-LSTM需要序列维度）
+    window_size = 40
 
     physics_config = config.get('physics_constraints', {})
     use_physics = physics_config.get('enabled', False)
