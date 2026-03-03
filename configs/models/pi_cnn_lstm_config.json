@@ -1,6 +1,6 @@
 {
   "model_type": "CNN_LSTM",
-  "model_name": "CNN-LSTM Hybrid Network",
+  "model_name": "Physics-Informed CNN-LSTM",
   "architecture": {
     "input_size": -1,
     "hidden_size": 64,
@@ -30,8 +30,7 @@
       "warmup_epochs": 20,
       "warmup_lr": 0.002,
       "base_lr": 0.005,
-      "final_lr": 0.0001,
-      "comment": "可选类型详见 configs/LEARNING_RATE_SCHEDULER_GUIDE.md"
+      "final_lr": 0.0001
     },
     "early_stopping": {
       "enabled": true,
@@ -56,7 +55,7 @@
     "l2_weight": 0.0
   },
   "physics_constraints": {
-    "enabled": false,
+    "enabled": true,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.1,
     "boundary_weight": 0.0,
@@ -71,20 +70,17 @@
     "siamese_sampling": {
       "enabled": false,
       "split_threshold": 300,
-      "step_k": 1,
-      "description": "孪生采样：前split_threshold循环无约束，后期强制单调"
+      "step_k": 1
     },
     "triplet_sampling": {
       "enabled": false,
       "split_threshold": 150,
-      "step_k": 1,
-      "description": "三元组采样：二阶曲率约束，消除预测曲线锯齿"
+      "step_k": 1
     },
-    "curvature_weight": 0.0,
-    "description": "物理约束：软单调性 + 二阶曲率约束 + 边界约束"
+    "curvature_weight": 0.0
   },
   "visualization": {
     "color_by_battery": true
   },
-  "description": "CNN-LSTM混合模型。CNN提取电池特征的局部模式（电压、电流、温度等），LSTM捕捉容量衰减的长期时序依赖关系。结合两者优势，既能提取局部特征，又能建模长期趋势。"
+  "description": "Physics-Informed CNN-LSTM: 在CNN-LSTM基础上加入物理约束（单调性约束），使预测更符合电池容量衰减的物理规律。"
 }

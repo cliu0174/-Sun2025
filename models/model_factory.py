@@ -114,7 +114,7 @@ class ModelFactory:
     SUPPORTED_MODELS = [
         'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
         'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq',
-        'cnn_lstm', 'cnn_bilstm', 'cnn_mlp',
+        'cnn_lstm', 'cnn_bilstm', 'cnn_mlp', 'pi_cnn_lstm',
         'xgboost_simple', 'xgboost_enhanced'
     ]
 
@@ -194,8 +194,9 @@ class ModelFactory:
             return ModelFactory._create_bilstm_seq2seq(arch)
         elif model_type == 'bigru_seq2seq':
             return ModelFactory._create_bigru_seq2seq(arch)
-        elif model_type == 'cnn_lstm':
+        elif model_type == 'cnn_lstm' or model_type == 'pi_cnn_lstm':
             # 更新配置中的input_size
+            # pi_cnn_lstm 使用相同的架构，只是配置中启用了物理约束
             config_copy = config.copy()
             config_copy['architecture'] = arch
             return ModelFactory._create_cnn_lstm(config_copy)

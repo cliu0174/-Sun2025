@@ -360,6 +360,6 @@ if __name__ == '__main__':
     # 训练CNN-LSTM模型
     wrapper, results, data_dict = train_mit_model(
         model_type='cnn_lstm',
-        seed=42,
+        seed=999,
         device='cuda' if __import__('torch').cuda.is_available() else 'cpu'
     )

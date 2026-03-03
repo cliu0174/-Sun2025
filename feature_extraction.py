@@ -433,9 +433,9 @@ if __name__ == '__main__':
     USE_ROBUST = False  # True=鲁棒版本(推荐), False=基础版本
 
     # 示例1: 处理单个电池文件
-    # print("示例1: 处理单个电池文件 1-1.pkl")
-    # print("=" * 100)
-    # df = process_single_battery('our_data/1-1.pkl', use_robust=USE_ROBUST)
+    print("示例1: 处理单个电池文件 1-1.pkl")
+    print("=" * 100)
+    df = process_single_battery('our_data/1-1.pkl', use_robust=USE_ROBUST)
 
     # 显示前5行数据
     # print("\n特征数据预览:")
@@ -446,11 +446,11 @@ if __name__ == '__main__':
     # print(df.describe())
 
     # 示例2: 批量处理所有电池文件
-    print("\n\n示例2: 批量处理所有电池文件")
-    print("=" * 100)
-    if USE_ROBUST:
-        print("使用鲁棒特征提取器 (推荐)")
-    else:
-        print("使用基础特征提取器")
-    print("=" * 100)
-    process_all_batteries(use_robust=USE_ROBUST)
+    # print("\n\n示例2: 批量处理所有电池文件")
+    # print("=" * 100)
+    # if USE_ROBUST:
+    #     print("使用鲁棒特征提取器 (推荐)")
+    # else:
+    #     print("使用基础特征提取器")
+    # print("=" * 100)
+    # process_all_batteries(use_robust=USE_ROBUST)
