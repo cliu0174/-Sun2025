@@ -1,0 +1,76 @@
+{
+  "model_type": "CNN_MLP",
+  "model_name": "CNN-MLP Network",
+  "architecture": {
+    "input_size": -1,
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "pool_size": 2,
+    "fc_hidden_sizes": [128, 64, 32],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.004,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": true,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 20,
+      "warmup_lr": 0.002,
+      "base_lr": 0.005,
+      "final_lr": 0.0001,
+      "comment": "余弦退火：从0.004平滑下降到0.0001。可选类型详见 configs/LEARNING_RATE_SCHEDULER_GUIDE.md"
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 30,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "physics_constraints": {
+    "enabled": false,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05,
+    "smoothness_weight": 0.0,
+    "monotonic_tolerance": 0.00,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 20,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "siamese_sampling": {
+      "enabled": false,
+      "split_threshold": 300,
+      "step_k": 1,
+      "description": "孪生采样：前split_threshold循环无约束，后期强制单调"
+    },
+    "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
+  },
+  "visualization": {
+    "color_by_battery": true
+  },
+  "description": "CNN-MLP网络。CNN提取电池特征的局部模式后，直接通过多层感知机进行映射，不使用循环结构。适用于验证CNN特征提取的有效性，作为消融实验的baseline。"
+}

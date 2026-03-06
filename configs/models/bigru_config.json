@@ -1,0 +1,73 @@
+{
+  "model_type": "BiGRU",
+  "model_name": "Bidirectional Gated Recurrent Unit",
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "fc_hidden_sizes": [
+      64
+    ],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.001,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": false,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 30,
+      "warmup_lr": 0.002,
+      "base_lr": 0.01,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 30,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 30,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "description": "双向门控循环单元。同时从前向和后向处理时序，能更好地捕捉电池容量衰减的双向依赖关系。",
+  "physics_constraints": {
+    "enabled": false,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05,
+    "smoothness_weight": 0.0,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 20,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "siamese_sampling": {
+      "enabled": false,
+      "split_threshold": 300,
+      "step_k": 1,
+      "description": "孪生采样：前split_threshold循环无约束，后期强制单调"
+    },
+    "description": "物理约束：软单调性 + 时间衰减权重 + 边界约束"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "model_type": "xgboost_enhanced",
+  "model_name": "XGBoost (Enhanced with Feature Engineering)",
+  "description": "Baseline 2: XGBoost with carefully engineered temporal features (lag, rolling statistics, change rates). Shows that even with good feature engineering, end-to-end learning can still outperform. Expected RMSE: 2.5-3.5%",
+
+  "architecture": {
+    "input_size": -1,
+    "window_size": 40,
+    "n_lags": 10,
+    "rolling_windows": [5, 10, 20],
+    "n_estimators": 500,
+    "max_depth": 8,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "random_state": 42
+  },
+
+  "training": {
+    "batch_size": 512,
+    "epochs": 1,
+    "early_stopping": {
+      "enabled": false
+    },
+    "note": "XGBoost uses its own training mechanism via fit() method, not epoch-based training"
+  },
+
+  "data": {
+    "window_size": 40,
+    "seq2seq": false,
+    "normalization": "minmax"
+  },
+
+  "feature_engineering": {
+    "lag_features": {
+      "enabled": true,
+      "n_lags": 10,
+      "description": "Previous t-1, t-2, ..., t-10 cycles to preserve temporal order"
+    },
+    "rolling_statistics": {
+      "enabled": true,
+      "windows": [5, 10, 20],
+      "stats": ["mean", "std", "min", "max", "slope"],
+      "description": "Capture short/medium/long-term trends"
+    },
+    "change_rates": {
+      "enabled": true,
+      "features": ["delta", "acceleration"],
+      "description": "First and second-order differences"
+    },
+    "raw_features": {
+      "enabled": true,
+      "description": "Last cycle raw features as reference"
+    }
+  },
+
+  "purpose": "Strong baseline to demonstrate the advantage of CNN-LSTM's automatic feature learning over manual feature engineering",
+  "expected_performance": {
+    "rmse_range": "2.5-3.5%",
+    "note": "Better than simple XGBoost but should still be outperformed by CNN-LSTM to prove the value of end-to-end learning"
+  }
+}
