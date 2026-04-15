@@ -7,7 +7,19 @@
       "Bash(git push:*)",
       "Bash(python:*)",
       "Bash(ls:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(d:/Users/46139/miniconda3/python.exe -c \"import pdfplumber; print\\('ok'\\)\")",
+      "Bash(/d/Users/46139/anaconda3/python -c ':*)",
+      "Bash(d:/Users/46139/miniconda3/python.exe -c ':*)",
+      "Bash(D:/Users/46139/miniconda3/python.exe -c \"import pdfplumber; print\\('ok'\\)\")",
+      "Bash(D:/Users/46139/miniconda3/python.exe -c ':*)",
+      "Bash(/d/Users/46139/miniconda3/python -c ':*)",
+      "Bash(pandoc --track-changes=all \"第四章 基于物理一致性约束的多模态 SOH 融合估计方法\\(修订\\).docx\" -o /tmp/chapter4.md)",
+      "Bash(grep \"\\\\.py$\\\\|\\\\.json$\\\\|\\\\.yaml$\\\\|\\\\.md$\\\\|\\\\.csv$\\\\|\\\\.pkl$\\\\|\\\\.txt$\")",
+      "Bash(xargs rm:*)"
     ],
     "deny": [],
     "ask": []
