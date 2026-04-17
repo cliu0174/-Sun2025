@@ -6,6 +6,9 @@ from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN
 # Hybrid models
 from .cnn_lstm import CNN_LSTM, CNN_BiLSTM, CNN_MLP
 
+# Pluggable modules (M1, M2)
+from .modules import CycleAttention, MCDropout
+
 # Unified model factory system
 from .model_factory import (
     ConfigLoader,
@@ -41,4 +44,8 @@ __all__ = [
     'PhysicsConstrainedLoss',
     'SiamesePhysicsLoss',
     'TripletPhysicsLoss',
+
+    # Pluggable modules
+    'CycleAttention',
+    'MCDropout',
 ]

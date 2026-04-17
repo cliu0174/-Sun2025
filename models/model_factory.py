@@ -115,6 +115,8 @@ class ModelFactory:
         'fnn', 'cnn', 'lstm', 'gru', 'bilstm', 'bigru', 'mlp', 'rescnn',
         'lstm_seq2seq', 'gru_seq2seq', 'bilstm_seq2seq', 'bigru_seq2seq',
         'cnn_lstm', 'cnn_bilstm', 'cnn_mlp',
+        'cnn_lstm_attention',   # Exp-01: CNN-LSTM + M1 循环级注意力
+        'cnn_lstm_mc',          # Exp-02: CNN-LSTM + M2 MC Dropout
         'xgboost_simple', 'xgboost_enhanced'
     ]
 
@@ -194,8 +196,8 @@ class ModelFactory:
             return ModelFactory._create_bilstm_seq2seq(arch)
         elif model_type == 'bigru_seq2seq':
             return ModelFactory._create_bigru_seq2seq(arch)
-        elif model_type == 'cnn_lstm':
-            # 更新配置中的input_size
+        elif model_type in ('cnn_lstm', 'cnn_lstm_attention', 'cnn_lstm_mc'):
+            # 三种 model_type 均实例化 CNN_LSTM，区别在 config 中的 attention/mc_dropout 开关
             config_copy = config.copy()
             config_copy['architecture'] = arch
             return ModelFactory._create_cnn_lstm(config_copy)

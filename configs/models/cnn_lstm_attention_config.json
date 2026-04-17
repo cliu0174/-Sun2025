@@ -1,0 +1,76 @@
+{
+  "model_type": "CNN_LSTM_ATTENTION",
+  "model_name": "CNN-LSTM + Cycle Attention (Exp-01)",
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "pool_size": 2,
+    "fc_hidden_sizes": [64],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "attention": {
+    "enabled": true,
+    "num_heads": 4,
+    "dropout": 0.1,
+    "description": "M1: 循环级 Multi-Head Self-Attention，插入 LSTM 输出后、FC 头前"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.0005,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": true,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 20,
+      "warmup_lr": 0.002,
+      "base_lr": 0.005,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 20,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "physics_constraints": {
+    "enabled": true,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05,
+    "smoothness_weight": 0.0,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 40,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "siamese_sampling": {"enabled": false},
+    "triplet_sampling": {"enabled": false},
+    "curvature_weight": 0.0
+  },
+  "description": "Exp-01: baseline-v2.2 + M1 循环级注意力。在 LSTM 输出序列上施加 Multi-Head Self-Attention，替换原始「取最后时间步」策略，提升对退化敏感区间的聚焦能力。"
+}

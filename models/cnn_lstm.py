@@ -7,6 +7,8 @@ CNN混合模型：CNN-LSTM、CNN-BiLSTM、CNN-MLP
 
 import torch
 import torch.nn as nn
+from .modules.attention import CycleAttention
+from .modules.mc_dropout import MCDropout
 
 
 class CNN_LSTM(nn.Module):
@@ -69,6 +71,19 @@ class CNN_LSTM(nn.Module):
             dropout=dropout_rate if num_layers > 1 else 0
         )
 
+        # M1：循环级注意力（可选）
+        attn_cfg = config.get('attention', {})
+        self.use_attention = attn_cfg.get('enabled', False)
+        if self.use_attention:
+            attn_heads   = attn_cfg.get('num_heads', 4)
+            attn_dropout = attn_cfg.get('dropout', 0.1)
+            self.attention = CycleAttention(hidden_size, num_heads=attn_heads, dropout=attn_dropout)
+
+        # M2：MC Dropout（可选，替换 FC 头中的 nn.Dropout）
+        mc_cfg = config.get('mc_dropout', {})
+        use_mc_dropout = mc_cfg.get('enabled', False)
+        DropoutClass = MCDropout if use_mc_dropout else nn.Dropout
+
         # 全连接层
         fc_layers = []
         prev_size = hidden_size
@@ -77,7 +92,7 @@ class CNN_LSTM(nn.Module):
             fc_layers.extend([
                 nn.Linear(prev_size, fc_size),
                 self.activation,
-                nn.Dropout(dropout_rate)
+                DropoutClass(dropout_rate)   # MCDropout or nn.Dropout
             ])
             prev_size = fc_size
 
@@ -98,29 +113,28 @@ class CNN_LSTM(nn.Module):
         """
         # 处理2维输入（window_size=1的情况）
         if x.dim() == 2:
-            # (batch_size, input_size) -> (batch_size, 1, input_size)
             x = x.unsqueeze(1)
 
         # 转换为CNN输入格式: (batch_size, input_size, seq_len)
         x = x.permute(0, 2, 1)
 
         # CNN特征提取
-        # 注意：当seq_len太小时，MaxPool可能导致输出为0
-        # 这种情况下，全局平均池化会更稳定
         for conv_layer in self.conv_layers:
             x = conv_layer(x)
-            # 如果序列长度太短，跳过池化以避免输出维度为0
             if x.size(2) == 0:
-                raise ValueError(f"CNN output sequence length is 0. Input sequence may be too short for the configured pooling.")
+                raise ValueError("CNN output sequence length is 0. Input sequence may be too short for the configured pooling.")
 
         # 转换为LSTM输入格式: (batch_size, seq_len, channels)
         x = x.permute(0, 2, 1)
 
         # LSTM时序建模
-        lstm_out, (h_n, c_n) = self.lstm(x)
+        lstm_out, _ = self.lstm(x)  # lstm_out: (B, T', H)
 
-        # 使用最后一个时间步的输出
-        last_output = lstm_out[:, -1, :]
+        # M1：有注意力 → 全序列加权聚合；无注意力 → 取最后时间步
+        if self.use_attention:
+            last_output, _ = self.attention(lstm_out)  # (B, H)
+        else:
+            last_output = lstm_out[:, -1, :]           # (B, H)
 
         # 全连接层输出
         output = self.fc(last_output)
