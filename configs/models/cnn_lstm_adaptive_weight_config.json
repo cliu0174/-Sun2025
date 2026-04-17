@@ -1,0 +1,79 @@
+{
+  "model_type": "CNN_LSTM",
+  "model_name": "CNN-LSTM + Adaptive Weight (M5)",
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "pool_size": 2,
+    "fc_hidden_sizes": [64],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.0005,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": true,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 20,
+      "warmup_lr": 0.002,
+      "base_lr": 0.005,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 20,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "physics_constraints": {
+    "enabled": true,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 1.0,
+    "boundary_weight": 1.0,
+    "smoothness_weight": 1.0,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 40,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "siamese_sampling": {"enabled": false},
+    "triplet_sampling": {"enabled": false},
+    "adaptive_weight": {
+      "enabled": true,
+      "l2_reg": 0.01,
+      "init_log_vars": [0.0, 0.0, 0.0, 0.0],
+      "description": "M5 自适应权重：[base, monotonic, boundary, smoothness] 权重全部可学习"
+    },
+    "description": "M5 自适应损失权重：用可学习 log_σᵢ 替代固定权重（含 M4 速率连续性约束）"
+  },
+  "visualization": {
+    "color_by_battery": true
+  },
+  "description": "Exp-04 配置：baseline-v2.2 + M5 自适应损失权重（含 M4）"
+}

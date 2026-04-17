@@ -1,0 +1,74 @@
+{
+  "model_type": "CNN_LSTM",
+  "model_name": "CNN-LSTM + Rate Smoothness (M4)",
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "pool_size": 2,
+    "fc_hidden_sizes": [64],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.0005,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": true,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 20,
+      "warmup_lr": 0.002,
+      "base_lr": 0.005,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 20,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "physics_constraints": {
+    "enabled": true,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05,
+    "smoothness_weight": 0.05,
+    "monotonic_tolerance": 0.01,
+    "temporal_decay": {
+      "enabled": true,
+      "max_step": 40,
+      "decay_type": "exp",
+      "decay_alpha": 0.2
+    },
+    "siamese_sampling": {"enabled": false},
+    "triplet_sampling": {"enabled": false},
+    "adaptive_weight": {"enabled": false},
+    "description": "M4 速率连续性约束：在软单调+边界基础上增加二阶差分平滑项（smoothness_weight=0.05）"
+  },
+  "visualization": {
+    "color_by_battery": true
+  },
+  "description": "Exp-03 基线配置：baseline-v2.2 + M4 速率连续性约束（smoothness_weight=0.05）"
+}

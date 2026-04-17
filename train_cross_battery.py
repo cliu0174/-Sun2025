@@ -18,7 +18,9 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
 # 导入模型工厂和物理约束
-from models import ModelFactory, ConfigLoader, UnifiedModelWrapper, PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss
+from models import (ModelFactory, ConfigLoader, UnifiedModelWrapper,
+                    PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss,
+                    AdaptivePhysicsLoss)
 from data_loaders import load_single_hust_battery
 from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
 import time
@@ -858,7 +860,8 @@ def train_cross_battery_model(
     cycle_drop_rate=None,                # 场景四手动丢弃率
     cycle_drop_num_gaps=None,            # 场景四手动缺失段数量
     supervision_ratio=1.0,               # 部分监督比例 (1.0=全监督, 0.5=50%有标签)
-    supervision_seed=None                # 部分监督 mask 种子 (None=与主 seed 一致)
+    supervision_seed=None,               # 部分监督 mask 种子 (None=与主 seed 一致)
+    config_override=None,                # dict，深度合并覆盖 config（用于超参扫描）
 ):
     """
     跨电池训练模型。
@@ -963,6 +966,17 @@ def train_cross_battery_model(
 
     # 4. 加载模型配置
     config = ConfigLoader.load_model_config(model_type)
+
+    # 深度合并 config_override（用于超参扫描，只覆盖指定字段）
+    if config_override:
+        def _deep_merge(base: dict, override: dict):
+            for k, v in override.items():
+                if isinstance(v, dict) and isinstance(base.get(k), dict):
+                    _deep_merge(base[k], v)
+                else:
+                    base[k] = v
+        _deep_merge(config, config_override)
+
     print("\n" + "="*70)
     print("模型配置")
     print("="*70)
@@ -1103,7 +1117,7 @@ def train_cross_battery_model(
             print(f"  分段阈值: {split_threshold} cycles")
         else:
             # 标准模式：使用 PhysicsConstrainedLoss
-            criterion = PhysicsConstrainedLoss(
+            _base_criterion = PhysicsConstrainedLoss(
                 base_loss_weight=physics_config.get('base_loss_weight', 1.0),
                 monotonic_weight=physics_config.get('monotonic_weight', 0.1),
                 boundary_weight=physics_config.get('boundary_weight', 0.05),
@@ -1115,7 +1129,26 @@ def train_cross_battery_model(
                 temporal_decay_alpha=physics_config.get('temporal_decay', {}).get('decay_alpha', 0.2),
                 verbose=False
             ).to(device)
-            print("\n损失函数: PhysicsConstrainedLoss (物理约束)")
+
+            # M5：自适应损失权重（可选）
+            aw_cfg = physics_config.get('adaptive_weight', {})
+            if aw_cfg.get('enabled', False):
+                criterion = AdaptivePhysicsLoss(
+                    physics_loss=_base_criterion,
+                    init_log_vars=aw_cfg.get('init_log_vars', None),
+                    l2_reg=aw_cfg.get('l2_reg', 0.0),
+                ).to(device)
+                # log_vars 是可训练参数，需加入优化器
+                optimizer.add_param_group({
+                    'params': [criterion.log_vars],
+                    'lr': config['training']['learning_rate'],
+                })
+                print("\n损失函数: AdaptivePhysicsLoss (M5 自适应权重)")
+                print(f"  l2_reg={aw_cfg.get('l2_reg', 0.0)}, "
+                      f"init_log_vars={aw_cfg.get('init_log_vars', [0,0,0,0])}")
+            else:
+                criterion = _base_criterion
+                print("\n损失函数: PhysicsConstrainedLoss (物理约束)")
     else:
         criterion = wrapper.criterion
         print(f"\n损失函数: {type(criterion).__name__} (标准)")

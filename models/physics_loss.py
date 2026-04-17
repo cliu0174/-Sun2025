@@ -400,6 +400,49 @@ class PhysicsConstrainedLoss(nn.Module):
 
         return total_loss
 
+    def forward_components(self, predictions, targets, battery_ids=None,
+                           cycle_indices=None, supervision_mask=None):
+        """
+        返回各损失项的未加权张量，供 AdaptivePhysicsLoss (M5) 使用。
+
+        Returns:
+            dict with keys: 'base', 'monotonic', 'boundary', 'smoothness', 'n_labeled'
+        """
+        # --- base MSE（支持部分监督）---
+        if supervision_mask is None:
+            base_loss = self.mse_loss(predictions, targets)
+            n_labeled = predictions.shape[0]
+        else:
+            mask = supervision_mask.to(predictions.device)
+            if mask.dim() == 1:
+                mask = mask.unsqueeze(1)
+            mask = mask.to(predictions.dtype)
+            n_labeled = mask.sum()
+            if n_labeled > 0:
+                sq_err = (predictions - targets) ** 2
+                base_loss = (sq_err * mask).sum() / n_labeled.clamp(min=1.0)
+            else:
+                base_loss = torch.tensor(0.0, device=predictions.device,
+                                         requires_grad=True)
+            n_labeled = int(n_labeled.item())
+
+        # --- 物理项 ---
+        if battery_ids is not None and cycle_indices is not None:
+            mono_loss   = self.monotonic_loss(predictions, battery_ids, cycle_indices)
+            smooth_loss = self.smoothness_loss(predictions, battery_ids, cycle_indices)
+        else:
+            mono_loss   = torch.tensor(0.0, device=predictions.device)
+            smooth_loss = torch.tensor(0.0, device=predictions.device)
+        bound_loss = self.boundary_loss(predictions)
+
+        return {
+            'base':       base_loss,
+            'monotonic':  mono_loss,
+            'boundary':   bound_loss,
+            'smoothness': smooth_loss,
+            'n_labeled':  n_labeled,
+        }
+
     def get_loss_details(self):
         """获取最近一次计算的详细损失"""
         return self.loss_details

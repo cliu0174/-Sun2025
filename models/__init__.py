@@ -19,6 +19,9 @@ from .model_factory import (
 # Physics-constrained loss
 from .physics_loss import PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss
 
+# M5: Adaptive loss weight
+from .adaptive_loss import AdaptivePhysicsLoss
+
 __all__ = [
     # Baseline Models (Many-to-One)
     'FNN',
@@ -44,6 +47,7 @@ __all__ = [
     'PhysicsConstrainedLoss',
     'SiamesePhysicsLoss',
     'TripletPhysicsLoss',
+    'AdaptivePhysicsLoss',
 
     # Pluggable modules
     'CycleAttention',
