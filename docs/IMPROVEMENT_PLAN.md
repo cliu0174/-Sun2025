@@ -4,8 +4,8 @@
 > **数据集**: HUST 77 块电池，14 维特征
 > **基线**: **baseline-v2.2**（CNN-LSTM + 软单调约束 + 边界约束）
 > **创建日期**: 2026-04-17
-> **最后更新**: 2026-04-17（Stage 0 代码完成）
-> **状态**: ⏳ Stage 0 代码完成，实验（20 runs）待运行
+> **最后更新**: 2026-04-17（Stage 1 代码完成）
+> **状态**: ⏳ Stage 0 实验待运行；Stage 1 代码完成，实验待运行
 > **用途**: 硕士论文第四章 / 潜在期刊投稿
 
 ---
@@ -259,10 +259,10 @@
 - 更新 `CLAUDE.md` 和本文档的进度
 - Commit message: `stage-0: lock baseline-v2.2 with physics + partial supervision`
 
-### Stage 1：架构增强（1.5 天）
-- [ ] **Exp-01**：Baseline + M1（注意力）
-- [ ] **Exp-02**：Baseline + M2 + M7（MC Dropout + 置信区间）
-- [ ] **Exp-T1**：纯 Transformer vs Baseline（无物理约束，架构对比支线）
+### Stage 1：架构增强（1.5 天）✅ 代码完成
+- [ ] **Exp-01**：Baseline + M1（注意力）← `python experiments/run_exp01_attention.py`
+- [ ] **Exp-02**：Baseline + M2 + M7（MC Dropout + 置信区间）← `python experiments/run_exp02_mc_dropout.py`
+- [x] ~~**Exp-T1**：Transformer 支线~~ ← 暂时搁置
   - 目的：单纯看 Transformer 架构在本数据集上的天花板，不作为主线结果
   - 对比组：CNN-LSTM（physics=false） vs Transformer（physics=false）
   - 只跑 ratio=1.0，5 seeds，取 mean ± std

@@ -11,7 +11,7 @@
 - **基线**：**baseline-v2.2**（CNN-LSTM + 软单调 + 边界约束 + 60/20/20划分 + 种子42）
 - **监督场景**：**部分生命周期监督**（label masking 已实现，保留样本只 mask 标签）
 - **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
-- **当前阶段**：**Stage 0 代码完成，实验待运行**
+- **当前阶段**：**Stage 1 代码完成，所有实验待运行**
 - **代码现状**：
   - ✅ 部分监督机制已实现（`generate_supervision_mask()` + `is_labeled` 字段 + masked MSE）
   - ✅ `run_baseline_v22.py` 已就绪（5 seeds × 4 ratios = 20 次，支持断点续跑）
