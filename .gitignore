@@ -45,3 +45,12 @@ results/*.pth
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code local state (per-user, should not be shared)
+.claude/settings.local.json
+
+# Reference papers (too large for git, keep locally only)
+paper/
+
+# Draft Word documents (use git LFS if version control needed)
+*.docx
