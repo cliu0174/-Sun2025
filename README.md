@@ -1,160 +1,167 @@
-# Battery SOH Estimation with Physics-Informed Neural Networks
+# PI-CNNLSTM — 基于物理一致性约束的锂电池 SOH 估计
 
-基于物理信息神经网络的锂离子电池健康状态（SOH）估计项目。
+> **论文对应实现**：《基于物理一致性约束的多模态 SOH 融合估计方法》（第四章）  
+> **核心场景**：部分生命周期监督（Partial Lifecycle Supervision）——仅部分循环区段有 SOH 标签
 
-## 🎯 项目特点
+---
 
-- 🔬 **物理约束**: 融合单调性和曲率约束的物理信息神经网络
-- 📊 **数据退化场景**: 4种数据退化场景模拟真实传感器故障
-- 🧪 **批量测试**: 自动化多参数批量测试和性能分析
-- 🔄 **跨电池训练**: 支持跨电池迁移学习
-- 📈 **可视化**: 完整的训练和预测可视化分析
+## 项目概述
 
-## 📁 项目结构
+本项目在 **HUST 数据集**（77 块电池，14 维特征）上实现了 PI-CNNLSTM 模型，将物理先验知识（单调递减、边界约束）融入损失函数，在标签稀缺的部分监督场景下估计电池健康状态（SOH）。
 
-```
-.
-├── train_cross_battery.py      # 主训练脚本（跨电池训练）
-├── test_monotonic_weights.py   # 批量测试脚本（支持多参数测试）
-├── inference.py                 # 推理脚本
-├── utils/
-│   ├── data_augmentation.py    # 数据退化场景实现
-│   └── ...                      # 其他工具
-├── models/                      # 模型定义
-├── data/                        # 数据目录
-├── results/                     # 训练结果
-├── docs/                        # 📚 完整文档
-│   ├── scenarios/               # 数据退化场景文档
-│   ├── batch_testing/           # 批量测试文档
-│   ├── siamese/                 # Siamese模式文档
-│   ├── triplet/                 # Triplet模式文档
-│   └── README.md                # 文档导航 ⭐
-└── PROJECT_SUMMARY.md           # 项目详细总结
-```
+**核心创新点：**
+- **物理约束损失**：软单调性 + 边界约束，适用于无标签样本
+- **Label Masking 部分监督**：保留全部样本，随机遮蔽部分标签；无标签样本仍参与物理约束
+- **跨电池泛化**：60/20/20 电池级划分，评估跨电池泛化能力
 
-## 🚀 快速开始
+---
 
-### 1. 基础训练
+## 环境准备
 
 ```bash
-# 默认配置训练（Scenario 2，稀疏采样）
+pip install -r requirements.txt
+# 需要 Python 3.8+，PyTorch 2.0+，推荐 CUDA GPU
+```
+
+---
+
+## 快速开始
+
+### 1. 单次训练（baseline-v2.2）
+
+```bash
 python train_cross_battery.py
-
-# 使用 Scenario 4（连续循环缺失）
-python train_cross_battery.py --degradation_scenario scenario4
 ```
 
-### 2. 批量参数测试
+在 `__main__` 块中调整关键参数：
+
+```python
+MODEL_TYPE        = 'cnn_lstm'  # 模型类型
+SEED              = 42          # 随机种子
+SUPERVISION_RATIO = 1.0         # 监督比例：1.0=全监督，0.5=半监督，0.3=稀疏监督
+```
+
+### 2. Stage 0 基线扫描（20次实验）
 
 ```bash
-# 测试多个单调性权重
-python test_monotonic_weights.py
-
-# 查看详细使用说明
-# 参考: docs/batch_testing/QUICK_START_WEIGHT_TEST.md
+python run_baseline_v22.py
 ```
+
+自动运行 **5 seeds × 4 supervision ratios = 20 次**实验，支持断点续跑，结果汇总到 `experiments/baseline_v2.2/metrics.json`。
 
 ### 3. 模型推理
 
 ```bash
-# 单电池推理
 python inference.py
-
-# 查看推理指南
-# 参考: docs/guides/INFERENCE_QUICK_START.md
 ```
 
-## 📖 文档导航
+---
 
-所有详细文档位于 `docs/` 目录，推荐阅读顺序：
+## 项目结构
 
-1. **新手入门**
-   - [项目总结](PROJECT_SUMMARY.md) - 项目整体架构和功能
-   - [文档索引](docs/README.md) - 完整文档导航
+```
+1111-soh/
+├── train_cross_battery.py      # 主训练脚本（核心入口）
+├── run_baseline_v22.py         # Stage 0 基线扫描脚本
+├── inference.py                # 模型推理
+├── compare_models.py           # 多模型对比
+├── feature_extraction.py       # 14 维特征提取逻辑
+│
+├── models/
+│   ├── cnn_lstm.py             # CNN-LSTM 模型定义
+│   ├── baseline_models.py      # FNN / CNN / LSTM / GRU 等基线模型
+│   ├── model_factory.py        # 模型工厂 + 统一接口
+│   └── physics_loss.py         # 物理约束损失函数 ⭐
+│
+├── data_loaders/
+│   └── data_loader_hust.py     # HUST 数据加载 + 窗口化 + supervision mask
+│
+├── configs/models/             # 各模型 JSON 配置文件
+│   └── cnn_lstm_config.json    # 当前基线配置（物理约束参数在此调整）
+│
+├── utils/
+│   └── lr_schedulers.py        # 学习率调度器（WarmupCosineDecay 等）
+│
+├── data/HUST data/             # 原始数据（77 块电池 .csv，未上传）
+├── experiments/                # 实验结果（metrics.json 等）
+├── results/                    # 训练输出图表
+└── docs/
+    └── IMPROVEMENT_PLAN.md     # 完整改进计划（8 个模块，5 个 Stage）⭐
+```
 
-2. **数据退化场景** (`docs/scenarios/`)
-   - [数据增强总指南](docs/scenarios/DATA_AUGMENTATION_GUIDE.md) ⭐
-   - [Scenario 1: 噪声增强](docs/scenarios/NOISE_AUGMENTATION_SUMMARY.md)
-   - [Scenario 2: 稀疏采样](docs/scenarios/SPARSE_SAMPLING_MANUAL_CONTROL.md)
-   - [Scenario 3: 随机缺失](docs/scenarios/RANDOM_MISSING_GUIDE.md)
-   - [Scenario 4: 连续缺失](docs/scenarios/SCENARIO4_USAGE.md) ⭐ 最新
+---
 
-3. **批量测试** (`docs/batch_testing/`)
-   - [批量测试总结](docs/batch_testing/BATCH_TESTING_SUMMARY.md) ⭐
-   - [快速开始](docs/batch_testing/QUICK_START_WEIGHT_TEST.md)
-   - [Scenario 4 批量测试](docs/scenarios/SCENARIO4_BATCH_TESTING.md) ⭐ 最新
+## 核心模块说明
 
-4. **物理约束模式** (`docs/siamese/`, `docs/triplet/`)
-   - Siamese模式: 一阶平滑性约束
-   - Triplet模式: 二阶曲率约束
+### 物理约束损失（`models/physics_loss.py`）
 
-## 🔬 核心功能
-
-### 数据退化场景
-
-模拟真实场景下的传感器故障和数据缺失：
-
-- **Scenario 1**: 噪声 + 随机丢弃
-- **Scenario 2**: 规律稀疏采样（如定期HPPC测试）
-- **Scenario 3**: 随机缺失（随机传感器读取失败）
-- **Scenario 4**: 连续循环缺失（传感器系统故障）⭐ 最新
-
-### 批量参数测试
-
-自动化测试框架，支持：
-- 多个单调性权重批量测试
-- **Scenario 4 多参数批量测试** ⭐ 最新
-  - 同时测试多个丢弃率 (drop_rates)
-  - 同时测试多个缺失段数 (num_gaps)
-  - 自动生成所有参数组合
-  - 6子图综合可视化分析
-
-示例：
 ```python
-# test_monotonic_weights.py 配置
-CONFIG = {
-    'degradation_scenario': 'scenario4',
-    'cycle_drop_rates': [0.2, 0.3, 0.5],      # 3个丢弃率
-    'cycle_drop_num_gaps_list': [1, 2, 3],    # 3个缺失段数
-    'monotonic_weights': [0.0, 0.3, 0.5],     # 3个权重
-    # 总计: 3 × 3 × 3 = 27 个实验
+PhysicsConstrainedLoss(
+    base_loss_weight  = 1.0,   # MSE 权重
+    monotonic_weight  = 0.1,   # 软单调性约束
+    boundary_weight   = 0.05,  # 边界约束 [0, 1]
+    monotonic_tolerance = 0.01 # 允许的微小上升幅度
+)
+```
+
+支持 `supervision_mask` 参数：**有标签样本**计算 MSE，**无标签样本**只计算物理约束。
+
+### 部分监督机制（Label Masking）
+
+```python
+# 在 train_cross_battery.py 的 __main__ 中设置
+SUPERVISION_RATIO = 0.5   # 训练集中 50% 的循环有 SOH 标签
+SUPERVISION_SEED  = None  # None = 与主 SEED 一致，保证可复现
+```
+
+每块电池独立随机采样，确保每块电池都保留至少 1 个标签。验证集和测试集始终保持全监督。
+
+### 模型配置
+
+物理约束参数统一在 `configs/models/cnn_lstm_config.json` 中调整：
+
+```json
+"physics_constraints": {
+    "enabled": true,
+    "monotonic_weight": 0.1,
+    "boundary_weight": 0.05
 }
 ```
 
-### 物理约束
+---
 
-- **单调性约束**: 确保SOH随循环次数单调递减
-- **平滑性约束**: 消除预测曲线的跳变
-- **曲率约束**: 进一步约束二阶导数，获得更平滑的曲线
+## 实验设计
 
-## 📊 实验结果
+当前阶段 **Stage 0**：锁定 baseline-v2.2 基准数值
 
-训练结果自动保存在 `results/` 目录：
-- 训练历史曲线
-- 预测对比图
-- 最优/最差电池性能分析
-- 批量测试对比图表
+| 实验条件 | 配置 |
+|---------|------|
+| 模型 | CNN-LSTM（物理约束开启） |
+| 数据划分 | 60/20/20（电池级，seed=42） |
+| 种子组 | [42, 123, 456, 789, 1024] |
+| 监督比例 | [1.0, 0.7, 0.5, 0.3] |
+| 总实验数 | 20 次 |
 
-## 🛠️ 环境要求
+完整的 8 模块改进计划见 [`docs/IMPROVEMENT_PLAN.md`](docs/IMPROVEMENT_PLAN.md)。
 
-- Python 3.8+
-- PyTorch 1.10+
-- CUDA (推荐，用于GPU加速)
+---
 
-详细依赖见 `requirements.txt`
+## 数据集
 
-## 📝 最近更新
+**HUST 锂离子电池数据集**（不含在仓库中，请自行获取）
 
-- **2025-12-23**: 添加 Scenario 4 (连续循环缺失) 完整功能
-- **2025-12-23**: 添加 Scenario 4 多参数批量测试支持
-- **2025-12-23**: 大规模项目清理和文档重组
-- **2025-12-18**: 完善批量测试框架
-- **2025-12-15**: 添加 Scenario 3 (随机缺失)
+- 77 块电池，每块约 100–600 个充放电循环
+- 14 维特征：充放电容量、能量、内阻、温度等
+- 放置路径：`data/HUST data/*.csv`
 
-## 📚 参考文献
+---
 
-Sun, G., Liu, Y., & Liu, X. (2025). A method for estimating lithium-ion battery state of health based on physics-informed machine learning. Journal of Power Sources, 627, 235767.
+## 参考文献
 
-## 📧 联系方式
+Sun, G., Liu, Y., & Liu, X. (2025). A method for estimating lithium-ion battery state of health based on physics-informed machine learning. *Journal of Power Sources*, 627, 235767.
 
-如有问题或建议，请查看 [docs/README.md](docs/README.md) 获取详细文档。
+---
+
+## 联系
+
+liuchang2262@gmail.com
