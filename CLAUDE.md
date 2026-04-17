@@ -6,17 +6,20 @@
 
 基于**物理一致性约束**的电池 SOH 估计（PI-CNNLSTM），核心场景是**部分生命周期监督**（Partial Lifecycle Supervision）——即只有电池生命周期的部分区段有 SOH 标签。数据集为 HUST 77 块电池、14 维特征。
 
-## 当前状态
+## 当前状态（2026-04-17 更新）
 
 - **基线**：**baseline-v2.2**（CNN-LSTM + 软单调 + 边界约束 + 60/20/20划分 + 种子42）
-- **监督场景**：**部分生命周期监督**（label masking 实现，保留样本只 mask 标签）
+- **监督场景**：**部分生命周期监督**（label masking 已实现，保留样本只 mask 标签）
 - **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
-- **当前阶段**：**Stage 0 执行中**（实现部分监督 + 启用物理约束 + 跑 20 次基线）
-- **⚠️ 代码现状**：
-  - `utils/data_augmentation` 不存在，scenario1-4 无法使用
-  - `cnn_lstm_config.json` 中物理约束当前为 `enabled: false`，需改回 true
-  - 部分监督机制需要从零实现（label masking 方式）
-- **参考论文**：9 篇 PDF 在 `paper/` 目录（已.gitignore），摘要见 `paper/chapter4_content.txt` 等
+- **当前阶段**：**Stage 0 代码完成，实验待运行**
+- **代码现状**：
+  - ✅ 部分监督机制已实现（`generate_supervision_mask()` + `is_labeled` 字段 + masked MSE）
+  - ✅ `run_baseline_v22.py` 已就绪（5 seeds × 4 ratios = 20 次，支持断点续跑）
+  - ✅ 烟雾测试通过（ratio=1.0 和 ratio=0.5 均验证正常）
+  - ⚠️ `cnn_lstm_config.json` 中 `physics_constraints.enabled` 当前为 `false`（用户手动调整）
+  - ℹ️ `utils/data_augmentation` 不存在，scenario1-4 相关代码不可用（当前不需要）
+- **下一步行动**：运行 `python run_baseline_v22.py` 得到 20 次基线数字，再推进 Stage 1
+- **参考论文**：9 篇 PDF 在 `paper/` 目录（已.gitignore）
 
 ## ⚠️ 重要：已制定的改进计划
 
@@ -66,10 +69,12 @@
 
 ## 关键代码入口
 
-- `train_cross_battery.py` — 当前主训练脚本（V6 基线）
-- `train_with_physics.py` — 物理约束训练
+- `train_cross_battery.py` — 当前主训练脚本（baseline-v2.2）
+- `run_baseline_v22.py` — Stage 0 基线扫描（20 次批量实验）
+- `models/physics_loss.py` — 物理约束损失（含 supervision_mask 支持）
+- `data_loaders/data_loader_hust.py` — 数据加载（含 is_labeled 字段）
+- `configs/models/cnn_lstm_config.json` — 模型与物理约束配置
 - `models/` — 模型定义目录
-- `data_loaders/`, `HUST_dataloader.py` — 数据加载
 - `feature_extraction.py` — 14 维特征提取
 - `compare_models.py` — 模型对比
 
