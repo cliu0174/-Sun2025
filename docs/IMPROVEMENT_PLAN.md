@@ -262,6 +262,11 @@
 ### Stage 1：架构增强（1.5 天）
 - [ ] **Exp-01**：Baseline + M1（注意力）
 - [ ] **Exp-02**：Baseline + M2 + M7（MC Dropout + 置信区间）
+- [ ] **Exp-T1**：纯 Transformer vs Baseline（无物理约束，架构对比支线）
+  - 目的：单纯看 Transformer 架构在本数据集上的天花板，不作为主线结果
+  - 对比组：CNN-LSTM（physics=false） vs Transformer（physics=false）
+  - 只跑 ratio=1.0，5 seeds，取 mean ± std
+  - 结果不进主消融表，单独列一个"架构基线对比"小节
 
 ### Stage 2：损失函数精化（2 天）
 - [ ] **Exp-03**：Baseline + M4（速率连续性）
@@ -302,6 +307,13 @@
 | Exp-05 |  |  | ✓ | ✓ |  | | | | | |
 | Exp-06 |  | ✓ |  |  | ✓ | | | | | ✓ |
 | **Exp-07 Full** | ✓ | ✓ | ✓ | ✓ | ✓ | | | | | ✓ |
+
+**架构对比支线（独立小节，不进主表）：**
+
+| 实验 | 物理约束 | ratio | MAE | RMSE | 说明 |
+|------|---------|-------|-----|------|------|
+| CNN-LSTM（无约束） | ✗ | 1.0 | - | - | 支线基准 |
+| Transformer（无约束） | ✗ | 1.0 | - | - | Exp-T1 |
 
 每格填入 5 次运行的 `mean ± std`。
 
