@@ -1167,6 +1167,30 @@ def train_cross_battery_model(
     print("开始训练")
     print("="*70)
 
+    # M6：不确定性伪标签管理器（可选）
+    pseudo_manager = None
+    pl_cfg = config.get('pseudo_labeling', {})
+    if pl_cfg.get('enabled', False):
+        from training.pseudo_labeling import PseudoLabelManager
+        pseudo_manager = PseudoLabelManager(
+            warmup_epochs      = pl_cfg.get('warmup_epochs', 30),
+            update_every_k     = pl_cfg.get('update_every_k', 5),
+            n_mc_samples       = pl_cfg.get('n_mc_samples', 50),
+            threshold_percentile = pl_cfg.get('threshold_percentile', 30.0),
+            max_pseudo_ratio   = pl_cfg.get('max_pseudo_ratio', 0.5),
+            lambda_pseudo      = pl_cfg.get('lambda_pseudo', 1.0),
+            epsilon            = pl_cfg.get('epsilon', 1e-6),
+            inference_batch_size = pl_cfg.get('inference_batch_size', 512),
+        )
+        unlabeled_indices = PseudoLabelManager.get_unlabeled_indices(
+            train_loader.dataset
+        )
+        print(f"\nM6 伪标签已启用: {pseudo_manager}")
+        print(f"  无标签样本: {len(unlabeled_indices)}/{len(train_loader.dataset)}")
+        if len(unlabeled_indices) == 0:
+            print("  ⚠️  supervision_ratio=1.0，无无标签样本，M6 无效")
+            pseudo_manager = None
+
     history = {
         'train_loss': [],
         'val_loss': [],
@@ -1184,6 +1208,13 @@ def train_cross_battery_model(
     patience_counter = 0
 
     for epoch in tqdm(range(num_epochs), desc="Training"):
+        # M6：Warmup 结束后定期刷新伪标签
+        if pseudo_manager is not None and pseudo_manager.should_update(epoch):
+            pseudo_manager.update(
+                model, train_loader.dataset, unlabeled_indices,
+                device, collate_fn=custom_collate_fn,
+            )
+            model.train()   # 恢复训练模式
         # ===== 训练阶段 =====
         model.train()
         train_loss = 0.0
@@ -1288,6 +1319,15 @@ def train_cross_battery_model(
                 train_loss += loss.item() * features.size(0)
 
         train_loss /= len(train_loader.dataset)
+
+        # M6：伪标签附加训练轮次（主训练完成后执行，不影响 train_loss 统计）
+        if pseudo_manager is not None and pseudo_manager.n_pseudo > 0:
+            pseudo_loader = pseudo_manager.get_pseudo_loader(
+                batch_size=config['training']['batch_size']
+            )
+            if pseudo_loader is not None:
+                model.train()
+                pseudo_manager.compute_pseudo_loss(model, pseudo_loader, optimizer, device)
 
         # ===== 更新学习率 (在validation之前，与原始代码一致) =====
         current_lr = optimizer.param_groups[0]['lr']

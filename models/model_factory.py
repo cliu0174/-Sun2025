@@ -119,6 +119,7 @@ class ModelFactory:
         'cnn_lstm_mc',               # Exp-02: CNN-LSTM + M2 MC Dropout
         'cnn_lstm_rate_smoothness',  # Exp-03: CNN-LSTM + M4 速率连续性约束
         'cnn_lstm_adaptive_weight',  # Exp-04/05: CNN-LSTM + M5 自适应损失权重（含 M4）
+        'cnn_lstm_pseudo_label',     # Exp-06: CNN-LSTM + M2 MC Dropout + M6 伪标签
         'xgboost_simple', 'xgboost_enhanced'
     ]
 
@@ -199,7 +200,8 @@ class ModelFactory:
         elif model_type == 'bigru_seq2seq':
             return ModelFactory._create_bigru_seq2seq(arch)
         elif model_type in ('cnn_lstm', 'cnn_lstm_attention', 'cnn_lstm_mc',
-                            'cnn_lstm_rate_smoothness', 'cnn_lstm_adaptive_weight'):
+                            'cnn_lstm_rate_smoothness', 'cnn_lstm_adaptive_weight',
+                            'cnn_lstm_pseudo_label'):
             # 三种 model_type 均实例化 CNN_LSTM，区别在 config 中的 attention/mc_dropout 开关
             config_copy = config.copy()
             config_copy['architecture'] = arch
