@@ -1,0 +1,305 @@
+Total pages: 12
+--- Page 1 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+Physics-informed neural network for lithium-
+ion battery degradation stable modeling and
+prognosis
+Received:28September2023 FujinWang 1,2,3,ZhiZhai 1,2,3,ZhibinZhao 1,2 ,YiDi1,2&XuefengChen1,2
+Accepted:7May2024
+Accuratestate-of-health(SOH)estimationiscriticalforreliableandsafe
+operationoflithium-ionbatteries.However,reliableandstablebatterySOH
+Checkforupdates
+estimationremainschallengingduetodiversebatterytypesandoperating
+conditions.Inthispaper,weproposeaphysics-informedneuralnetwork
+(PINN)foraccurateandstableestimationofbatterySOH.Specifically,we
+modeltheattributesthataffectthebatterydegradationfromtheperspective
+ofempiricaldegradationandstatespaceequations,andutilizeneuralnet-
+workstocapturebatterydegradationdynamics.Ageneralfeatureextraction
+methodisdesignedtoextractstatisticalfeaturesfromashortperiodofdata
+beforethebatteryisfullycharged,enablingourmethodapplicabletodifferent
+batterytypesandcharge/dischargeprotocols.Additionally,wegeneratea
+comprehensivedatasetconsistingof55lithium-nickel-cobalt-manganese-
+oxide(NCM)batteries.Combinedwiththreeotherdatasetsfromdifferent
+manufacturers,weuseatotalof387batterieswith310,705samplestovalidate
+ourmethod.Themeanabsolutepercentageerror(MAPE)is0.87%.Ourpro-
+posedPINNhasdemonstratedremarkableperformanceinregularexperi-
+ments,smallsampleexperiments,andtransferexperimentswhencompared
+toalternativeneuralnetworks.Thisstudyhighlightsthepromiseofphysics-
+informedmachinelearningforbatterydegradationmodelingandSOH
+estimation.
+Inrecentyears,thenumberoflithium-ionbatteriesisgrowingatan broughtconveniencetopeople’slives,however,itsagingandhealth
+alarmingrateinthewholesociety,whichisanunprecedentedimpetus managementhavealsoattractedpeople’sconcernsandattention.The
+to the popularization of renewable energy equipment. With the agingoflithium-ionbatteriesisanimportantissue,andtheirperfor-
+advantagesofhighenergydensity,lowself-dischargerate,andlong mancewilldeclinewithtimeuntilitfails.Toensurelong-term,safe,
+servicelife1,lithium-ionbatterieshavebecomethemainenergysto- and continuous operation, lithium-ion batteries must be properly
+rage devices in portable electronic devices, electric vehicles, aero- maintained and controlled, which includes state-of-health (SOH)
+space, and many other fields2–8. In 2019, the global shipments of assessments.TheSOHofabatteryisdefinedastheratioofthecurrent
+lithium-ion batteries for new energy vehicles alone reached 116.6 available capacity to the in
+--- Page 2 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+storagepowerstationsforsecondaryutilization.Therefore,itispar- equationsthroughrecurrentneuralnetworkstosimulatethedynamic
+ticularlyimportanttoaccuratelyestimatetheSOHofthebattery. responseofthebattery.Wangetal.42proposedabatteryneuralnet-
+Inrecentyears,variousSOHestimationmethodsoflithium-ion work(BattNN)fordischargevoltagepredictionbasedontheequiva-
+batterieshavebeenproposed,whichgreatlyadvancethedevelopment lent circuit model (ECM). Hofmann et al.43 used the pseudo-two-
+ofthisfield12–15.However,accuratelyestimatingSOHisstillachallen- dimensional(P2D)Newmanmodeltogeneratedataatdifferenthealth
+gingproblem.Generally,thecapacitycanbeobtainedfromacomplete statuspointsandcombineditwithexperimentaldataandfielddatato
+dischargecurvefromanuppercut-offvoltagetoalowercut-offvol- traintheneuralnetworkmodel,whichtakesadvantageofthecorre-
+tageviatheampere-hourintegration,therebyobtainingSOH.Inactual lationbetweeninternalstatesandmeasurableSOH.Accordingtothe
+application, it is difficult to obtain a complete charge or discharge categories proposed by Aykol et al.38, these methods belong to the
+curve because the battery is rarely fully discharged. Some scholars A240,41,43andA339,42categories.
+estimateSOHbyestablishingbatteryagingmodels.Baghdadietal.16 In fact, the Sequential Integration method is relativelystraight-
+proposed a physics-based approach based on Dakin’s degradation forwardtoimplementbecausethephysicalmodelandthemachine
+methodtosimulatethelineardegradationprocessofbatteries.Con- learningmodelarestandalone,makingitapracticalnear-termstrategy
+sideringthattime-varyingtemperatureconditionshaveanimportant for battery modeling. Essentially, machine learning models in
+impact on the discharge capacity and aging law of lithium-ion bat- SequentialIntegrationmethodarenotsubjecttophysicalconstraints.
+teries,Xuetal.17proposedastochasticdegradationratemodelbased TheHybridmethods,ontheotherhand,aremorefundamentalasthey
+ontheArrheniustemperaturemodelandestablishedanagingmodel trulyintegratetheprimarygoverningequationsforbatterymodeling
+of lithium-ion batteries under time-varying temperature conditions with data-driven methods. However, due to the complex physical
+basedontheWienerprocess.Dongetal.18proposedaphysics-based equations contain numerous parameters and are difficult to solve,
+modelthatcombineschemicalandmechanicaldegradationmechan- therearefewpublicationsthatimplementHybridmethodsforSOH
+ismstopredictcapacityfadebysi
+--- Page 3 ---
+(a)
+… Batterieswith
+different
+chemistries
+…
+BatteryA BatteryB BatteryC BatteryN
+NCM NCA NCM+NCA LFP
+Numerouscharge/
+dischargeprotocols
+(b)
+(c)
+:mapsfeaturestoSOH :modelsbatterydegradationdynamics
+Input Output SOH
+features SOH decayrate
+TrueSOH
+In the SOH estimation stage, due to the complexity of electro- the integration of governing equations and neural networks. The
+chemicalequations,thereiscurrentlynogoodwaytointegratethem proposedPINNconsistsoftwoparts:asolutionfunctionf(⋅)thatmaps
+withtheneuralnetworks.Inthiswork,wemodeledtheattributesthat features to SOH and a nonlinear function g(⋅) that models battery
+affectthebatterydegradationfromtheperspectiveoftheempirical degradationdynamicbehaviors,asshowninFig.1c.Thesolutionf(⋅),
+degradationandstatespaceequation,andutilizedneuralnetworksto modelingtherelationshipbetweenfeaturesandSOH,isexpressedas
+approximatetheestablisheddegradationmodel,effectivelyachieving ui=f(ti,xi),wheretirepresentstime,xirepresentstheextractedfeature
+)V(egatloV
+Article https://doi.org/10.1038/s41467-024-48779-z
+ScenarioA ScenarioB ScenarioC ScenarioN
+SamplePoint SamplePoint SamplePoint SamplePoint
+health failure StateofHealth
+1.0 0.95 0.9 0.85 0.8
+NatureCommunications|( 2024)1 5:4332 3
+--- Page 4 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+Fig.1|TheflowchartoftheproposedPINNforlithium-ionbatterySOHesti- batteryandchangesincharge/dischargeprotocolscausethecurvestoshift.cThe
+mation.aThelithium-ionbatteriesmayhavedifferentchemistries(e.g.,lithium structureoftheproposedPINN,whereuandu^representthetrueandestimated
+nickel-cobalt-manganate(NCM),lithiumnickel-cobalt-aluminate(NCA),and SOH,tandxrepresentcycleandfeatures,thesuperscriptirepresentssample
+lithiumironphosphate(LFP),etc.).Differentusershavepersonalizedbatterydis- index,andthesubscriptstandxrepresentthecorrespondingpartialderivatives.
+chargestrategiesresultingindifferentdegradationtrajectories.bAnillustrationof Thefunctionsf(⋅)andg(⋅)respectivelymodelthemappingbetweenfeaturesto
+theselecteddataforfeatureextraction.Weextractedfeaturesfromashortperiod SOHandthedegradationdynamicsofthebattery,andFð(cid:2)ÞandGð(cid:2)Þrepresentthe
+ofdatabeforethebatteryisfullycharged.Thesefeaturesareusedastheinputsof neuralnetworksusedtoapproximatef(⋅)andg(⋅)(seesection“Methods”formore
+theproposedPINNtoestimateSOH.Theupperfiguresarethecurvesfromthe10th details).
+cycle,andlowerfiguresareallthecurvesduringtheentirelifecycle.Agingofthe
+Table1|Thechemicalcomponentsandbasicexperimentconditionsforfourdatasets
+Dataset Batch Chemicalcomponent Nominalcapa- Cut-offvol- Experimenttempera- Number
+city(mAh) tage(V) ture(°C) ofcells
+XJTU 1,2,3,4,5,6 LiNi Co Mn O 2000 2.5–4.2 Roomtemperature 55
+0.5 0.2 0.3 2
+TJU 1 Li Ni Co Al O 3500 2.65–4.2 25,35,45 66
+0.86 0.86 0.11 0.03 2
+2 Li Ni Co Mn O 3500 2.5–4.2 25,35,45 55
+0.84 0.83 0.11 0.07 2
+3 Blendof42(3)wt.%LiNiCoMnO and58(3)wt.% 2500 2.5–4.2 25 9
+2
+LiNiCoAlO
+2
+MIT – LiFePO 1100 2.0–3.6 30 125
+4
+HUST – LiFePO 1100 2.0–3.6 30 77
+4
+Thecharge/dischargeprotocolvariesamongdifferentdatasets.
+vector,anduidenotestheSOHofthecyclei.Thenonlinearfunction
+g(⋅)modelstheSOHdecayrateofthebattery.Sincef(⋅)andg(⋅)are
+affectedbymanyfactorsinrealityandtheirexplicitexpressionsare
+unknown,theyarereplacedbysmallfullyconnectedneuralnetworks,
+denoteasFð(cid:2)Þ andGð(cid:2)Þ.Duringtraining,weconsiderdatatermloss
+L , monotonicity loss L , and loss L constrained by the
+data mono PDE
+degradationequationdescribedbypartialdifferentialequation.They
+minimizetheerrorsbetweenthepredictedandthetruevalues,while
+making the model follow the properties of monotonicity of the
+degradationtrajectoryandsatisfytheconstraintsoftheestablished
+degradationmodel.
+TovalidatethesuperiorityoftheproposedPINN,weconducted
+small samp
+--- Page 5 ---
+Specifically,theywerecycledunderafast-chargingexperimentwitha 1–16, respectively. See Supplementary Note 2 for more details) are
+one-steportwo-stepfast-chargingpolicy,anddischargedat4C.The extracted. An illustration of extracted features from XJTU dataset
+experimenttemperatureis30°C. batch 1 is given in Fig. 3a. Further, we extracted features from 387
+batteriesin4datasetsrespectively,andcalculatedthePearsoncorre-
+Featureextraction lation coefficientbetween features and SOHwithin each dataset,as
+RobustfeaturescanoftenimprovetheperformanceofSOHestima- showninFig.3b.
+tion.However,howtoextractgeneralandrobustfeaturesisaworthy BasedonexperimentalphenomenaandanalysisofFig.3b,wegive
+research problem. In existing studies, various feature extraction a natural conjecture: the magnitude of the correlation coefficient
+methods for specific datasets and charge/discharge protocols were betweeneachfeatureandSOHisrelatedtothechemicalcomposition
+proposed, yet the generalization of features has been insufficiently ofabatteryandislessaffectedbythecharge/dischargeprotocols.To
+considered.Therearefewstudiesonmethodsforextractinggeneral thebestknowledge,wearethefirsttofocusonthisphenomenon.It
+featuresfordifferentbatterytypesorcharge/dischargeprotocols.To can be seen from Table 1 that both the XJTU dataset and the TJU
+extractmorerobustandgeneralizablefeatures,weproposeamethod datasetareLiNiCo-xtypebatteries.Eventhoughtheyhavecompletely
+toextractfeaturesfromashortperiodofchargingvoltagecurveand differentnominalcapacitiesandcharge/dischargeprotocols,thefea-
+currentcurvethroughobservationandexplorationofmultipledata- turesextractedfromourselectedrangearehighlysimilar.Forexam-
+sets.Itisanundoubtedfactthatthedischargingprocessofthebattery ple,thereisaverystrongnegativecorrelationbetweenfeatures11–16
+isuser-specific.Incontrast,thechargingprocessisessentialandmore and SOH.Features9 and 10haveastrong positivecorrelationwith
+fixedandregular,andtheprobabilityofthebatterybeingfullycharged SOH. In contrast, the MIT dataset and the HUST dataset are both
+isrelativelyhigh.Wefoundthatmostdatasetscontainconstantcur- LiFePO batteries.Features11–16showaweakpositivecorrelationwith
+4
+rentandconstantvoltage(CC-CV)chargingmodes.Forthefourpublic SOH,whilefeatures9and10showanegativecorrelationwithSOH.
+datasetsweused,nomatterwhatstrategythebatteryisdischarged Besides,features3–6and8ofthelattertwodatasetsshowastrong
+withorwhetheritisfullydischarged,itwilleventuallybefullycharged positivecorrelationwithSOH.
+
+--- Page 6 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+(a)
+(b)
+Fig.4|TheillustrationsofSOHestimationresults.aTheSOHestimationresults (MLP),andconvolutionalneuralnetwork(CNN))onfourdatasets.Eacherrorbar
+ofproposedPINNonfourdatasets.ThepredictedandtrueSOHaredistributed contains10points(10experiment)andismarkedwithmeanandstandarddevia-
+nearthediagonal,indicatingthatthemodelperformswell.bDistributionsofmean tionlines.Comparedwiththeothertwomethods,ourmethodhassmallerpre-
+absoluteerror(MAE),meanabsolutepercentageerror(MAPE),androotmean dictionerrorsandismorestable.SourcedataareprovidedasaSourceDatafile.
+squareerror(RMSE)of3models(theproposedPINN(Ours),multi-layerperceptron
+NatureCommunications|( 2024)1 5:4332 6
+--- Page 7 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+Table2|TheresultsofproposedPINN(Ours),multi-layer parameteramountsareusedascomparisonmethods.Thedetailsof
+perceptron(MLP),andconvolutionalneuralnetwork(CNN) MLPandCNNcanbefoundinSupplementaryNote3.Foreachdataset,
+onfourdatasets wedividethetrainingbatteries,validationbatteries,andtestbatteries
+approximatelyinaratioof6:2:2.Thenumberoftestbatteriesineach
+Dataset Batch Ours MLP CNN
+datasetcanbefoundinTableS2.Toensurefairness,thenumbersof
+MAPE RMSE MAPE RMSE MAPE RMSE testbatteriesareevenlydistributedthroughoutthedataset,asshown
+XJTU 1 0.0070 0.0094 0.0260 0.0277 0.0270 0.0330 in Tables S3–S6. The results of the 3 models on the 4 datasets are
+2 0.0113 0.0122 0.0275 0.0304 0.0298 0.0352 shown in Table 2 (only the average test errors on each dataset are
+3 0.0086 0.0100 0.0211 0.0237 0.0177 0.0212 given, and the test results of each battery can be viewed in
+4 0.0071 0.0105 0.0200 0.0235 0.0150 0.0189
+TablesS3–S6.Itcanbeseenfromthetablethatourmethodhasthe
+smallest estimation errors in most cases. The average MAPE of the
+5 0.0105 0.0135 0.0183 0.0217 0.0350 0.0453
+proposedPINNonthe4datasetsis0.85%,1.21%,0.65%,and0.78%,
+6 0.0063 0.0097 0.0204 0.0242 0.0149 0.0194
+whilethatofMLPis2.60%,1.72%,0.83%,and0.83%.Itisworthnoting
+TJU 1 0.0164 0.0158 0.0206 0.0197 0.0198 0.0208
+thattheyhavethesamenumberofparametersandmodelstructure
+2 0.0119 0.0132 0.0149 0.0157 0.0143 0.0149 duringinference.
+3 0.0080 0.0079 0.0150 0.0144 0.0124 0.0125 Further, to reflect the stability of the model, the training and
+MIT 0.0065 0.0074 0.0079 0.0087 0.0065 0.0075 testingprocessofeachmodeloneachdatasetisrepeated10times.
+HUST 0.0078 0.0087 0.0080 0.0090 0.0074 0.0087
+ThetestresultsareshowninFig.4b.Fromthefigure,wecanseethat
+ourproposedPINNisthemoststableonalltasksandallmetrics.The
+MAPEisthemeanabsolutepercentageerror,andRMSEistherootmeansquareerror.Thebest
+resultsareshowninbold.Allvaluesareaveragedfromtenexperiments. samplesizeineachbatchoftheXJTUbatterydatasetissmall,causing
+significantfluctuations in MLPand CNN.Incontrast,our method is
+morestableandyieldsasmallertesterror.ForHUSTdatasetandMIT
+dataset,theycontainalargenumberoftrainingsamples,sothefluc-
+Table3|ResultsofsmallsampleexperimentsontheXJTU tuationsofMLPandCNNbecomesmaller,andthetesterrorsbecome
+datasetbatch1andHUSTdataset smaller. However, our proposed PINN is still the best-
+performingmodel.
+Dataset Train Ours MLP CNN
+batteries
+Experimentswithsmallsamples
+MAPE RMSE MAPE RMSE MAPE RMSE
+O
+--- Page 8 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+(a) Training
+Frozen
+(b)Fine-tuning
+Fig.6|Anillustrationoftheproposedphysics-informedneuralnetwork.aThe featurestoSOHandthedegradationdynamicsofbattery,respectively.bWhenthe
+extractedfeaturesxandcycletareusedtoestimateSOHu.Theu^representthe proposedPINNisappliedtotransferlearningscenarios,thedynamicsGð(cid:2)Þisfrozen
+estimatedSOH,andthesubscriptstandxrepresentthecorrespondingpartial andonlysolutionFð(cid:2)Þisfine-tuned.
+derivatives.NeuralnetworksFð(cid:2)ÞandGð(cid:2)Þisusedtomodelthemappingbetween
+Table4|Thetestrootmeansquareerror(RMSE)offine-tuningexperimentsamongfourdatasets
+Fine-tuning Source-only Trainwithtargetcell
+XJTU TJU MIT HUST XJTU TJU MIT HUST 1 2
+XJTU – 0.0100 0.0145 0.0104 – 0.0967 0.1329 0.0733 0.0184 0.0134
+TJU 0.0093 – 0.0119 0.0146 0.1266 – 0.1674 0.1266 0.0121 0.0202
+MIT 0.0239 0.0272 – 0.0248 0.0347 0.1277 – 0.0561 0.0324 0.0142
+HUST 0.0333 0.0343 0.0307 – 0.1131 0.2008 0.0801 – 0.0485 0.0202
+Thetop3resultsareinbold,italic,andunderlinedrespectively.Allvaluesareaveragedfromtenexperiments.Viewthetableintermsofrows.ThefirstrowrepresentsthattheXJTUdatasetisusedas
+thetargetdomain,andotherdatasetsareusedasthesourcedomain.“Fine-tuning”meansthatthePINNwastrainedonthesourcedomain,thenfine-tunedwiththedatafromthe1stbatteryinthe
+targetdomain,andtestedonthetestsetofthetargetdomain.“Source-only”meansthatthePINNwastrainedonthesourcedomain,andthentestedonthetestsetoftargetdomaindirectly.“Train
+withtargetcell”representsthatthePINNwastrainedwith1or2batteriesfromthetargetdomainandthentestedonthetestsetofthetargetdomain(thesameasthesmallsampleexperiments).For
+convenience,weonlyselectthedatainXJTUbatch1torepresenttheXJTUdataset.Similarly,batch3oftheTJUdatasetisusedtorepresenttheTJUdataset.
+thetesterrorsdecreaseforall3models.Thisisagenerallyaccepted betweendifferentdatasets(differentchemicalcompositions).Inthis
+fact:increasingthenumberoftrainingsamplescanimprovethemodel paper,wecombined4datasetsinpairsforfine-tuningexperiments.
+performancewhenthetrainingdataissmall.InFig.4b,duetothelarge WebelievethatthedegradationdynamicsGð(cid:2)Þareindependentof
+numberofsamplesintheHUSTdataset,theperformanceoftheCNN charge/discharge protocols and datasets, while the solution Fð(cid:2)Þ is
+andMLPiscomparabletothatofourPINN.Thisalsoillustratesthefact relatedtothem.Afterlearningfrommassivedata,Gð(cid:2)Þshouldcontain
+thatwhenthestructureornumberofparametersofthemodelsarethe generalinformationthatcanreflectthenatureofbatte
+--- Page 9 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+thelastcolumnofthetable.BoththeXJTUdatasetandtheTJUdataset the framework proposed by Aykol et al.38, Hybrid methods, which
+areLiNiCo-xbatteries,andthecorrelationbetweenthefeaturesand utilize physical equations to constrain neural networks or integrate
+SOHismoresimilar(seesection“Featureextraction”forcorrelations), physicalequationsintoneuralnetworks,willbecomedominantinthe
+sothefine-tuningeffectbetweenthemisbetter.Similarly,bothMIT longterm.Thisclassofhybridmethodshavethepotentialtoblendthe
+andHUSTareLiFePO batteries,andthefine-tuningeffectbetween causalityandextrapolationcapabilitiesofphysics-basedmodelswith
+4
+themisalsopromising.Thismaybeameaningfulfinding,andwewill thespeed,flexibility,andhigh-dimensionalcapabilitiesofneuralnet-
+continuetostudyitinthefuture. works.However,thelimitationofthesemethodsliesinthecomplexity
+ofthebattery’sphysicalmodel(e.g.,theP2Dmodel),whichcontains
+Discussion numerousparameters,andtheinternalparametersofthebatteryare
+Accurate SOH estimation facilitates health management and main- difficult to collect. There is currently no satisfactory method to
+tenance decisions of lithium-ion batteries. Existing SOH estimation seamlesslyintegratephysicalmodelsandneuralnetworks.ThePINN
+methodsneedtoextractdifferentfeaturesfordifferentdatasets,and proposedinthispaperismodeledfromtheperspectiveofempirical
+the performance of the model fluctuates greatly. In this work, we degradationandstatespaceequations,servingmerelyasanexplora-
+proposeageneralPINNforbatterySOHestimation.Specifically,we tion of such hybrid methods and acting as a catalyst for further
+propose a general feature extraction method to extract statistical research.Additionally,weonlyconsiderextractingfeaturesfromeasily
+featuresfromashortperiodofdatabeforethebatteryisfullycharged, accessiblecurrentandvoltagedata.Asmoredataandinternalvari-
+which is included in batteries charged with a constant-current and ablesbecomeavailable,morecomplexelectrochemicalmodelscanbe
+constant-voltage mode. Then, we modeled the battery degradation considered. The optimalintegration ofbatterygoverning equations
+dynamics with a PINN, and the SOH was estimated by taking the andneuralnetworksforhealthmanagementwithintheconstraintsof
+extractedfeaturesasinputs. existing data and computational resources remains ripe for further
+To validate our approach, we performed battery aging experi- exploration.
+mentsanddevelopedadatasetwith55batteries.Finally,wevalidate
+ou
+--- Page 10 ---
+Article https://doi.org/10.1038/s41467-024-48779-z
+Physics-informedneuralnetwork whereu^i representstheestimatedSOH,Mrepresentsthenumberof
+Anunavoidableproblemisthattheexplicitformofg(⋅)isunknown batteries,N denotesthenumberofcyclesofbatteryj,andReLU(⋅)is
+j
+and difficultto obtain. In responseto similarproblems,Sun et al.36 Rectified Linear Unit. The monotonicity loss L is based on the
+mono
+proposed a sparseregression physics-informed neural networkthat physicalpropertiesofbatterydegradation,thatis,theSOHofthenext
+exploitssparsitytolearntheparametersθofg(⋅)fromagivencan- cycleshouldbelessthanorequaltothatofthepreviouscycle(unless
+didate set. Raissi et al.54 proposed deep hidden physics models to capacityregenerationoccurs).Thetotalfunctionisformulatedas:
+model g(⋅). Inspired by54,55, we propose to use a more generalized
+functionapproximatorg0ð(cid:2)Þwithparametersθ0 torepresentthenon- L=L +αL +βL , ð9Þ
+data PDE mono
+lineardynamicsg(⋅).Therefore,Eq.(2)becomes:
+(cid:1) (cid:3)
+wheretheαandβaretrade-offparameters.Moredetailsaboutour
+u≈g0 t,x,u,u,u ,u ,(cid:2)(cid:2)(cid:2);θ0 : ð3Þ modelcanbefoundinSupplementaryNote3.
+t t x xx
+In the equation, u =∂u, we employ a neural network Fðt,x;ΦÞ with Transferlearningwithphysics-informedneuralnetwork
+t ∂t
+learnableparametersΦtomodelf(t,x)ahndutilizeiautomaticdiffer- Our PINN for battery aging consists of two parts: a solution neural
+>
+entiationmechanismstocomputeu.u = ∂u,∂u,(cid:2)(cid:2)(cid:2) representsthe network Fð(cid:2)Þ that builds the feature-to-SOH mapping and a neural
+first-orderpartialderivativeofuwit
+t
+hr
+x
+espe
+∂
+c
+x1
+tt
+∂
+o
+x2
+x,andu represents networkGð(cid:2)Þthatmodelsbatterydegradationdynamics,asshownin
+xx
+thesecond-orderpartialderivative.Oneadvantageofthisapproachis Fig.6.WebelievethatthedegradationdynamicsGð(cid:2)Þareindependent
+thatwedonotneedtospecifyacandidatebasisfunctionsetforg(⋅), ofcharge/dischargeprotocolsanddatasets,whilethesolutionFð(cid:2)Þis
+but instead employ a more generalized approximators g0ð(cid:2)Þ. The related to them. Therefore, when our PINN is applied to transfer
+functionapproximatorg0ð(cid:2)Þproposeamoreflexiblerelationshiptot,u, learningscenarios,dynamicsGð(cid:2)Þ isfrozen,andonlysolutionFð(cid:2)Þ is
+x,andtheirarbitraryorderpartialderivatives.AneuralnetworkGð(cid:2)Þ fine-tuned,asshowninFig.6b.
+withlearnableparametersΘisusedtomodelg0ð(cid:2)Þsothatitcanlearn
+the aging mechanism of the battery from the given x, t, and other Dataavailability
+partialderivatives.Tobalanceaccu

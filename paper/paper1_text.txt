@@ -1,0 +1,302 @@
+Total pages: 13
+--- Page 1 ---
+www.nature.com/scientificreports
+OPEN Physics-informed hybrid
+reinforcement learning for
+estimating lithium-ion battery
+state of health
+Nermin M. Salem1 & Ahmed Mohamed2
+Although Data-driven methods are becoming widely applied for estimating the state of health
+(SOH) of lithium-ion batteries, they often suffer from a lack of interpretability and generalization
+capabilities. To address these limitations, this research proposes a hybrid methodology that combines
+Long Short-Term Memory (LSTM) networks and Reinforcement Learning (RL) using Proximal Policy
+Optimization (PPO) to enhance both SOH prediction accuracy and model interpretability. The proposed
+methodology begins by training an LSTM model on key battery features for two different operational
+profiles, thereby capturing the temporal dependencies present in battery degradation. To improve
+interpretability and adaptive learning, a hybrid model is then introduced, where a PPO agent corrects
+the LSTM predictions based on a reward function designed to account for physical and monotonic
+degradation constraints of the SOH. Additionally, two models are trained separately for comparison: a
+pure RL-based model and an LSTM-based model, which enables comparison between data-driven and
+control-driven learning. The models are initially trained and validated on the NASA battery dataset and
+further evaluated on a separate real-world dataset of CALCE CS2 battery cells to assess robustness.
+Experimental results demonstrated that the hybrid model significantly enhances the robustness and
+accuracy of SOH prediction, outperforming both standalone LSTM and RL models. Statistical metrics,
+such as Mean Absolute Error (MAE) and Root Mean Square Error (RMSE), were reduced while R2
+score has increased significantly. At the same time, interpretable results are improved through an RL
+feedback mechanism grounded in physical behavior.
+Keywords Battery degradation, Battery health estimation, Battery management systems (BMS), Data-driven
+prediction, Deep reinforcement learning, Hybrid modeling, Lithium-ion batteries (LIB), LSTM, Physics-
+informed reward function, PPO, RL, SOH, Time series forecasting
+Lithium-Ion Batteries (LIBs) are widely deployed across various domains, including electric vehicles (EVs),
+renewable energy storage, aerospace systems, and portable electronics, owing to their high energy density, low
+self-discharge rate, and long cycle life1–3. A critical factor in ensuring the reliability, safety, and longevity of the
+--- Page 2 ---
+www.nature.com/scientificreports/
+with a custom-designed environment, where rewards are shaped by both prediction accuracy and physically
+motivated constraints, such as the expected monotonic degradation of SOH.
+Therefore, the incorporation of Reinforcement Learning (RL) in our hybrid framework serves two primary
+purposes.
+1. RL enhances the adaptability of the model by dynamically correcting LSTM predictions based on real-time
+feedback through the reward mechanism. This enables the model to handle varying degradation behaviors
+under different operating conditions more effectively.
+2. RL improves physical interpretability by embedding domain-specific constraints, such as the monotonic
+degradation trend of SOH, into the reward function. As a result, the RL component guides the model toward
+physically consistent predictions, thereby overcoming a key limitation of purely data-driven approaches,
+such as standalone LSTM models.
+Physics-Informed Machine Learning (PIML) is an emerging paradigm that integrates domain-specific physical
+laws and constraints into data-driven models to enhance their generalization, interpretability, and reliability. By
+embedding governing equations, monotonicity conditions, or conservation principles into the training process,
+PIML bridges the gap between purely empirical modeling and first-principles simulation. In the context of
+battery health prediction, PIML ensures that model outputs adhere to known degradation behaviors, such as
+the irreversible decline of capacity over time, thereby preventing physically implausible predictions2,6,7. This
+approach not only improves predictive robustness in scenarios with limited or noisy data but also enhances trust
+in model decisions, making it particularly suitable for safety–critical applications, such as BMS. In this work,
+PIML principles are incorporated into the reinforcement learning framework through a reward function that
+penalizes violations of expected SOH degradation trends, aligning the model’s learning trajectory with physical
+reality.
+The key contributions of this work are as follows:
+(1) A novel LSTM + PPO hybrid architecture for battery SOH prediction, which combines temporal feature
+extraction with constraint-aware correction.
+(2) A custom reward function that embeds domain knowledge into the learning process by penalizing viola-
+tions of physical degradation behavior.
+(3) A comparative evaluation of the hybrid model against standalone LSTM and RL-only models on NASA’s
+battery
+--- Page 3 ---
+www.nature.com/scientificreports/
+the model demonstrated strong generalization capabilities, its performance remained sensitive to measuring
+noise and fluctuating operating conditions. To address cross-domain adaptability, Vilsen et al.17 proposed a
+physics-guided transfer learning approach that enhanced model generalization across different battery types.
+Nonetheless, noticeable performance degradation was observed during domain transitions. Ye et al.18 proposed
+a Physics-Informed Feedforward Neural Network (PIFNN) for lithium-ion battery SOH estimation, designed
+to improve both accuracy and interpretability. The method extracts features from incremental capacity (IC)
+and differential temperature curves, with IC peaks reflecting electrochemical reactions linked to material
+degradation. By converting the monotonic relationship between IC peaks and SOH into physical constraints, the
+model incorporates domain knowledge during learning. A secondary physics-constrained training step is then
+applied to refine predictions, ensuring they align with known battery aging mechanisms. Sun et al.19, proposed
+a method called Battery Physics-Informed Neural Network (BPINN), to enhance the interpretability of the
+Feedforward Neural Network (FNN) in SOH prediction. This approach constrains the model’s learning process,
+ensuring that its predictions align more closely with physical reality. To evaluate the effectiveness of integrating
+physical constraints and subsequent optimization in the BPINN model, two PIFNN variants were designed.
+BPINN-1 represents a version with only physical constraint integration, but no subsequent optimization. In
+contrast, BPINN-2 represents complete implementation, integrating physical constraints and subsequently
+optimizing it, for comparison with the traditional FNN.
+Another promising direction is the integration of RL20 with data-driven predictors. RL has been employed
+for battery charging optimization and health estimation, where agents learn decision policies via interaction
+with an environment21. However, standalone RL methods often struggle with convergence and data efficiency in
+continuous, high-dimensional spaces.
+To address these limitations, PINNs and Physics-guided reinforcement learning (RL) have embedded domain
+knowledge into data-driven models by constraining learning with physical principles. While PINNs incorporate
+governing equations directly into the optimization process, they require explicit mathematical models of the
+underl
+--- Page 4 ---
+www.nature.com/scientificreports/
+Fig. 2. SOH over battery life.
+Fig. 3. Battery capacity over charge–discharge cycles.
+C
+SOH n = C n
+0
+(1)
+where, C n is the measured capacity of the battery at nth cycle and C 0 is the initial capacity, typically taken as
+the average capacity during the first full cycle. This normalization ensures that all batteries, regardless of their
+nominal capacity or charge protocol, have a starting SOH of approximately 1.0, enabling a direct comparison of
+degradation patterns across different units. Using this method of SOH calculation is considered an intuitive and
+straightforward approach, as it is both simple and provides a generalizable method applicable across different
+battery chemistries and manufacturers. Additionally, it yields a continuous, bounded scalar value, making it
+ideal for regression tasks in deep learning and reinforcement learning methods.
+Figures 2 and 3 illustrate the SOH and capacity degradation curves of the four different batteries of the NASA
+dataset as a function of cycles. As shown, the capacity of each battery decreases with the increase in the number
+of cycles. The four batteries were selected based on their completeness and the variety of degradation profiles they
+exhibit. Each dataset comprises multiple charge/discharge cycles recorded under varying operating conditions.
+To enable effective time-series modeling, each battery’s data is processed for the following parameters: Voltage,
+Current, Temperature, and Cycle index. These parameters were chosen because they effectively capture the
+electrochemical, thermal, and aging characteristics of lithium-ion batteries and are readily available from BMS.
+Capacity was not used as an input variable, as it serves as the reference quantity for computing the SOH and thus
+forms the target output of the model rather than an input feature. Table 1 summarizes input features and their
+physical significance in SOH estimation.
+For each battery, raw time-series data is grouped by cycle, and all features are normalized using MinMaxScaler
+to values [0, 1]. The aggregated and normalized cycle-level data is then used to construct fixed-length input
+sequences; a sliding window of size 10, suitable for LSTM training. Sliding windows of fixed length are created to
+generate input sequences for the LSTM model. Each sequence is used to predict the SOH at the subsequent cycle.
+This process yields a supervised dataset of sequential input features and corresponding SOH targets, facil
+--- Page 5 ---
+www.nature.com/scientificreports/
+Feature Physical significance Role in SOH estimation
+Voltage Reflects state of charge (SOC), internal resistance, and degradation behavior Captures electrochemical wear and potential shifts due to aging
+Current Indicates applied load and electrochemical stress during cycling Accounts for discharge-induced variations and stress effects
+Temperature Influences the aging rate, SEI growth, and reaction kinetics Models thermal degradation effects and potential runaway risks
+Cycle Index Represents the number of completed charge–discharge cycles Serves as a temporal indicator of cumulative battery aging
+Table 1. The input features’ contribution to SOH estimation.
+Layer Output shape Param #
+lstm (LSTM) (None, 10, 128) 68,096
+dropout (Dropout) (None, 10, 128) 0
+lstm_1 (LSTM) (None, 64) 49,408
+dense (Dense) (None, 32) 2,080
+dense_1 (Dense) (None, 1) 33
+Totals:
+• Total params: 119,617 (467.25 KB)
+• Trainable params: 119,617 (467.25 KB)
+• Non-trainable params: 0 (0.00 B)
+Table 2. LSTM model layout for battery B0018 data.
+reinforcement learning (DRL) for adaptive prediction refinement. This hybrid design leverages the strength of
+supervised learning to capture long-term degradation trends and reinforcement learning to fine-tune predictions
+in a self-correcting manner.
+LSTM is a type of recurrent neural network (RNN) specifically designed to learn and retain long-term
+dependencies in sequential data22. Unlike traditional RNNs, which suffer from vanishing or exploding gradients
+during training, LSTM networks23,24 incorporate gating mechanisms, namely the input, forget, and output gates,
+which regulate the flow of information through the cell.
+These gates enable LSTM units to selectively retain relevant features over long time spans, making them
+particularly effective for modeling time-series data, such as battery aging.
+The operations inside an LSTM cell at time step t are computed by:
+f
+t
+=σ
+\
+big(W
+f ·
+[h
+t − 1
+,x t]+b
+f \
+big)
+i
+t
+=σ
+\
+big(W
+i ·
+[h
+t − 1
+,x t]+b
+i \
+big)
+C t =tanh \ big(W C · [h t − 1 ,x t]+b C \ big)
+(cid:31)
+C
+t
+=f
+t ⊙
+C
+t − 1
++i
+t ⊙
+C˜
+t
+o
+t
+=σ
+\
+big(W
+o ·
+[h
+t − 1
+,x t]+b
+o \
+big)
+h t =o t
+⊙
+tanh(C t) (2)
+where, x t is the input vector at time t, h t 1 is the previous hidden state, f t, i t o t are the forget, input and out gates,
+respectively, C t is the cell state, σ(.) den − otes the sigmoid activation and is the element-wise multiplication.
+⊙
+Therefore, the LSTM model is implemented to capture the temporal depe
+--- Page 6 ---
+www.nature.com/scientificreports/
+To address the limitations of static sequence modeling and introduce adaptability, RL26 is employed to learn
+a policy for SOH prediction using direct reward feedback. The environment is modeled as a Markov Decision
+Process (MDP) defined by the tuple (S,A,P,R,γ), where S is the state space, normalized battery features, A is
+the action space, in the proposed hybrid algorithm, is the correction term for the initial predicted SOH, P is the
+transition probability function, deterministic per time step, R is the reward function and γ is the discount factor.
+PPO training stability and sample efficiency by limiting the extent to which the policy can change at each
+update step. It achieves this through a clipped surrogate objective function, preventing significant policy updates
+that could destabilize learning.
+The PPO agent acts as a correction mechanism. The LSTM generates a preliminary SOH prediction, and
+the PPO agent learns an additive correction to refine this prediction. This hybridization enables the model to
+leverage the temporal understanding of the LSTM while incorporating the flexibility of RL to adaptively respond
+to prediction errors, noise, and unmodeled dynamics. The hybridization improves generalization by merging
+inductive biases from both domains. The hybrid prediction at time step t is computed from:
+y
+t
+hybrid =y L
+t
+STM +∆t (4)
+where, y L
+t
+STM is the output of the pretrai
+(cid:31)
+ned LSTM
+(cid:31)
+model and ∆t is the correction term generated by the PPO
+agent.
+cur Th ren i t s (cid:31) s c t o a r te r e v c e t c io to n r t s e t rm R is n m , o w d h e i l c e h d c a o s n a ta t in ∈ s R no r s m ele a c li t z e e d d b b y a t a t e s r t y o c m h e a a st s i u c r e p m ol e ic n y ts π ( θ vo ( l a ta t | g s e t , ) c , u c r o r n en d t i , t i t o e n m e p d e o ra n t u t r h e e ,
+∈
+cycle index). The PPO agent27 optimizes a clipped surrogate objective expressed in (5) to prevent significant
+policy updates and ensure stable learning:
+LCLIP(θ)=E t min r t(θ)A t ,clip(r t(θ),1 ϵ,1+ϵ)A t (5)
+−
+(cid:31) (cid:30) (cid:28)(cid:27)
+where, r t(θ)= πθ π o θ l ( d a ( t a | t s | t s ) t) is the probability ratio (cid:29) , A t is the estimated advantage (cid:29) function and ϵ is the clipping
+threshold. The default value in stable_baseline3. PPO28 is used,ϵ=0.2. This controls how far the new policy is
+allowed to deviate from the old policy during trainin(cid:31)g.
+For the PPO Model, a custom OpenAI Gy
+--- Page 7 ---
+www.nature.com/scientificreports/
+• Pretrain LSTM: The LSTM model is first trained on a supervised regression task using historical battery data.
+This captures coarse SOH degradation dynamics.
+• Freeze LSTM: During PPO training, the LSTM weights remain frozen to ensure stable feature extraction.
+• Train PPO Agent: The PPO agent is trained in an environment where each state consists of the current nor-
+malized sensor features, and the reward is computed based on the hybrid prediction’s accuracy and smooth-
+ness.
+Experiments and analysis
+To evaluate the performance and generalization of the proposed hybrid methodology, we compare it with two
+other models: the LSTM-only and RL-only models. All model training and evaluations were conducted on
+Google Colab using a Tesla T4 GPU. The T4 provides 16 GB of GDDR6 memory and is optimized for deep
+learning inference and training tasks. The experiments utilized Python 3.10 with TensorFlow 2.x, Keras, scikit-
+learn, and Stable-Baselines328 for reinforcement learning implementations. The LSTM model was trained for up
+to 250 epochs with an early stopping criterion (patience = 5) and a batch size of 16. For reinforcement learning,
+the PPO-based hybrid and RL-only agents were trained over 1,000,000 timesteps using default hyperparameters,
+including a clipping threshold (clip_range) of 0.2. All experiments were repeated using consistent seeds to
+ensure reproducibility.
+Three evaluation metrics were standard regression metrics: MAE, RMSE, and the coefficient of determination
+(R2 score). MAE provides a direct measure of the average magnitude of prediction errors, indicating how close
+the predicted values are to the actual SOH without considering their direction. RMSE, on the other hand,
+emphasizes larger errors by squaring the residuals before averaging, making it more sensitive to outliers in the
+prediction. Lastly, the R2 score quantifies how well the model explains the variance in the actual SOH values, with
+a score closer to 1 indicating better predictive performance. Together, these metrics provide a comprehensive
+evaluation of the model’s accuracy, robustness, and reliability throughout the entire battery life cycle. These
+metrics are computed as follows:
+1 N
+MAE= y y (7)
+N i=1| i− i|
+(cid:31)
+RMSE= 1 N ( (cid:30) y y )2 (8)
+(cid:31) N i=1 i− i
+(cid:30)
+(y (cid:29)y )2
+R2 =1 i i− i (9)
+− (y y)2
+(cid:31)i i−
+(cid:30)
+where, N is the number of samples to be evaluated, y (cid:31) and y are the actual and predicted SOH value
+--- Page 8 ---
+www.nature.com/scientificreports/
+Battery B0005 B0006 B0007 B0018
+Hybrid 0.0038 0.0050 0.0039 0.0048
+LSTM 0.0147 0.0253 0.0283 0.0121
+RL 0.0072 0.0093 0.0072 0.0092
+MAE (%)
+BPINN-119 0.3274 0.2351 0.2294 0.2365
+BPINN-2 19 0.2164 0.2351 0.1837 0.1771
+FNN19 0.6826 0.8813 0.7453 0.6216
+Hybrid 0.0064 0.0088 0.0060 0.0069
+LSTM 0.0183 0.0365 0.0292 0.0152
+RL 0.0100 0.0129 0.0108 0.0102
+RMSE (%)
+BPINN-119 0.3711 0.3146 0.3071 0.2789
+BPINN-219 0.2685 0.2937 0.2268 0.2193
+FNN19 0.7734 1.0392 0.9856 0.7246
+Hybrid 0.9958 0.9940 0.9945 0.9916
+R2 LSTM 0.9657 0.8966 0.8708 0.9587
+RL 0.9897 0.9871 0.9823 0.9812
+Table 3. Evaluation metrics of the NASA dataset batteries. Significant values are in bold.
+Fig. 4. Evaluation metrics comparison for different NASA batteries.
+Scientific Reports | (2025) 15:43819 | https://doi.org/10.1038/s41598-025-30602-4 8

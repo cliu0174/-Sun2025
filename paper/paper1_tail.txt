@@ -1,0 +1,106 @@
+--- Page 9 ---
+www.nature.com/scientificreports/
+Fig. 5. SOH Prediction of the NASA Batteries for the Proposed Hybrid LSTM + PPO, LSTM-Only, and RL-
+only PPO
+These results clearly highlight the superior performance of our proposed approach compared to conventional
+methods. Additionally, BPINN-1 and BPINN-2, despite incorporating physics-informed structures, fail to
+capture battery behavior effectively, resulting in significantly higher errors. Furthermore, FNN performs the
+worst, demonstrating its inability to model the underlying dynamics. Additionally, the results suggest that while
+physics-informed ML approaches enhance interpretability compared to standard data-driven models, their
+predictive accuracy remains lower than that of our hybrid method. The two-stage design of our LSTM + PPO
+model enables better temporal representation learning and constraint enforcement, resulting in consistently
+lower error metrics and higher robustness across various datasets.
+.The Hybrid model consistently outperforms the other methods in all metrics, highlighting its superior
+accuracy and generalization capability across different battery datasets. The proposed hybrid model’s consistent
+performance across all datasets underscores its robust generalization ability. It handles variations in battery
+behavior more effectively than either of the baseline models. The hybrid model’s consistent outperformance
+across all battery datasets can be attributed to its integration of data-driven sequence modeling and adaptive
+reinforcement learning correction. The LSTM component excels at capturing long-term temporal dependencies
+and nonlinear degradation trends in battery behavior, effectively learning patterns such as gradual SOH decline
+and transient anomalies.
+Evaluation on CALCE CS2 dataset
+To further evaluate the generalization and effectiveness of the proposed hybrid model, another dataset, CALCE
+CS29, is included, which is provided by the CALCE Prognostics and Health Management (PHM) Group at the
+Univer
+--- Page 10 ---
+www.nature.com/scientificreports/
+Fig. 6. SOH of the CS2 dataset over battery life
+Battery CS2_35 CS2_36 CS2_37 CS2_38
+Hybrid 0.0118 0.0215 0.0110 0.0115
+MAE LSTM 0.0743 0.0968 0.0865 0.1060
+RL 0.0414 0.0514 0.0467 0.0828
+Hybrid 0.0255 0.0374 0.0238 0.0224
+RMSE LSTM 0.1426 0.1762 0.1746 0.2119
+RL 0.0763 0.0940 0.0985 0.1423
+Hybrid 0.9749 0.9708 0.9828 0.9805
+R2 LSTM 0.2121 0.3533 0.0776 0.1254
+RL 0.7742 0.8159 0.7068 0.6335
+Table 4. Evaluation METRICS of the CALCE CS2 Dataset Batteries. Significant values are in bold.
+superiority of the proposed Hybrid (LSTM + PPO) model over standalone LSTM and RL models across all
+evaluated battery datasets (CS2_35 to CS2_38). In terms of MAE, RMSE, and R2 score.
+The Hybrid model consistently achieves the lowest values, indicating greater prediction accuracy and
+stability. Furthermore, the Hybrid model outperforms LSTM by a substantial margin. On CS2_35, the MAE
+drops from 0.0743 (LSTM) to 0.0118 (Hybrid) and the RMSE from 0.1426 to 0.0255, highlighting its ability to
+correct the systematic biases inherent in sequence modeling. Compared to standalone RL, the Hybrid approach
+also yields lower error metrics and significantly improved R2 scores, demonstrating better generalization and fit
+to the actual SOH degradation trends, as shown in the Table 4 and Fig. 7. Predictions for the whole life cycle of
+batteries are presented in Fig. 8.
+These improvements confirm that combining the temporal learning capabilities of LSTM with the adaptive
+correction mechanism of reinforcement learning yields more robust and accurate predictions of battery health
+across diverse operating conditions.
+Conclusion
+This work proposed a hybrid SOH prediction framework that combines LSTM neural networks with PPO-
+based reinforcement learning to address the challenges of accurately forecasting battery health over time.
+Initially validated on the NASA battery dataset, the hybrid model demonstrated clear improvements over
+standalone LSTM and RL approaches, as well
+--- Page 11 ---
+www.nature.com/scientificreports/
+Fig. 7. Evaluation Metrics Comparison for Different CALCE CS2 Batteries.
+Scientific Reports | (2025) 15:43819 | https://doi.org/10.1038/s41598-025-30602-4 11
+--- Page 12 ---
+www.nature.com/scientificreports/
+Fig. 8. Evaluation Metrics Comparison for Different CALCE CS2 Batteries.
+Data availability
+The study uses the following publicly available datasets: 1. NASA Battery Dataset—used for training, available
+via NASA’s Prognostics Center of Excellence repository: [ h t t p s : / / w w w . n a s a .g o v / c o n t en t / p r o g n os t i c s - c e n t e r - o
+f - e x c e l l e n c e - da t a - s e t - re p o s i t o r y] (https:/ w w w . n a s a . g o v / c o n t e n t / p r o g n o s t i c s - c e n t e r - o f - e x c e l l e n c e - d a t a - s e t - r e p
+o s i t o r y) 1. CALCE CS2 Battery Dataset (CS2_35 to CS2_38)—used for external validation and cross-testing:
+Available from the University of Maryland Center for Advanced Life Cycle Engineering (CALCE) battery data
+archive: https://calce.umd.edu/battery-data
+Received: 1 August 2025; Accepted: 26 November 2025
+References
+1. Tang, X. et al. Detecting abnormality of battery lifetime from first-cycle data using few-shot learning. Adv. Sci. 11, 2305315 (2024).
+2. Kohtz, S., Xu, Y., Zheng, Z. & Wang, P. Physics-informed machine learning model for battery state of health prognostics using
+partial charging segments. Mech. Syst. Signal Process 172, 109002 (2022).
+3. Koike, Y., Yokoyama, Y. & Hayakawa, T. Light-driven hydrogel microactuators for on-chip cell manipulations. Front. Mech. Eng. 6,
+2 (2020).
+4. Wu, J., Zhang, C. & Chen, Z. An online method for lithium-ion battery remaining useful life estimation using importance sampling
+and neural networks. Appl. Energy 173, 134–140 (2016).
+5. Zhang, L. et al. Improved LSTM based state of health estimation using random segments of the charging curves for lithium-ion
+batteries. J. Energy Storage 74, 109370 (2023).
+6. Du, Z. & Lu, R. Physics-informed neural networks for advanced thermal management in electronics and battery systems: A review
+of recent developments and future prospects. Batteries 11, 204 (2025).
+7. Fesser, L., D’Amico-Wong, L. & Qiu
+--- Page 13 ---
+www.nature.com/scientificreports/
+20. Salem, N. M., Shaheen, M. A. M. & Hasanien, H. M. Novel reinforcement learning technique based parameter estimation for
+proton exchange membrane fuel cell model. Sci. Rep. 14, 27475 (2024).
+21. Mussi, M., Pellegrino, L., Pindaro, O. F., Restelli, M. & Trovò, F. A Reinforcement Learning controller optimizing costs and battery
+State of Health in smart grids. J. Energy Storage 82, 110572 (2024).
+22. Zhang, L., Ji, T., Yu, S. & Liu, G. Accurate prediction approach of SOH for lithium-ion batteries based on LSTM method. Batteries
+9, 177 (2023).
+23. Li, X., Zhang, L., Wang, Z. & Dong, P. Remaining useful life prediction for lithium-ion batteries based on a hybrid model combining
+the long short-term memory and Elman neural networks. J. Energy Storage 21, 510–518 (2019).
+24. Park, K., Choi, Y., Choi, W. J., Ryu, H. Y. & Kim, H. LSTM-based battery remaining useful life prediction with multi-channel
+charging profiles. IEEE Access 8, 20786–20798 (2020).
+25. Zhou, J. et al. Deep learning estimation of state of health for lithium-ion batteries using multi-level fusion features of discharge
+curves. J. Power Sources 653, 237781 (2025).
+26. Doan, N. Q., Shahid, S. M., Choi, S. J. & Kwon, S. Deep reinforcement learning-based battery management algorithm for retired
+electric vehicle batteries with a heterogeneous state of health in BESSs. Energies 17, 79 (2024).
+27. Schulman, J., Wolski, F., Dhariwal, P., Radford, A. & Klimov, O. Proximal Policy Optimization Algorithms. h t t p : // a r x i v . o r g/ a b s / 1 7
+0 7 .0 6 3 4 7 (2017).
+28. Stable-Baselines3 Documentation. PPO — Proximal Policy Optimization. (2024).
+Author contributions
+All authors contributed significantly to the development of this manuscript. N.M and A.M conceptualized and
+designed the study. N.M and A.M were responsible for data collection and analysis. N.M contributed to the in-
+terpretation of the results and the development of the methodology. N.M and A.M drafted the initial
