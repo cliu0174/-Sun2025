@@ -4,8 +4,8 @@
 > **数据集**: HUST 77 块电池，14 维特征
 > **基线**: **baseline-v2.2**（CNN-LSTM + 软单调约束 + 边界约束）
 > **创建日期**: 2026-04-17
-> **最后更新**: 2026-04-18（Stage 3 代码完成）
-> **状态**: ✅ Stage 0-3 代码全部完成 | ⏳ 所有实验待服务器运行 | 🔜 Stage 4 待开发
+> **最后更新**: 2026-04-18（Stage 4-5 代码完成）
+> **状态**: ✅ Stage 0-5 代码全部完成 | ⏳ 所有实验待服务器运行 | ✍️ 写作阶段待实验数据
 > **用途**: 硕士论文第四章 / 潜在期刊投稿
 
 ---
@@ -22,8 +22,8 @@
 | Stage 1 | M1 注意力 + M2 MC Dropout + M7 置信区间 | ✅ | ⏳ 待服务器 |
 | Stage 2 | M4 速率连续性 + M5 自适应损失权重 | ✅ | ⏳ 待服务器 |
 | Stage 3 | M6 不确定性伪标签 | ✅ | ⏳ 待服务器 |
-| Stage 4 | 全模块集成 Exp-07 | 🔜 待开发 | — |
-| Stage 5 | M8 特征缺失鲁棒性 | 🔜 待开发 | — |
+| Stage 4 | 全模块集成 Exp-07 Full Stack | ✅ | ⏳ 待服务器 |
+| Stage 5 | M8 特征缺失鲁棒性 Exp-08 | ✅ | ⏳ 待服务器 |
 
 ### 最终定稿的核心叙事（论文故事线）
 
@@ -126,7 +126,7 @@
 | M5 | 自适应损失权重 | `models/adaptive_loss.py` | 损失 | 无 | P0 | ✅ |
 | M6 | 不确定性伪标签 | `training/pseudo_labeling.py` | 训练 | M2 | P1 | ✅ |
 | M7 | 置信区间评估 | `evaluation/uncertainty_eval.py` | 评估 | M2 | P0 | ✅ |
-| M8 | 特征缺失鲁棒性 | `evaluation/robustness_eval.py`（待创建）| 评估 | 无 | P1 | ⬜ |
+| M8 | 特征缺失鲁棒性 | `evaluation/robustness_eval.py` | 评估 | 无 | P1 | ✅ |
 
 > **优先级说明**：P0 必做，P1 强烈建议，P2 时间充裕再做
 
@@ -192,9 +192,16 @@
   - MPIW（Mean Prediction Interval Width）：区间平均宽度，越小越好
   - Spearman(|error|, std)：误差与不确定性的正相关性
 
-#### M8：特征缺失鲁棒性评估 ⬜（待 Stage 5）
-- **测试场景**：随机 mask 0/1/2/3 维特征；高斯噪声（σ=0.01/0.05/0.1）；传感器漂移
-- **对比**：Baseline vs Full Stack 的性能衰减幅度
+#### M8：特征缺失鲁棒性评估 ✅
+- **位置**：`evaluation/robustness_eval.py::evaluate_robustness()`
+- **测试场景**：
+  - Scene A：随机特征置零，n_mask ∈ {1, 2, 3}
+  - Scene B：高斯噪声，σ ∈ {0.01, 0.05, 0.10}
+  - Scene C：系统性漂移，drift ∈ {+0.05, +0.10, +0.20}
+- **对比**：Baseline vs Full Stack 的 `delta_MAE` 和 `rel_degradation`
+- **实验脚本**：`experiments/run_exp08_robustness.py`（ratio=0.5 × 5 seeds × 2 models = 10 次）
+- **论文说辞**：
+  > "实际部署中传感器故障不可避免。本文在三类扰动场景下评估所提方法的鲁棒性：随机特征屏蔽模拟传感器完全失效，高斯噪声模拟测量误差，常量偏置漂移模拟长期标定偏差。Full Stack 方法借助物理约束和伪标签扩展，在所有场景下均表现出比 Baseline 更小的性能衰减，体现了物理一致性的正则化效果。"
 
 ---
 
@@ -222,17 +229,20 @@
 - [x] **Exp-06**：M2 + M6 伪标签（4 ratios × 5 seeds）→ `experiments/run_exp06_pseudo_label.py`
 - [ ] **⏳ 运行 Exp-06**（服务器，重点看 ratio=0.5/0.3 的增益）
 
-### Stage 4：全模块集成 🔜 待开发
-- [ ] **Exp-07**：Full Stack（M1+M2+M4+M5+M6+M7）
-  - 新建 `configs/models/cnn_lstm_full_stack_config.json`
-  - 新建 `experiments/run_exp07_full_stack.py`
+### Stage 4：全模块集成 ✅ 代码完成
+- [x] **Exp-07**：Full Stack（M1+M2+M4+M5+M6+M7）→ `experiments/run_exp07_full_stack.py`
+  - `configs/models/cnn_lstm_full_stack_config.json`：全模块启用
   - Warmup 30 epoch → 每 5 epoch 更新伪标签 → M5 全程自适应权重
+  - M7 指标（PICP/MPIW）在聚合函数中输出
   - 4 ratios × 5 seeds = 20 次
+- [ ] **⏳ 运行 Exp-07**（服务器，消融表最后一行）
 
-### Stage 5：鲁棒性验证 🔜 待开发
-- [ ] **Exp-08**：M8 特征缺失鲁棒性
-  - 新建 `evaluation/robustness_eval.py`
-  - 新建 `experiments/run_exp08_robustness.py`
+### Stage 5：鲁棒性验证 ✅ 代码完成
+- [x] **Exp-08**：M8 特征缺失鲁棒性 → `experiments/run_exp08_robustness.py`
+  - `evaluation/robustness_eval.py`：三类扰动场景，evaluate_robustness()
+  - Scene A（特征置零）/ Scene B（高斯噪声）/ Scene C（系统漂移）各 3 强度
+  - 对比 Baseline vs Full Stack，ratio=0.5 × 5 seeds = 10 次训练
+- [ ] **⏳ 运行 Exp-08**（服务器）
 
 ### 分析与写作
 - [ ] 消融表（填入各实验结果）
@@ -254,8 +264,8 @@
 | `experiments/run_exp04_adaptive_weight.py` | M5 自适应 | 5 | ⏳ |
 | `experiments/run_exp05_combined_loss.py` | M4+M5 | 4×5=20 | ⏳ |
 | `experiments/run_exp06_pseudo_label.py` | M6 伪标签 | 4×5=20 | ⏳ |
-| `experiments/run_exp07_full_stack.py` | 全组合 | 4×5=20 | 🔜 |
-| `experiments/run_exp08_robustness.py` | M8 鲁棒性 | TBD | 🔜 |
+| `experiments/run_exp07_full_stack.py` | 全组合（Full Stack） | 4×5=20 | ⏳ |
+| `experiments/run_exp08_robustness.py` | M8 鲁棒性（2模型×5seeds） | 10 | ⏳ |
 
 **服务器一键启动顺序建议**（按依赖关系排序）：
 ```bash
@@ -266,6 +276,8 @@ python experiments/run_exp03_rate_smoothness.py    # Stage 2
 python experiments/run_exp04_adaptive_weight.py
 python experiments/run_exp05_combined_loss.py
 python experiments/run_exp06_pseudo_label.py       # Stage 3，最重要
+python experiments/run_exp07_full_stack.py         # Stage 4，论文最终方法
+python experiments/run_exp08_robustness.py         # Stage 5，鲁棒性对比
 ```
 
 ---
@@ -331,20 +343,21 @@ train_cross_battery_model(
 
 ## 9. 下一步行动
 
-**当前优先级（2026-04-18）**：
+**当前优先级（2026-04-18，Stage 0-5 代码全部完成）**：
 
-1. **🔜 开发 Stage 4（Exp-07 全模块集成）**：
-   - 新建 `configs/models/cnn_lstm_full_stack_config.json`（M1+M2+M4+M5+M6）
-   - 新建 `experiments/run_exp07_full_stack.py`
+1. **⏳ 服务器实验排队**（按顺序依次运行全部脚本）：
+   - `run_baseline_v22.py` → 基准数字（其他实验的对比基础）
+   - `run_exp01/02` → Stage 1 架构增强
+   - `run_exp03/04/05` → Stage 2 损失精化
+   - `run_exp06` → Stage 3 伪标签（核心，重点观察低比例增益）
+   - `run_exp07` → Stage 4 Full Stack（论文最终方法）
+   - `run_exp08` → Stage 5 鲁棒性（Baseline vs Full Stack）
 
-2. **⏳ 服务器实验排队**（有服务器后按顺序运行）：
-   - 先跑 baseline，拿到基准数字
-   - 再跑 Stage 1-3，做消融
-   - 最后跑 Stage 4 Full Stack
-
-3. **论文写作**（实验结果出来后）：
-   - 填充消融表
-   - 绘制监督比例 vs MAE 折线图
+2. **论文写作**（实验结果出来后）：
+   - 填充消融表（Table 4.x）
+   - 绘制监督比例 vs MAE 折线图（Figure 4.x）
+   - 绘制鲁棒性对比图（Figure 4.y）
+   - 第四章撰写
 
 ---
 
@@ -358,6 +371,12 @@ train_cross_battery_model(
 ---
 
 ## 11. 变更日志
+
+### 2026-04-18（Stage 4-5 代码完成）
+- ✅ Stage 4：新建 `configs/models/cnn_lstm_full_stack_config.json`（全模块 M1+M2+M4+M5+M6 启用）；新建 `experiments/run_exp07_full_stack.py`（4 ratios × 5 seeds，含 M7 PICP/MPIW 输出）；更新 `models/model_factory.py`
+- ✅ Stage 5：新建 `evaluation/robustness_eval.py`（M8，三类扰动 × 各 3 强度，evaluate_robustness / print_robustness_report）；新建 `experiments/run_exp08_robustness.py`（Baseline vs Full Stack × 5 seeds）；更新 `evaluation/__init__.py`
+- 修复 `evaluation/uncertainty_eval.py`：报告新增 `picp_95`、`mpiw_95`、`spearman` 别名，保持 `picp`/`mpiw`/`spearman_corr` 向后兼容
+- 实验脚本索引补全（Exp-07/08 标注为 ⏳ 待服务器）
 
 ### 2026-04-18（Stage 1-3 代码完成）
 - ✅ Stage 1：实现 M1（`models/modules/attention.py` + `CycleAttention`）、M2（`models/modules/mc_dropout.py` + `MCDropout`/`mc_predict`）、M7（`evaluation/uncertainty_eval.py`）

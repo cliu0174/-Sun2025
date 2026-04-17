@@ -100,14 +100,20 @@ def uncertainty_report(targets: np.ndarray,
     mae  = float(np.mean(np.abs(targets - pred_mean)))
     rmse = float(np.sqrt(np.mean((targets - pred_mean) ** 2)))
 
+    conf_pct = int(round(confidence * 100))
     report = {
-        'picp':          picp,
-        'mpiw':          mpiw,
-        'spearman_corr': spearman,
-        'mae':           mae,
-        'rmse':          rmse,
-        'confidence':    confidence,
-        'n_samples':     len(targets),
+        'picp':                      picp,
+        'mpiw':                      mpiw,
+        'spearman_corr':             spearman,
+        # confidence-specific aliases (e.g. picp_95, mpiw_95 for confidence=0.95)
+        f'picp_{conf_pct}':          picp,
+        f'mpiw_{conf_pct}':          mpiw,
+        # short alias for cross-script compatibility
+        'spearman':                  spearman,
+        'mae':                       mae,
+        'rmse':                      rmse,
+        'confidence':                confidence,
+        'n_samples':                 len(targets),
     }
 
     if verbose:

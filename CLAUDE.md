@@ -11,15 +11,16 @@
 - **基线**：**baseline-v2.2**（CNN-LSTM + 软单调 + 边界约束 + 60/20/20划分 + 种子42）
 - **监督场景**：**部分生命周期监督**（label masking 已实现，保留样本只 mask 标签）
 - **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
-- **当前阶段**：**Stage 0-3 代码全部完成，所有实验待服务器运行；Stage 4 待开发**
+- **当前阶段**：**Stage 0-5 代码全部完成，所有实验待服务器运行**
 - **代码现状**：
   - ✅ Stage 0：部分监督 + 物理约束 + `run_baseline_v22.py`（20 次）
   - ✅ Stage 1：M1 注意力（`models/modules/attention.py`）+ M2 MC Dropout（`models/modules/mc_dropout.py`）+ M7 置信区间（`evaluation/uncertainty_eval.py`）
   - ✅ Stage 2：M4 速率连续性（`physics_loss.py::smoothness_loss`）+ M5 自适应权重（`models/adaptive_loss.py`）+ `config_override` 支持
   - ✅ Stage 3：M6 伪标签（`training/pseudo_labeling.py::PseudoLabelManager`）
-  - 🔜 Stage 4：Exp-07 全模块集成（待开发）
-- **实验脚本**：`run_baseline_v22.py` + `experiments/run_exp01~06.py`（共 7 个，总计 ~95 次运行）
-- **下一步行动**：① 开发 Stage 4（Exp-07）；② 有服务器后按顺序跑实验
+  - ✅ Stage 4：Exp-07 Full Stack（`experiments/run_exp07_full_stack.py`，4 ratios × 5 seeds，含 M7 PICP/MPIW）
+  - ✅ Stage 5：M8 鲁棒性（`evaluation/robustness_eval.py` + `experiments/run_exp08_robustness.py`，3类扰动，Baseline vs Full Stack）
+- **实验脚本**：`run_baseline_v22.py` + `experiments/run_exp01~08.py`（共 9 个，总计 ~125 次运行）
+- **下一步行动**：放到服务器依次运行所有实验脚本，收集数据后撰写论文第四章
 - **参考论文**：9 篇 PDF 在 `paper/` 目录（已 .gitignore）
 
 ## ⚠️ 重要：已制定的改进计划
@@ -56,10 +57,10 @@
 - Stage 1：架构增强（Exp-01, 02）
 - Stage 2：损失函数精化（Exp-03, 04, 05）
 - Stage 3：训练策略升级（Exp-06）⭐核心
-- Stage 4：全模块集成（Exp-07）
-- Stage 5：鲁棒性验证（Exp-08）
+- Stage 4：全模块集成（Exp-07）✅
+- Stage 5：鲁棒性验证（Exp-08）✅
 
-**总预计工期：10 天**
+**代码开发已全部完成，进入实验运行阶段**
 
 ## 用户偏好
 
@@ -77,10 +78,11 @@
 - `training/pseudo_labeling.py` — M6 伪标签管理器（PseudoLabelManager）
 - `models/modules/attention.py` — M1 循环级注意力（CycleAttention）
 - `models/modules/mc_dropout.py` — M2 MC Dropout（MCDropout + mc_predict）
-- `evaluation/uncertainty_eval.py` — M7 置信区间评估指标
+- `evaluation/uncertainty_eval.py` — M7 置信区间评估指标（PICP/MPIW/Spearman）
+- `evaluation/robustness_eval.py` — M8 特征缺失鲁棒性（evaluate_robustness，三类扰动）
 - `data_loaders/data_loader_hust.py` — 数据加载（含 is_labeled 字段）
-- `configs/models/` — 所有实验配置（baseline/attention/mc/rate_smoothness/adaptive_weight/pseudo_label）
-- `experiments/` — Exp-01~06 实验脚本
+- `configs/models/` — 所有实验配置（baseline/attention/mc/rate_smoothness/adaptive_weight/pseudo_label/full_stack）
+- `experiments/` — Exp-01~08 实验脚本（含 run_exp07_full_stack.py / run_exp08_robustness.py）
 
 ## 新会话启动检查清单
 
