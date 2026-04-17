@@ -8,9 +8,15 @@
 
 ## 当前状态
 
-- **基线**：V6（软单调 + 边界约束 + 部分监督掩码 loss）— 已完成
-- **当前阶段**：准备启动 **模块化改进计划**
-- **参考论文**：9 篇 PDF 在 `paper/` 目录，摘要见 `paper/chapter4_content.txt` 等
+- **基线**：**baseline-v2.2**（CNN-LSTM + 软单调 + 边界约束 + 60/20/20划分 + 种子42）
+- **监督场景**：**部分生命周期监督**（label masking 实现，保留样本只 mask 标签）
+- **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
+- **当前阶段**：**Stage 0 执行中**（实现部分监督 + 启用物理约束 + 跑 20 次基线）
+- **⚠️ 代码现状**：
+  - `utils/data_augmentation` 不存在，scenario1-4 无法使用
+  - `cnn_lstm_config.json` 中物理约束当前为 `enabled: false`，需改回 true
+  - 部分监督机制需要从零实现（label masking 方式）
+- **参考论文**：9 篇 PDF 在 `paper/` 目录（已.gitignore），摘要见 `paper/chapter4_content.txt` 等
 
 ## ⚠️ 重要：已制定的改进计划
 

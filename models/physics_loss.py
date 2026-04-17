@@ -323,7 +323,8 @@ class PhysicsConstrainedLoss(nn.Module):
         else:
             return torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
 
-    def forward(self, predictions, targets, battery_ids=None, cycle_indices=None):
+    def forward(self, predictions, targets, battery_ids=None, cycle_indices=None,
+                supervision_mask=None):
         """
         计算总损失
 
@@ -332,14 +333,38 @@ class PhysicsConstrainedLoss(nn.Module):
             targets: (batch_size, 1) 真实目标值
             battery_ids: list/tuple of str, 电池名称
             cycle_indices: (batch_size,) 或 list, cycle 索引
+            supervision_mask: (batch_size,) 或 (batch_size, 1) bool tensor, optional
+                True 表示该样本有监督标签（参与 MSE），False 表示无标签（跳过 MSE）
+                None 表示所有样本都有标签（完全监督，行为与原来一致）
+                物理约束（单调/边界/平滑）对所有样本都计算，不受此 mask 影响
 
         Returns:
             总损失
         """
-        # 1. 基础 MSE 损失（数据拟合）
-        base_loss = self.mse_loss(predictions, targets)
+        # 1. 基础 MSE 损失（数据拟合）—— 支持部分监督
+        if supervision_mask is None:
+            # 完全监督：原始行为
+            base_loss = self.mse_loss(predictions, targets)
+            n_labeled = predictions.shape[0]
+        else:
+            # 部分监督：只对有标签样本计算 MSE
+            # 统一 mask 形状：(batch,) 或 (batch, 1) -> (batch, 1)
+            mask = supervision_mask.to(predictions.device)
+            if mask.dim() == 1:
+                mask = mask.unsqueeze(1)
+            mask = mask.to(predictions.dtype)  # float for multiplication
+
+            n_labeled = mask.sum()
+            if n_labeled > 0:
+                # masked MSE: 只对有标签样本求均方误差
+                sq_err = (predictions - targets) ** 2
+                base_loss = (sq_err * mask).sum() / n_labeled.clamp(min=1.0)
+            else:
+                # 极端情况：整个 batch 都没标签
+                base_loss = torch.tensor(0.0, device=predictions.device, requires_grad=True)
 
         # 2. 物理约束（需要 battery_ids 和 cycle_indices）
+        # 注意：物理约束对所有样本都计算，不受 supervision_mask 影响
         if battery_ids is not None and cycle_indices is not None:
             # 软单调性约束 + 时间衰减权重
             mono_loss = self.monotonic_loss(predictions, battery_ids, cycle_indices)
@@ -366,10 +391,11 @@ class PhysicsConstrainedLoss(nn.Module):
         # 记录详细损失（用于调试和可视化）
         self.loss_details = {
             'total': total_loss.item(),
-            'base': base_loss.item(),
+            'base': base_loss.item() if isinstance(base_loss, torch.Tensor) else base_loss,
             'monotonic': mono_loss.item() if isinstance(mono_loss, torch.Tensor) else mono_loss,
             'boundary': bound_loss.item(),
-            'smoothness': smooth_loss.item() if isinstance(smooth_loss, torch.Tensor) else smooth_loss
+            'smoothness': smooth_loss.item() if isinstance(smooth_loss, torch.Tensor) else smooth_loss,
+            'n_labeled_in_batch': int(n_labeled) if isinstance(n_labeled, (int, float)) else int(n_labeled.item())
         }
 
         return total_loss

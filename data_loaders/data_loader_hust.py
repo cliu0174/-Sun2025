@@ -347,7 +347,8 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
     IMPORTANT: Pairwise/Triplet modes are ONLY for training/validation.
                For testing, always use mode='test' to ensure single-sample inference.
     """
-    def __init__(self, X, y, battery_ids, cycle_indices, siamese_mode=False, triplet_mode=False, step_k=1, mode='train'):
+    def __init__(self, X, y, battery_ids, cycle_indices, siamese_mode=False, triplet_mode=False, step_k=1, mode='train',
+                 supervision_mask=None):
         """
         Args:
             X: (N, window_size, feature_dim) 输入窗口
@@ -358,11 +359,23 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
             triplet_mode: (bool) 是否启用三元组采样模式 (default=False)
             step_k: (int) 配对步长 (default=1, 相邻样本)
             mode: (str) 'train', 'val', or 'test' - forces single-sample for test
+            supervision_mask: (N,) bool 数组, optional
+                True=该窗口有 SOH 标签（参与 MSE），False=无标签（跳过 MSE）
+                None 表示全部有标签（完全监督，向后兼容）
         """
         self.X = torch.FloatTensor(X)
         self.y = torch.FloatTensor(y).unsqueeze(1) if y.ndim == 1 else torch.FloatTensor(y)
         self.battery_ids = battery_ids
         self.cycle_indices = torch.LongTensor(cycle_indices)
+
+        # 部分监督 mask
+        if supervision_mask is None:
+            # 默认全部有标签
+            self.supervision_mask = torch.ones(len(self.X), dtype=torch.bool)
+        else:
+            assert len(supervision_mask) == len(self.X), \
+                f"supervision_mask length {len(supervision_mask)} != n_samples {len(self.X)}"
+            self.supervision_mask = torch.BoolTensor(supervision_mask)
 
         # Mode and sampling settings
         self.mode = mode
@@ -482,7 +495,8 @@ class HUSTBatteryDatasetWithMetadata(Dataset):
                 'window': self.X[real_idx],
                 'target_soh': self.y[real_idx],
                 'battery_id': self.battery_ids[real_idx],
-                'cycle_idx': self.cycle_indices[real_idx]
+                'cycle_idx': self.cycle_indices[real_idx],
+                'is_labeled': self.supervision_mask[real_idx]
             }
 
 

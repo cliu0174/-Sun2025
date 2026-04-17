@@ -56,10 +56,10 @@
     "l2_weight": 0.0
   },
   "physics_constraints": {
-    "enabled": false,
+    "enabled": true,
     "base_loss_weight": 1.0,
     "monotonic_weight": 0.1,
-    "boundary_weight": 0.0,
+    "boundary_weight": 0.05,
     "smoothness_weight": 0.0,
     "monotonic_tolerance": 0.01,
     "temporal_decay": {

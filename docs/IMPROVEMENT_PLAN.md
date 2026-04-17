@@ -2,100 +2,119 @@
 
 > **项目**: 基于物理一致性约束的电池 SOH 估计（PI-CNNLSTM）
 > **数据集**: HUST 77 块电池，14 维特征
-> **基线**: V6（软单调 + 边界 + 部分生命周期监督）
+> **基线**: **baseline-v2.2**（CNN-LSTM + 软单调约束）
 > **创建日期**: 2026-04-17
-> **状态**: 待执行
+> **最后更新**: 2026-04-17（Stage 0 启动前对齐）
+> **状态**: Stage 0 执行中
 > **用途**: 硕士论文第四章 / 潜在期刊投稿
 
 ---
 
 ## 0. 背景摘要（给未来的自己/Claude）
 
-本项目是一个电池健康状态（SOH）估计任务，核心场景是**部分生命周期监督**（Partial Lifecycle Supervision）——即只有电池生命周期的部分区段有 SOH 标签，模型需要在监督稀疏的条件下泛化到完整生命周期。
+本项目是一个电池健康状态（SOH）估计任务，核心场景是**部分生命周期监督**（Partial Lifecycle Supervision）——即每块电池只有一部分循环有 SOH 标签，模型需要在监督稀疏的条件下泛化到全生命周期。
 
-当前 V6 基线已实现：
-- CNN-LSTM 主干
-- 软单调性约束（SOH 不应上升）
-- 边界约束
-- 部分监督的掩码 loss
+### 🔴 关键现实确认（非常重要！）
 
-**本计划的目标**：在 V6 基础上增加一系列模块化改进，逐模块消融验证，最终形成完整的论文工作。
+1. **当前代码中没有部分监督实现**——`utils/data_augmentation` 目录不存在，`scenario3` 及其它 ImportError
+2. **当前物理约束开关是关闭的**（`cnn_lstm_config.json` 中 `enabled: false`）——需要 Stage 0 中改回 true 并重跑
+3. **当前"最好结果"实际是纯 CNN-LSTM**（无物理约束、无部分监督）
+4. **需要实现的基础设施**：部分监督机制（label masking 方式）
 
-### 推荐的最终组合（核心叙事）
+### 最终定稿的核心叙事（论文故事线）
+
+```
+论文主故事：
+
+在电池 SOH 估计的"部分生命周期监督"场景下，我们：
+1. 通过注意力机制（M1）增强时序表征
+2. 通过速率连续性约束（M4）精化物理先验
+3. 通过自适应损失权重（M5）替代人工调参
+4. 通过 MC Dropout（M2）+ 不确定性伪标签（M6）主动利用未标注区间信息
+5. 通过置信区间评估（M7）为 BMS 决策提供可靠性量化
+
+核心卖点图：
+  "监督稀疏度 vs 模型误差"——我们的方法在稀疏监督下优势更大
+```
+
+### 推荐的最终模块组合
+
 ```
 核心架构：CNN-LSTM + 循环级注意力（M1）
 损失函数：自适应权重（M5）+ 软单调 + 边界 + 速率连续性约束（M4）
-训练策略：不确定性引导伪标签扩展部分监督（M6）
+训练策略：不确定性引导伪标签扩展部分监督（M6）⭐核心
 评估：MC Dropout 置信区间（M2+M7）+ 特征缺失鲁棒性（M8）
 ```
 
-论文故事线："**在部分监督场景下，不仅引入物理约束，还通过不确定性引导主动利用了未标注区间的信息，同时用自适应权重替代人工调参的黑箱超参数**"——这个组合在 2025/2026 年的论文中基本没有人完整讲过。
+---
+
+## 1. 基线协议（baseline-v2.2）
+
+### 1.1 数据划分
+- **比例**：60 / 20 / 20（训练 / 验证 / 测试）
+- **划分单位**：按电池划分（不是按循环），确保测试集电池完全未见
+- **种子**：42（固定）
+- **数量**：77 块电池 → 46 / 15 / 15（整数截断）
+- **实现位置**：`train_cross_battery.py::split_batteries()` 第 174 行
+
+### 1.2 模型结构
+- **主干**：CNN-LSTM（`models/cnn_lstm.py`）
+- **CNN**：channels=[256, 128], kernel_size=7
+- **LSTM**：hidden=64, num_layers=2
+- **FC**：[64]
+- **Dropout**：0.4
+- **窗口大小**：40
+- **特征选择**：Top-6 by correlation（from 14 维）
+
+### 1.3 物理约束（baseline-v2.2 **必须启用**）
+- `physics_constraints.enabled: true`
+- `monotonic_weight: 0.1`（软单调）
+- `boundary_weight: 0.05`（边界约束）—— **需要改！当前是 0.0**
+- `monotonic_tolerance: 0.01`
+- `temporal_decay`：启用，exp 衰减，alpha=0.2
+
+### 1.4 部分监督协议
+- **实现方式**：**Label Masking**（不是 Sample Dropping！）
+  - 保留所有 (x, y) 样本
+  - 为每个样本增加 `is_labeled` 布尔标志
+  - 按电池随机选择 N% 的循环标记为 `is_labeled=True`
+  - Loss 计算时：
+    - **MSE (监督 loss)**：只对 `is_labeled=True` 的样本计算
+    - **物理约束 (mono/bound/smooth)**：对**所有样本**计算（包括无标签样本）
+- **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
+  - 100% = 全监督（作为上界参考）
+  - 70%, 50%, 30% = 部分监督（论文核心场景）
+- **随机性**：按 (battery_id, seed) 确定 mask 种子，保证可复现
+
+### 1.5 训练配置
+- **epochs**: 200
+- **batch_size**: 256
+- **optimizer**: Adam
+- **lr_scheduler**: WarmupCosineDecay（warmup 20 epoch, base_lr=0.005）
+- **early_stopping**: patience=20
+
+### 1.6 基线评估指标
+| 指标 | 含义 |
+|------|------|
+| MAE | 平均绝对误差 |
+| RMSE | 均方根误差 |
+| MAPE | 平均百分比误差 |
+| R² | 决定系数 |
+
+### 1.7 基线跑法（5 seeds × 4 ratios = 20 runs）
+- 种子：`[42, 123, 456, 789, 2024]`
+- 监督比例：`[1.0, 0.7, 0.5, 0.3]`
+- 每个 (seed, ratio) 组合独立训练一次
+- 最终指标：取 5 个种子的 `mean ± std`
 
 ---
 
-## 1. 模块化设计原则
+## 2. 模块化设计原则
 
 - **可插拔**：每个改进点独立封装为一个模块，通过配置开关（config flag）控制启用
 - **可组合**：模块间通过清晰接口通信，支持任意组合消融
 - **可复现**：每次实验固定 seed，保留完整配置快照
 - **可比较**：统一训练脚本 + 统一评估接口，仅改配置即可切换实验
-
----
-
-## 2. 推荐代码组织结构
-
-```
-PI-CNNLSTM/
-├── configs/                          # 实验配置中心
-│   ├── base.yaml                     # 基线（当前V6）
-│   ├── exp01_attention.yaml          # +注意力
-│   ├── exp02_adaptive_loss.yaml      # +自适应权重
-│   ├── exp03_rate_smooth.yaml        # +速率连续性
-│   ├── exp04_mc_dropout.yaml         # +不确定性量化
-│   ├── exp05_pseudo_label.yaml       # +伪标签扩展
-│   └── exp06_full.yaml               # 全模块组合
-│
-├── models/
-│   ├── backbone.py                   # 核心 CNN-LSTM
-│   ├── modules/
-│   │   ├── attention.py              # M1: 注意力模块
-│   │   ├── mc_dropout.py             # M2: MC Dropout包装
-│   │   └── instance_norm.py          # M3: 个体归一化（可选）
-│   └── pi_cnnlstm.py                 # 顶层装配器
-│
-├── losses/
-│   ├── base_loss.py                  # 基础MSE监督损失
-│   ├── physics/
-│   │   ├── monotonicity.py           # 现有：软单调约束
-│   │   ├── boundary.py               # 现有：边界约束
-│   │   └── rate_smoothness.py        # M4: 新增速率连续性
-│   ├── adaptive_weight.py            # M5: 不确定性权重
-│   └── composite_loss.py             # 损失装配器
-│
-├── training/
-│   ├── trainer.py                    # 统一训练循环
-│   ├── partial_supervision.py        # 部分监督掩码管理
-│   ├── pseudo_labeling.py            # M6: 不确定性伪标签
-│   └── callbacks.py                  # 日志/早停/保存
-│
-├── evaluation/
-│   ├── metrics.py                    # MAE/RMSE/MAPE
-│   ├── uncertainty_eval.py           # M7: 置信区间评估
-│   ├── robustness_eval.py            # M8: 特征缺失鲁棒性
-│   └── ablation_runner.py            # 自动消融运行器
-│
-├── experiments/                       # 实验产物
-│   └── {exp_name}_{timestamp}/
-│       ├── config.yaml
-│       ├── model_best.pt
-│       ├── metrics.json
-│       └── predictions.csv
-│
-└── scripts/
-    ├── run_single.py
-    ├── run_ablation.py
-    └── compare_results.py
-```
 
 ---
 
@@ -200,15 +219,43 @@ PI-CNNLSTM/
 
 ## 4. 分阶段实施路线图
 
-### Stage 0：基线锁定（0.5 天）
-- [ ] 冻结当前 V6 模型作为 **Baseline-V6**
-- [ ] 定义统一评估协议：
-  - 固定 80/20 电池划分（种子 42）
-  - 部分监督比例矩阵：`[0.3, 0.5, 0.7, 1.0]`
-  - 5 次独立运行取 mean ± std
-- [ ] 输出基线指标表
-- [ ] 冻结 `configs/base.yaml`
-- **交付**：`experiments/baseline_v6/metrics.json`
+### Stage 0：基线锁定（2 天）← **当前阶段**
+
+#### Step 0.1: 代码审查（已完成 ✅）
+- 读 `train_cross_battery.py`，理解训练流程
+- 确认 60/20/20 + 种子 42 已在 `split_batteries()` 实现
+- 确认 `PhysicsConstrainedLoss` 结构支持 label masking 扩展
+- 发现 `scenario3` 等无法使用（`utils/data_augmentation` 缺失）
+
+#### Step 0.2: 实现部分监督（label masking）
+- 在 `prepare_cross_battery_data()` 中新增 `supervision_ratio` 参数
+- 生成 `train_supervision_mask`（按电池随机 mask）
+- 修改 Dataset 传递 mask 到 batch
+- 修改 `PhysicsConstrainedLoss.forward()` 支持 masked MSE
+- **交付**：`train_cross_battery.py` 支持 `supervision_ratio ∈ [0, 1]` 参数
+
+#### Step 0.3: 启用物理约束
+- `cnn_lstm_config.json` 中：
+  - `physics_constraints.enabled: false → true`
+  - `boundary_weight: 0.0 → 0.05`（需要调，当前是 0）
+- 其他参数保持默认
+
+#### Step 0.4: 烟雾测试
+- 用小 epoch 数（e.g. 5）跑一次完整流程，验证：
+  - 部分监督 mask 正确
+  - 物理约束 loss 非零
+  - 训练能正常收敛
+- **交付**：日志截图 / 简短 report
+
+#### Step 0.5: 正式基线（20 次运行）
+- 种子：`[42, 123, 456, 789, 2024]`
+- 监督比例：`[1.0, 0.7, 0.5, 0.3]`
+- **交付**：`experiments/baseline_v2.2/metrics.json`（mean ± std 表）
+
+#### Step 0.6: 固化与 commit
+- 冻结 `cnn_lstm_config.json` 作为 baseline-v2.2 的最终配置
+- 更新 `CLAUDE.md` 和本文档的进度
+- Commit message: `stage-0: lock baseline-v2.2 with physics + partial supervision`
 
 ### Stage 1：架构增强（1.5 天）
 - [ ] **Exp-01**：Baseline + M1（注意力）
@@ -235,101 +282,52 @@ PI-CNNLSTM/
 - [ ] 消融表、曲线图、注意力可视化
 - [ ] 论文章节撰写
 
-**总预计工期：10 天**
+**总预计工期：10.5 天**（原 10 天 + Stage 0 延长 0.5 天）
 
 ---
 
 ## 5. 消融矩阵（最终论文表格）
 
-| 实验 | M1 | M2 | M4 | M5 | M6 | MAE | RMSE | PICP |
-|------|----|----|----|----|----|-----|------|------|
-| Baseline-V6 |  |  |  |  |  | - | - | - |
-| Exp-01 | ✓ |  |  |  |  | | | |
-| Exp-02 |  | ✓ |  |  |  | | | ✓ |
-| Exp-03 |  |  | ✓ |  |  | | | |
-| Exp-04 |  |  |  | ✓ |  | | | |
-| Exp-05 |  |  | ✓ | ✓ |  | | | |
-| Exp-06 |  | ✓ |  |  | ✓ | | | ✓ |
-| **Exp-07 Full** | ✓ | ✓ | ✓ | ✓ | ✓ | | | ✓ |
+每个实验在 4 个监督比例下都要跑（ratio ∈ [1.0, 0.7, 0.5, 0.3]）：
+
+| 实验 | M1 | M2 | M4 | M5 | M6 | MAE@100% | MAE@70% | MAE@50% | MAE@30% | PICP |
+|------|----|----|----|----|----|---------|---------|---------|---------|------|
+| baseline-v2.2 |  |  |  |  |  | - | - | - | - | - |
+| Exp-01 | ✓ |  |  |  |  | | | | | |
+| Exp-02 |  | ✓ |  |  |  | | | | | ✓ |
+| Exp-03 |  |  | ✓ |  |  | | | | | |
+| Exp-04 |  |  |  | ✓ |  | | | | | |
+| Exp-05 |  |  | ✓ | ✓ |  | | | | | |
+| Exp-06 |  | ✓ |  |  | ✓ | | | | | ✓ |
+| **Exp-07 Full** | ✓ | ✓ | ✓ | ✓ | ✓ | | | | | ✓ |
 
 每格填入 5 次运行的 `mean ± std`。
 
----
-
-## 6. 配置文件模板
-
-### `configs/base.yaml`（基线）
-```yaml
-model:
-  cnn_channels: [32, 64]
-  lstm_hidden: 64
-  dropout: 0.3
-  use_attention: false        # M1 开关
-  use_instance_norm: false    # M3 开关
-
-loss:
-  supervised:
-    enabled: true
-    weight: 1.0
-  monotonicity:
-    enabled: true
-    weight: 0.1
-  boundary:
-    enabled: true
-    weight: 0.05
-  rate_smooth:                # M4
-    enabled: false
-    weight: 0.05
-  adaptive_weight:            # M5
-    enabled: false
-
-training:
-  epochs: 100
-  batch_size: 32
-  warmup_epochs: 30
-  pseudo_label:               # M6
-    enabled: false
-    tau: 0.01
-    update_every: 5
-
-evaluation:
-  mc_dropout:                 # M2 + M7
-    enabled: false
-    n_samples: 50
-  robustness:                 # M8
-    enabled: false
-
-data:
-  split_file: data/splits/split_v1.json
-  seed: 42
-```
+**核心论文图**：监督比例 vs MAE 曲线（多条线对应不同实验，显示稀疏度越高我们的方法增益越大）
 
 ---
 
-## 7. 工程约定
+## 6. 工程约定
 
-### 7.1 接口规范
-- **模型前向**：`forward(x) -> dict(pred=..., features=..., attn_weights=...)`
-- **损失函数**：`loss_fn(pred_dict, target, mask) -> dict(total=..., sup=..., mono=..., ...)`
-- **评估函数**：`evaluate(model, dataloader, cfg) -> dict(mae=..., rmse=..., picp=..., ...)`
-
-### 7.2 实验记录（每次实验必存）
-1. `config.yaml` — 配置快照
+### 6.1 实验记录（每次实验必存）
+1. `config_snapshot.json` — 配置快照
 2. `model_best.pt` — 最佳模型权重
 3. `metrics.json` — 全量指标
 4. `predictions.csv` — 测试集逐循环预测
 5. `training_log.csv` — 逐 epoch 损失曲线
 6. `seed.txt` — 随机种子
+7. `supervision_mask.npz` — 该次运行的监督 mask（用于复现）
 
-### 7.3 避坑清单
+### 6.2 避坑清单
 - [ ] M5 启用时，其他固定权重必须全部关闭
 - [ ] M6 启用时，必须先有 M2 的 Dropout 层
-- [ ] 所有实验用同一份数据划分（`data/splits/split_v1.json`）
+- [ ] 所有实验用同一份数据划分（在 split_batteries 使用相同 seed）
 - [ ] 每次改动推模块前，先跑一次"空改动"回归测试
+- [ ] 部分监督的 mask 一旦确定，5 次重复运行应使用**相同**的 mask（但模型初始化种子不同）
 
 ---
 
-## 8. 风险预案
+## 7. 风险预案
 
 | 风险 | 表现 | 应对 |
 |------|------|------|
@@ -337,10 +335,11 @@ data:
 | M5 权重塌缩 | 某个 σᵢ 趋近于 0 | 对 log σᵢ 加 L2 正则 |
 | M1 注意力过拟合 | 训练稳定但测试退化 | Attention Dropout + 减少 num_heads |
 | 多模块组合冲突 | Exp-07 不如 Exp-06 | 回退到两两组合消融找冲突源 |
+| 物理约束在全监督下不提升 | Stage 0 发现 | 说明物理约束主要在部分监督下有价值——这也是论文的一个卖点 |
 
 ---
 
-## 9. 备用创新点（未采纳，作为可选扩展）
+## 8. 备用创新点（未采纳，作为可选扩展）
 
 - **C1：退化阶段自感知约束激活**——通过拐点检测动态激活单调约束，替代固定循环阈值
 - **C2：跨电池群体一致性协同约束**——batch 内相似电池对的 SOH 差值加惩罚
@@ -350,19 +349,25 @@ data:
 
 ---
 
-## 10. 下一步行动（给未来自己的提示）
+## 9. 下一步行动（给未来自己的提示）
 
 如果这份计划在新对话中被加载：
 
 1. **先确认当前进度**：查看 `experiments/` 目录，看已完成到哪个 Stage
 2. **下一个要做的事**：
-   - 如果尚未开始 → **Stage 0 基线锁定**：把当前 `train_cross_battery.py` 重构为模块化骨架
+   - 如果尚未开始 → **Stage 0 基线锁定**
+   - 如果 Stage 0 已完成 → 开始 Stage 1（M1 注意力）
    - 如果在 Stage X → 查看对应 Exp 的配置和代码进度
-3. **建议的第一个实现模块**：**M2（MC Dropout）+ M7（置信区间评估）**——零成本、立即出图、论文效果直观
+3. **Stage 0 的子步骤**（见第 4 节）：
+   - Step 0.2: 实现 label masking 部分监督
+   - Step 0.3: 启用物理约束（含改 boundary_weight）
+   - Step 0.4: 烟雾测试
+   - Step 0.5: 正式跑 20 次（5 seeds × 4 ratios）
+   - Step 0.6: Commit & 固化
 
 ---
 
-## 11. 参考文献线索（9 篇 PDF 位于 `paper/` 目录）
+## 10. 参考文献线索（9 篇 PDF 位于 `paper/` 目录，已 .gitignore）
 
 - `1-s2.0-S0360544225028579-main.pdf` — 论文 5：TS-PINN 同方差不确定性权重（M5 来源）
 - `1-s2.0-S0951832025006325-main.pdf` — 论文 4：Bayesian PINN / MC Dropout（M2 来源）
@@ -372,5 +377,18 @@ data:
 
 ---
 
+## 11. 变更日志
+
+### 2026-04-17（Stage 0 启动前对齐）
+- 基线改名：V6 → **baseline-v2.2**
+- 数据划分：80/20 → **60/20/20**
+- 新增"1. 基线协议"章节（明确数据、模型、物理约束、部分监督细节）
+- 确认部分监督实现方式：**Label Masking**（不是 Sample Dropping）
+- 新增"🔴 关键现实确认"段落，明确当前代码缺失 `utils/data_augmentation`
+- Stage 0 从 0.5 天拆分为 6 个子步骤、2 天
+- 新增"监督比例维度"到消融矩阵（每个实验在 4 个比例下都跑）
+- 新增"核心论文图"的描述
+
+---
+
 **文档维护者**：liuchang2262@gmail.com
-**最后更新**：2026-04-17

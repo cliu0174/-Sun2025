@@ -37,11 +37,17 @@ def custom_collate_fn(batch):
         targets = torch.cat([item['target_soh'].unsqueeze(0) for item in batch], dim=0)
         battery_ids = [item['battery_id'] for item in batch]
         cycle_indices = torch.stack([item['cycle_idx'] for item in batch])
+        # 部分监督 mask（向后兼容：如果 Dataset 没有 is_labeled 字段，默认全 True）
+        if 'is_labeled' in batch[0]:
+            is_labeled = torch.stack([item['is_labeled'] for item in batch])
+        else:
+            is_labeled = torch.ones(len(batch), dtype=torch.bool)
         return {
             'window': windows,
             'target_soh': targets,
             'battery_id': battery_ids,
-            'cycle_idx': cycle_indices
+            'cycle_idx': cycle_indices,
+            'is_labeled': is_labeled
         }
     elif 'x_1' in batch[0]:
         # 三元组模式
@@ -218,6 +224,49 @@ def split_batteries(battery_names, train_ratio=0.6, val_ratio=0.2, test_ratio=0.
     return train_batteries, val_batteries, test_batteries
 
 
+def generate_supervision_mask(battery_ids, ratio, seed):
+    """
+    按电池随机生成部分监督 mask（label masking 方式）
+
+    保留所有样本，但对每块电池随机选择 ratio 比例的循环标记为"有标签"。
+    未标记的样本仍然参与物理约束计算，但不参与 MSE 监督。
+
+    Args:
+        battery_ids: (N,) array/list of battery ids
+        ratio: float in (0, 1], 有监督样本的比例
+            1.0 = 完全监督（所有样本都有标签）
+            0.5 = 部分监督（一半样本有标签）
+        seed: int, 随机种子（保证可复现）
+
+    Returns:
+        mask: (N,) bool numpy array, True=有标签, False=无标签
+    """
+    assert 0.0 < ratio <= 1.0, f"supervision_ratio must be in (0, 1], got {ratio}"
+
+    battery_ids = np.asarray(battery_ids)
+    n = len(battery_ids)
+    mask = np.zeros(n, dtype=bool)
+
+    # 全监督快速路径
+    if ratio >= 1.0 - 1e-9:
+        mask[:] = True
+        return mask
+
+    rng = np.random.RandomState(seed)
+
+    # 按电池独立采样，确保每块电池都保留 ~ratio 比例的标签
+    for battery_name in np.unique(battery_ids):
+        battery_indices = np.where(battery_ids == battery_name)[0]
+        n_battery = len(battery_indices)
+        n_labeled = max(1, int(round(n_battery * ratio)))  # 至少保留 1 个标签
+
+        # 在该电池内部随机选择 n_labeled 个作为有标签
+        labeled_indices = rng.choice(battery_indices, size=n_labeled, replace=False)
+        mask[labeled_indices] = True
+
+    return mask
+
+
 def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries,
                                degradation_scenario='none',
                                noise_level='medium',
@@ -228,7 +277,9 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
                                cycle_drop_level='moderate',
                                cycle_drop_rate=None,
                                cycle_drop_num_gaps=None,
-                               seed=42):
+                               seed=42,
+                               supervision_ratio=1.0,
+                               supervision_seed=None):
     """
     准备跨电池的训练/验证/测试数据。
 
@@ -494,21 +545,52 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         raise ValueError(f"Unknown degradation scenario: {degradation_scenario}. "
                         f"Available: 'none', 'scenario1', 'scenario2', 'scenario3', 'scenario4'")
 
+    # ===== 部分监督 mask 生成（Label Masking 方式）=====
+    # 只对训练集施加部分监督：val/test 保持完全监督用于公平评估
+    if supervision_seed is None:
+        supervision_seed = seed  # 默认与主 seed 一致，保证可复现
+
+    train_supervision_mask = generate_supervision_mask(
+        train_battery_ids, ratio=supervision_ratio, seed=supervision_seed
+    )
+    val_supervision_mask = np.ones(len(val_battery_ids), dtype=bool)  # val 完全监督
+    test_supervision_mask = np.ones(len(test_battery_ids), dtype=bool)  # test 完全监督
+
+    # 打印统计信息
+    n_labeled = train_supervision_mask.sum()
+    n_total = len(train_supervision_mask)
+    print(f"\n{'='*70}")
+    print(f"部分监督配置 (Label Masking)")
+    print(f"{'='*70}")
+    print(f"  监督比例 (supervision_ratio): {supervision_ratio:.2f}")
+    print(f"  种子 (supervision_seed): {supervision_seed}")
+    print(f"  训练集有标签样本: {n_labeled} / {n_total} ({100*n_labeled/n_total:.1f}%)")
+    print(f"  验证集: 完全监督 ({len(val_supervision_mask)} 样本)")
+    print(f"  测试集: 完全监督 ({len(test_supervision_mask)} 样本)")
+    if supervision_ratio < 1.0:
+        print(f"  [NOTE] 无标签样本仍然参与物理约束计算（单调/边界/平滑）")
+        print(f"         但不参与 MSE 监督损失")
+
     data_dict = {
         'train_features': train_features_scaled,
         'train_targets': train_targets,
         'train_battery_ids': train_battery_ids,
+        'train_supervision_mask': train_supervision_mask,
         'val_features': val_features_scaled,
         'val_targets': val_targets,
         'val_battery_ids': val_battery_ids,
+        'val_supervision_mask': val_supervision_mask,
         'test_features': test_features_scaled,
         'test_targets': test_targets,
         'test_battery_ids': test_battery_ids,
+        'test_supervision_mask': test_supervision_mask,
         'scaler': scaler,
         'n_features': train_features.shape[1],
         'train_batteries': train_batteries,
         'val_batteries': val_batteries,
-        'test_batteries': test_batteries
+        'test_batteries': test_batteries,
+        'supervision_ratio': supervision_ratio,
+        'supervision_seed': supervision_seed,
     }
 
     return data_dict
@@ -537,6 +619,8 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
 
         # 为每个电池单独创建 windowed dataset
         train_datasets = []
+        # 获取训练集的部分监督 mask（默认全 True = 完全监督）
+        train_sup_mask_full = data_dict.get('train_supervision_mask', None)
         for battery_name in data_dict['train_batteries']:
             # 获取该电池的数据
             mask = data_dict['train_battery_ids'] == battery_name
@@ -550,7 +634,23 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             X, y, bid, cyc = apply_windowing_with_metadata(
                 features, targets, window_size, battery_name, mode='many_to_one'
             )
-            dataset = HUSTBatteryDatasetWithMetadata(X, y, bid, cyc, siamese_mode=siamese_mode, triplet_mode=triplet_mode, step_k=step_k, mode='train')
+
+            # 对齐 supervision mask 到窗口化之后的样本
+            # Many-to-one 模式下第 i 个窗口的目标位于 features[i + window_size - 1]
+            if train_sup_mask_full is not None:
+                battery_sup_mask = train_sup_mask_full[mask]
+                # 取窗口目标位置的 mask 作为该窗口的 is_labeled
+                windowed_sup_mask = battery_sup_mask[window_size - 1:]
+                assert len(windowed_sup_mask) == len(X), \
+                    f"mask length mismatch: {len(windowed_sup_mask)} vs {len(X)}"
+            else:
+                windowed_sup_mask = None
+
+            dataset = HUSTBatteryDatasetWithMetadata(
+                X, y, bid, cyc,
+                siamese_mode=siamese_mode, triplet_mode=triplet_mode, step_k=step_k, mode='train',
+                supervision_mask=windowed_sup_mask
+            )
             train_datasets.append(dataset)
 
         # 验证集
@@ -756,7 +856,9 @@ def train_cross_battery_model(
     random_missing_rate=None,            # 场景三手动缺失率 (优先级高于 random_missing_level)
     cycle_drop_level='moderate',         # 场景四丢弃级别 ('light', 'moderate', 'heavy')
     cycle_drop_rate=None,                # 场景四手动丢弃率
-    cycle_drop_num_gaps=None             # 场景四手动缺失段数量
+    cycle_drop_num_gaps=None,            # 场景四手动缺失段数量
+    supervision_ratio=1.0,               # 部分监督比例 (1.0=全监督, 0.5=50%有标签)
+    supervision_seed=None                # 部分监督 mask 种子 (None=与主 seed 一致)
 ):
     """
     跨电池训练模型。
@@ -854,7 +956,9 @@ def train_cross_battery_model(
         cycle_drop_level=cycle_drop_level,
         cycle_drop_rate=cycle_drop_rate,
         cycle_drop_num_gaps=cycle_drop_num_gaps,
-        seed=seed
+        seed=seed,
+        supervision_ratio=supervision_ratio,
+        supervision_seed=supervision_seed
     )
 
     # 4. 加载模型配置
@@ -1109,14 +1213,17 @@ def train_cross_battery_model(
                     targets = batch['target_soh'].to(device)
                     battery_ids = batch['battery_id']
                     cycle_indices = batch['cycle_idx']
+                    # 部分监督 mask（向后兼容：没有 is_labeled 则默认 None=全监督）
+                    is_labeled = batch.get('is_labeled', None)
                     # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
 
                     optimizer.zero_grad()
                     predictions = model(features)
 
-                    # 计算损失
+                    # 计算损失（传入 supervision_mask 支持部分监督）
                     if use_physics and battery_ids is not None:
-                        loss = criterion(predictions, targets, battery_ids, cycle_indices)
+                        loss = criterion(predictions, targets, battery_ids, cycle_indices,
+                                         supervision_mask=is_labeled)
                     else:
                         loss = criterion(predictions, targets)
 
@@ -1475,7 +1582,7 @@ def train_cross_battery_model(
     print(f"MAE:  {test_mae*100:.4f}%")
     print(f"RMSE: {test_rmse*100:.4f}%")
     print(f"MAPE: {test_mape:.4f}%")
-    print(f"R²:   {test_r2:.6f}")
+    print(f"R2:   {test_r2:.6f}")
 
     # 10. 保存结果
     results_dir = f'results/cross_battery/{model_type}'
@@ -1738,6 +1845,13 @@ if __name__ == "__main__":
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     SEED = 42             # 随机种子（确保可复现）
 
+    # ===== 部分监督配置 =====
+    # 控制训练集中有多少比例的样本拥有 SOH 标签（Label Masking 方式）
+    # 1.0 = 完全监督（所有样本都有标签，即 baseline-v2.2 全监督基线）
+    # 0.7 / 0.5 / 0.3 = 部分监督（对应 Stage 0 的四个实验条件）
+    SUPERVISION_RATIO = 1.0     # 监督比例: 1.0, 0.7, 0.5, 0.3
+    SUPERVISION_SEED = None     # mask 随机种子（None=与 SEED 一致，保证可复现）
+
     # ===== 数据退化场景选择 (验证物理约束在不同场景下的作用) =====
     # 场景选择: 'none', 'scenario1', 'scenario2', 'scenario3', 'scenario4'
     DEGRADATION_SCENARIO = 'none'  # 'none': 无退化 (干净数据)
@@ -1817,7 +1931,9 @@ if __name__ == "__main__":
         random_missing_rate=RANDOM_MISSING_RATE,    # 场景三: 手动缺失率（优先级更高）
         cycle_drop_level=CYCLE_DROP_LEVEL,    # 场景四: 连续循环缺失级别
         cycle_drop_rate=CYCLE_DROP_RATE,      # 场景四: 手动丢弃率（优先级更高）
-        cycle_drop_num_gaps=CYCLE_DROP_NUM_GAPS  # 场景四: 手动缺失段数量（优先级更高）
+        cycle_drop_num_gaps=CYCLE_DROP_NUM_GAPS,  # 场景四: 手动缺失段数量（优先级更高）
+        supervision_ratio=SUPERVISION_RATIO,  # 部分监督比例 (1.0=全监督基线)
+        supervision_seed=SUPERVISION_SEED     # mask 种子 (None=与主 seed 一致)
     )
 
     print("\n" + "="*70)
@@ -1827,7 +1943,7 @@ if __name__ == "__main__":
     print(f"  MAE:  {results['test_mae']*100:.4f}%")
     print(f"  RMSE: {results['test_rmse']*100:.4f}%")
     print(f"  MAPE: {results['test_mape']:.4f}%")
-    print(f"  R²:   {results['test_r2']:.6f}")
+    print(f"  R2:   {results['test_r2']:.6f}")
     print(f"\n训练集: {len(data_dict['train_batteries'])} 个电池")
     print(f"验证集: {len(data_dict['val_batteries'])} 个电池")
     print(f"测试集: {len(data_dict['test_batteries'])} 个电池")
