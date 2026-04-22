@@ -15,7 +15,7 @@
   },
   "training": {
     "num_epochs": 200,
-    "batch_size": 256,
+    "batch_size": 512,
     "learning_rate": 0.0005,
     "optimizer": "Adam",
     "loss_function": "MSELoss",
