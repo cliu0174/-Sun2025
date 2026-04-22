@@ -21,9 +21,15 @@ from sklearn.preprocessing import StandardScaler
 from models import (ModelFactory, ConfigLoader, UnifiedModelWrapper,
                     PhysicsConstrainedLoss, SiamesePhysicsLoss, TripletPhysicsLoss,
                     AdaptivePhysicsLoss)
+from models.modules.mc_dropout import MCDropout, mc_predict
 from data_loaders import load_single_hust_battery
 from data_loaders.data_loader_hust import apply_windowing_with_metadata, HUSTBatteryDatasetWithMetadata
 import time
+
+
+def _has_mc_dropout(model: nn.Module) -> bool:
+    """检测模型是否含 MCDropout 层（用于在验证/测试时选择推理策略）。"""
+    return any(isinstance(m, MCDropout) for m in model.modules())
 
 
 def custom_collate_fn(batch):
@@ -1207,6 +1213,11 @@ def train_cross_battery_model(
     patience = config['training']['early_stopping'].get('patience', 10)
     patience_counter = 0
 
+    # M2：检测一次，供验证/测试推理复用
+    mc_mode = _has_mc_dropout(model)
+    if mc_mode:
+        print("  [MCDropout] 检测到 MCDropout 层：验证用 10 次采样均值，测试用 50 次采样均值")
+
     for epoch in tqdm(range(num_epochs), desc="Training"):
         # M6：Warmup 结束后定期刷新伪标签
         if pseudo_manager is not None and pseudo_manager.should_update(epoch):
@@ -1439,7 +1450,12 @@ def train_cross_battery_model(
                         cycle_indices = batch['cycle_idx']
                         # 带元数据的batch: targets 已经是 (batch, 1) 形状，不需要 unsqueeze
 
-                        predictions = model(features)
+                        # M2 修复：MCDropout 在 eval 模式下仍激活，用 10 次采样均值
+                        # 替代单次噪声预测，保证 early stopping 信号稳定
+                        if mc_mode:
+                            predictions, _ = mc_predict(model, features, n_samples=10)
+                        else:
+                            predictions = model(features)
 
                         # 计算损失
                         if use_physics and battery_ids is not None:
@@ -1607,8 +1623,13 @@ def train_cross_battery_model(
                 targets = targets.cpu().numpy()
                 battery_ids_batch = None
 
-            # Single forward pass (no paired inference)
-            predictions = model(features).cpu().numpy()
+            # M2 修复：MCDropout 模型用 50 次采样均值作为点估计，
+            # 与 Baseline 的 model.eval() 干净预测保持可比性
+            if mc_mode:
+                predictions, _ = mc_predict(model, features, n_samples=50)
+                predictions = predictions.cpu().numpy()
+            else:
+                predictions = model(features).cpu().numpy()
 
             # 处理输出形状
             if is_seq2seq:

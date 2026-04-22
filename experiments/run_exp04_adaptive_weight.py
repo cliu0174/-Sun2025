@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import time
 import traceback
+from typing import Optional
 import numpy as np
 import torch
 
@@ -34,7 +35,7 @@ OUTPUT_DIR        = os.path.join(os.path.dirname(__file__), 'exp04_adaptive_weig
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def run_single(seed: int) -> dict | None:
+def run_single(seed: int) -> Optional[dict]:
     run_id      = f"seed{seed}"
     run_dir     = os.path.join(OUTPUT_DIR, run_id)
     result_file = os.path.join(run_dir, 'result.json')

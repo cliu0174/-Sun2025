@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import time
 import traceback
+from typing import Optional
 import numpy as np
 import torch
 
@@ -51,7 +52,7 @@ MODELS = {
 }
 
 
-def run_single(model_key: str, seed: int) -> dict | None:
+def run_single(model_key: str, seed: int) -> Optional[dict]:
     """训练一个模型并评估鲁棒性。"""
     model_type  = MODELS[model_key]
     run_id      = f"{model_key}_seed{seed}"

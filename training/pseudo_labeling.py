@@ -28,6 +28,8 @@ M6：不确定性引导伪标签（Uncertainty-Guided Pseudo-Labeling）
     在低标注比例下尤为显著。"
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, Subset
@@ -165,7 +167,7 @@ class PseudoLabelManager:
               f"σ_threshold={self._last_tau:.4f}  "
               f"w_mean={self.pseudo_w.mean().item():.2f}")
 
-    def get_pseudo_loader(self, batch_size: int = 256) -> DataLoader | None:
+    def get_pseudo_loader(self, batch_size: int = 256) -> Optional[DataLoader]:
         """
         返回伪标签 DataLoader（shuffle=True），供附加训练轮次使用。
         若当前没有伪标签，返回 None。

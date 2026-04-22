@@ -26,7 +26,7 @@
   },
   "training": {
     "num_epochs": 200,
-    "batch_size": 256,
+    "batch_size": 1024,
     "learning_rate": 0.0005,
     "optimizer": "Adam",
     "loss_function": "MSELoss",
@@ -40,7 +40,7 @@
     },
     "early_stopping": {
       "enabled": true,
-      "patience": 20,
+      "patience": 30,
       "min_delta": 1e-05
     }
   },
@@ -78,7 +78,8 @@
     "adaptive_weight": {
       "enabled": true,
       "l2_reg": 0.01,
-      "init_log_vars": [0.0, 0.0, 0.0, 0.0],
+      "init_log_vars": [0.0, 2.3, 3.0, 5.0],
+      "_init_log_vars_note": "exp(-log_var) ≈ [1.0, 0.10, 0.05, 0.007]，对齐 baseline 初始权重",
       "description": "M5: 可学习 log_vars 自适应平衡 [base, monotonic, boundary, smoothness]"
     },
     "description": "M4+M5: 速率连续性约束 + 自适应损失权重全组合"
@@ -88,12 +89,12 @@
     "warmup_epochs": 30,
     "update_every_k": 5,
     "n_mc_samples": 50,
-    "threshold_percentile": 30,
-    "max_pseudo_ratio": 0.5,
-    "lambda_pseudo": 1.0,
+    "threshold_percentile": 20,
+    "max_pseudo_ratio": 0.3,
+    "lambda_pseudo": 0.1,
     "epsilon": 1e-6,
     "inference_batch_size": 512,
-    "description": "M6: Warmup 30 epoch 后每 5 epoch 刷新伪标签，取不确定性最低 30% 无标签样本"
+    "description": "M6: Warmup 30 epoch 后每 5 epoch 刷新伪标签，取不确定性最低 20% 无标签样本（保守筛选），lambda=0.1 弱监督附加训练"
   },
   "description": "Exp-07 Full Stack: M1 循环级注意力 + M2 MC Dropout + M4 速率连续性 + M5 自适应权重 + M6 伪标签 + M7 置信区间评估。论文最终方法。"
 }

@@ -18,6 +18,7 @@ import json
 import time
 import copy
 import traceback
+from typing import Optional
 import numpy as np
 import torch
 
@@ -38,7 +39,7 @@ SMOOTHNESS_WEIGHTS = [0.01, 0.05, 0.1, 0.2]   # 超参扫描范围
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def run_single(seed: int, sw: float) -> dict | None:
+def run_single(seed: int, sw: float) -> Optional[dict]:
     sw_str  = str(sw).replace('.', 'p')
     run_id  = f"seed{seed}_sw{sw_str}"
     run_dir = os.path.join(OUTPUT_DIR, run_id)

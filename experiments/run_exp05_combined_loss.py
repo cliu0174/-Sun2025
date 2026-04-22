@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import time
 import traceback
+from typing import Optional
 import numpy as np
 import torch
 
@@ -37,7 +38,7 @@ OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'exp05_combined_los
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def run_single(seed: int, ratio: float) -> dict | None:
+def run_single(seed: int, ratio: float) -> Optional[dict]:
     ratio_str   = f"{ratio:.1f}".replace('.', 'p')
     run_id      = f"seed{seed}_ratio{ratio_str}"
     run_dir     = os.path.join(OUTPUT_DIR, run_id)

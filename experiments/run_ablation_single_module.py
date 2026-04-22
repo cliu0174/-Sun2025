@@ -42,8 +42,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
 import time
+import argparse
 import traceback
 from collections import defaultdict
+from typing import Optional
 
 import numpy as np
 import torch
@@ -125,7 +127,7 @@ EXPERIMENTS = [
 # ================================================================
 # 单次运行
 # ================================================================
-def run_single(exp: dict, seed: int, ratio: float) -> dict | None:
+def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
     """
     运行一次实验，支持断点续跑。
 
@@ -345,11 +347,13 @@ def aggregate(all_results: list) -> None:
 # ================================================================
 # 进度追踪工具
 # ================================================================
-def count_done() -> tuple[int, int]:
-    """统计已完成和总运行次数。"""
-    total = len(EXPERIMENTS) * len(SUPERVISION_RATIOS) * len(SEEDS)
+def count_done(exp_list=None) -> tuple[int, int]:
+    """统计已完成和总运行次数（可传入过滤后的 exp_list）。"""
+    if exp_list is None:
+        exp_list = EXPERIMENTS
+    total = len(exp_list) * len(SUPERVISION_RATIOS) * len(SEEDS)
     done  = 0
-    for exp in EXPERIMENTS:
+    for exp in exp_list:
         for ratio in SUPERVISION_RATIOS:
             ratio_tag = f"{ratio:.1f}".replace('.', 'p')
             for seed in SEEDS:
@@ -362,47 +366,93 @@ def count_done() -> tuple[int, int]:
     return done, total
 
 
+def load_all_results_from_disk() -> list:
+    """
+    扫描磁盘上所有 result.json，返回结果列表。
+    用于在只跑部分实验时，让 aggregate 仍能读到其他组的历史结果。
+    """
+    results = []
+    for exp in EXPERIMENTS:
+        for ratio in SUPERVISION_RATIOS:
+            ratio_tag = f"{ratio:.1f}".replace('.', 'p')
+            for seed in SEEDS:
+                fp = os.path.join(
+                    OUTPUT_DIR, exp['id'],
+                    f"ratio{ratio_tag}", f"seed{seed}", 'result.json'
+                )
+                if os.path.exists(fp):
+                    with open(fp, encoding='utf-8') as f:
+                        results.append(json.load(f))
+    return results
+
+
 # ================================================================
 # 主入口
 # ================================================================
 if __name__ == '__main__':
-    done, total = count_done()
+    # ── CLI 参数解析 ────────────────────────────────────────────
+    parser = argparse.ArgumentParser(description='单模块消融实验')
+    parser.add_argument(
+        '--exp',
+        type=str,
+        default=None,
+        help=(
+            '只运行指定实验（逗号分隔），不影响汇总表。\n'
+            '示例：--exp E5  或  --exp E4,E5\n'
+            '可用 ID 前缀：E0 E1 E2 E3 E4 E5'
+        ),
+    )
+    args = parser.parse_args()
+
+    # 根据 --exp 过滤要运行的实验列表
+    if args.exp:
+        prefixes = [p.strip().upper() for p in args.exp.split(',')]
+        run_experiments = [
+            e for e in EXPERIMENTS
+            if any(e['id'].upper().startswith(p) for p in prefixes)
+        ]
+        if not run_experiments:
+            print(f"[ERROR] --exp '{args.exp}' 没有匹配到任何实验。"
+                  f"可用 ID：{[e['id'] for e in EXPERIMENTS]}")
+            sys.exit(1)
+    else:
+        run_experiments = EXPERIMENTS
+
+    done, total = count_done(run_experiments)
 
     print('╔' + '═' * 65 + '╗')
     print('║  单模块消融实验（各模块独立贡献验证）' + ' ' * 27 + '║')
     print('╠' + '═' * 65 + '╣')
-    print(f'║  实验组数   : {len(EXPERIMENTS)} 组（含 Baseline）' + ' ' * 40 + '║')
+    print(f'║  运行实验   : {[e["id"] for e in run_experiments]}' + ' ' * 10 + '║')
     print(f'║  监督比例   : {SUPERVISION_RATIOS}' + ' ' * 23 + '║')
     print(f'║  随机种子   : {SEEDS}' + ' ' * 22 + '║')
-    print(f'║  总运行次数 : {total}（已完成 {done}，剩余 {total - done}）' + ' ' * 21 + '║')
+    print(f'║  本次运行数 : {total}（已完成 {done}，剩余 {total - done}）' + ' ' * 21 + '║')
     print(f'║  计算设备   : {DEVICE}' + ' ' * (51 - len(DEVICE)) + '║')
     print(f'║  输出目录   : experiments/ablation_single_module/' + ' ' * 15 + '║')
     print('╚' + '═' * 65 + '╝')
 
     if done == total:
-        print("\n所有实验已完成，直接生成对比表...\n")
+        print("\n指定实验均已完成，直接生成对比表...\n")
     else:
         print(f"\n开始运行（剩余 {total - done} 次）...\n")
 
     # ── 按 ratio → experiment → seed 顺序运行 ──────────────────
-    # 先跑完每个 ratio 的全部实验，方便在比较关键 ratio（0.5/0.3）时提前看结果
-    all_results = []
+    new_results = []
 
     for ratio in SUPERVISION_RATIOS:
         ratio_tag = f"ratio={ratio:.1f}"
         print(f"\n{'▶'*3}  开始 {ratio_tag}  {'▶'*3}")
 
-        for exp in EXPERIMENTS:
-            done_r, _ = count_done()
+        for exp in run_experiments:
             label_pad = f"{exp['label']}（{exp['modules']}）"
             print(f"\n  ┌── {label_pad} | {ratio_tag}")
 
             for seed in SEEDS:
                 r = run_single(exp, seed, ratio)
-                all_results.append(r)
+                new_results.append(r)
 
             # 每个 (exp, ratio) 组合跑完后打印小结
-            sub_results = [r for r in all_results
+            sub_results = [r for r in new_results
                            if r and r['exp_id'] == exp['id']
                            and r['supervision_ratio'] == ratio]
             if sub_results:
@@ -410,6 +460,9 @@ if __name__ == '__main__':
                 print(f"  └── {label_pad} | {ratio_tag}  "
                       f"MAE = {np.mean(maes)*100:.4f}% ± {np.std(maes, ddof=1)*100:.4f}%")
 
-    # ── 最终汇总 ────────────────────────────────────────────────
+    # ── 最终汇总：从磁盘读取全量结果，保证对比表包含所有实验组 ──
+    all_results = load_all_results_from_disk()
     aggregate(all_results)
-    print("\n✅ 单模块消融实验全部完成！")
+
+    label = "指定实验" if args.exp else "全部实验"
+    print(f"\n✅ {label}运行完成！")
