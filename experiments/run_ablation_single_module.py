@@ -55,8 +55,8 @@ from train_cross_battery import train_cross_battery_model
 # ================================================================
 # 全局配置
 # ================================================================
-SEEDS              = [42, 123, 456, 789, 1024]
-SUPERVISION_RATIOS = [1.0, 0.7, 0.5, 0.3]
+SEEDS              = [42, 123]                 # 快速预览用 2 个种子，正式实验改回 [42, 123, 456, 789, 1024]
+SUPERVISION_RATIOS = [1.0, 0.5, 0.3]          # 快速预览用 3 个比例，正式实验改回 [1.0, 0.7, 0.5, 0.3]
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 
