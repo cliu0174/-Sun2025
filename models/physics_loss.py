@@ -16,6 +16,50 @@ import torch.nn as nn
 import numpy as np
 
 
+class TemporalPhysicsAttention(nn.Module):
+    """
+    可学习的时间衰减注意力权重，替代 monotonic_loss 中的固定指数衰减。
+
+    权重 = exp(-α × cycle_diff) × sigmoid(MLP([norm_cycle_diff, |pred_diff|]))
+        └─ 可学习衰减速率 ──┘   └──────── 违规幅度调制 ──────────────────┘
+
+    两个可学习部分：
+      log_alpha  : 衰减速率（exp 保证正值，初始化为 ln(init_alpha)）
+      modulator  : 2→8→1 小 MLP，条件化于时间距离和预测差绝对值
+
+    pred_diffs 通过 .detach() 传入 MLP，避免调制项干扰违规本身的梯度。
+    """
+
+    def __init__(self, init_alpha: float = 0.2, max_step: int = 20):
+        super().__init__()
+        self.max_step = max_step
+        self.log_alpha = nn.Parameter(torch.tensor(float(np.log(init_alpha))))
+        self.modulator = nn.Sequential(
+            nn.Linear(2, 8),
+            nn.Tanh(),
+            nn.Linear(8, 1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, cycle_diffs: torch.Tensor, pred_diffs: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            cycle_diffs : (N,) int tensor，配对的时间距离（>0）
+            pred_diffs  : (N,) float tensor，pred_j - pred_i（违规时为正）
+        Returns:
+            weights     : (N,) float tensor，值域 (0, 1)，近期权重 > 远期
+        """
+        alpha      = torch.exp(self.log_alpha)                       # 保证正值
+        base       = torch.exp(-alpha * cycle_diffs.float())         # 时间衰减
+
+        norm_t     = cycle_diffs.float() / self.max_step             # 归一化时间距离
+        norm_p     = pred_diffs.detach().abs()                       # |违规幅度|，detach
+        feat       = torch.stack([norm_t, norm_p], dim=-1)           # (N, 2)
+        mod        = self.modulator(feat).squeeze(-1)                 # (N,)
+
+        return base * mod
+
+
 class PhysicsConstrainedLoss(nn.Module):
     """
     物理约束损失函数
@@ -77,6 +121,16 @@ class PhysicsConstrainedLoss(nn.Module):
 
         # 调试参数
         self.verbose = verbose
+
+        # 可学习时间衰减注意力（可选，替代固定指数衰减，当前默认关闭）
+        use_attn = False
+        if use_attn and temporal_decay_enabled:
+            self.temporal_attn = TemporalPhysicsAttention(
+                init_alpha=temporal_decay_alpha,
+                max_step=temporal_max_step,
+            )
+        else:
+            self.temporal_attn = None
 
         # 基础损失
         self.mse_loss = nn.MSELoss()
@@ -206,7 +260,7 @@ class PhysicsConstrainedLoss(nn.Module):
             else:
                 weights = torch.ones_like(valid_cycle_diffs, dtype=torch.float32)
 
-            violations  = torch.nn.functional.relu(-valid_pred_diffs - self.monotonic_tolerance)
+            violations  = torch.nn.functional.relu(valid_pred_diffs - self.monotonic_tolerance)
             battery_loss = torch.sum(weights * violations)
             total_loss  = total_loss + battery_loss
             num_pairs   += len(valid_pred_diffs)
