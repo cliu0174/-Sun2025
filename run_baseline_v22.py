@@ -59,6 +59,13 @@ def run_single(seed, ratio):
             device=DEVICE,
             supervision_ratio=ratio,
             supervision_seed=None,   # 与主 seed 一致
+            config_override={
+                'physics_constraints': {
+                    'enabled': True,
+                    'monotonic_weight': 0.1,
+                    'boundary_weight': 0.05,
+                }
+            },
         )
 
         elapsed = time.time() - t0

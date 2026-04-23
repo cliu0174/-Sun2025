@@ -74,7 +74,13 @@ EXPERIMENTS = [
         'label':       'Baseline',
         'modules':     '无',
         'model_type':  'cnn_lstm',
-        'override':    None,
+        'override':    {
+            'physics_constraints': {
+                'enabled': True,
+                'monotonic_weight': 0.1,
+                'boundary_weight': 0.05,
+            }
+        },
         'note':        'CNN-LSTM + 软单调 + 边界约束（baseline-v2.2）',
     },
     {
@@ -100,6 +106,9 @@ EXPERIMENTS = [
         'model_type':  'cnn_lstm',
         'override':    {
             'physics_constraints': {
+                'enabled': True,
+                'monotonic_weight': 0.1,
+                'boundary_weight': 0.05,
                 'smoothness_weight': M4_SMOOTHNESS_WEIGHT,
             }
         },
