@@ -121,6 +121,16 @@ class PhysicsConstrainedLoss(nn.Module):
             # 默认：无衰减
             return 1.0
 
+    def _encode_battery_ids(self, battery_ids, device):
+        """
+        将字符串 battery_ids 一次性编码为整数 tensor，避免在 GPU 上反复做
+        CPU→GPU 传输。返回 (battery_id_tensor, n_unique)。
+        """
+        unique_list = list(dict.fromkeys(battery_ids))   # 保序去重，O(N) Python
+        id_map = {bid: i for i, bid in enumerate(unique_list)}
+        int_ids = [id_map[bid] for bid in battery_ids]   # O(N) Python
+        return torch.tensor(int_ids, device=device, dtype=torch.long), len(unique_list)
+
     def monotonic_loss(self, predictions, battery_ids, cycle_indices):
         """
         软单调性约束 + 时间衰减权重（所有配对）
@@ -136,73 +146,54 @@ class PhysicsConstrainedLoss(nn.Module):
         Returns:
             单调性损失（保持梯度）
         """
-        # 确保 predictions 是一维的
         if predictions.dim() > 1:
             predictions = predictions.squeeze(-1)
 
-        # 将 cycle_indices 转换为 tensor（保持在 device 上）
         if not isinstance(cycle_indices, torch.Tensor):
             cycle_indices = torch.tensor(cycle_indices, device=predictions.device)
         elif cycle_indices.device != predictions.device:
             cycle_indices = cycle_indices.to(predictions.device)
 
+        # 一次性编码：1 次 CPU→GPU 传输，替代原来每个电池一次传输
+        bid_tensor, n_unique = self._encode_battery_ids(battery_ids, predictions.device)
+
         total_loss = torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
         num_pairs = 0
 
-        # 获取所有唯一的电池 ID
-        unique_batteries = set(battery_ids)
-
         if self.verbose:
-            print(f"\n[MonotonicLoss] Batch 内有 {len(unique_batteries)} 个不同电池")
+            print(f"\n[MonotonicLoss] Batch 内有 {n_unique} 个不同电池")
 
-        # 对每个电池分别处理
-        for battery_id in unique_batteries:
-            # 找出该电池的所有样本索引
-            indices = torch.tensor([i for i, bid in enumerate(battery_ids) if bid == battery_id],
-                                  device=predictions.device, dtype=torch.long)
+        # 用 GPU tensor 做分组，不再做 Python 字符串比较
+        for uid in range(n_unique):
+            indices = (bid_tensor == uid).nonzero(as_tuple=True)[0]
 
             if len(indices) < 2:
-                # 该电池样本数 < 2，无法配对
-                if self.verbose:
-                    print(f"  电池 {battery_id}: 只有 {len(indices)} 个样本，跳过")
                 continue
 
-            # 提取该电池的预测值和 cycle 索引（保持梯度）
-            battery_preds = predictions[indices]
+            battery_preds  = predictions[indices]
             battery_cycles = cycle_indices[indices]
 
-            # 按 cycle_idx 排序
-            sorted_indices = torch.argsort(battery_cycles)
-            sorted_preds = battery_preds[sorted_indices]
-            sorted_cycles = battery_cycles[sorted_indices]
+            sorted_order   = torch.argsort(battery_cycles)
+            sorted_preds   = battery_preds[sorted_order]
+            sorted_cycles  = battery_cycles[sorted_order]
 
             if self.verbose:
-                print(f"  电池 {battery_id}: {len(indices)} 个样本")
-                print(f"    Cycles: {sorted_cycles.cpu().numpy()}")
-                print(f"    Preds: {sorted_preds.detach().cpu().numpy()}")
+                print(f"  电池 {uid}: {len(indices)} 个样本")
 
-            # 对所有可能的配对 (i, j) 应用约束 - 矢量化版本
             n = len(sorted_preds)
-
             if n < 2:
                 continue
 
-            # 创建所有配对的索引（矢量化）
-            # 使用广播计算所有 (i, j) 的差值
-            pred_diff_matrix = sorted_preds.unsqueeze(1) - sorted_preds.unsqueeze(0)  # (n, n)
-            cycle_diff_matrix = sorted_cycles.unsqueeze(1) - sorted_cycles.unsqueeze(0)  # (n, n)
+            pred_diff_matrix  = sorted_preds.unsqueeze(1) - sorted_preds.unsqueeze(0)   # (n,n)
+            cycle_diff_matrix = sorted_cycles.unsqueeze(1) - sorted_cycles.unsqueeze(0) # (n,n)
 
-            # 只保留 j > i 的上三角部分，且 cycle 差值 <= max_step
-            mask = (cycle_diff_matrix > 0) & (cycle_diff_matrix <= self.temporal_max_step)
-
-            # 提取有效的配对
-            valid_pred_diffs = pred_diff_matrix[mask]  # 预测值差异
-            valid_cycle_diffs = cycle_diff_matrix[mask]  # cycle 差异
+            pair_mask = (cycle_diff_matrix > 0) & (cycle_diff_matrix <= self.temporal_max_step)
+            valid_pred_diffs  = pred_diff_matrix[pair_mask]
+            valid_cycle_diffs = cycle_diff_matrix[pair_mask]
 
             if len(valid_pred_diffs) == 0:
                 continue
 
-            # 计算时间衰减权重（矢量化）
             if self.temporal_decay_enabled:
                 if self.temporal_decay_type == 'exp':
                     weights = torch.exp(-self.temporal_decay_alpha * valid_cycle_diffs.float())
@@ -215,20 +206,14 @@ class PhysicsConstrainedLoss(nn.Module):
             else:
                 weights = torch.ones_like(valid_cycle_diffs, dtype=torch.float32)
 
-            # 计算违反量（矢量化）
-            # 注意：pred_diff 是负数（因为是 j - i，且 j > i，SOH 应该下降）
-            # 所以我们检查 -pred_diff（即 i - j）是否小于 tolerance
-            violations = torch.nn.functional.relu(-valid_pred_diffs - self.monotonic_tolerance)
-
-            # 加权求和
+            violations  = torch.nn.functional.relu(-valid_pred_diffs - self.monotonic_tolerance)
             battery_loss = torch.sum(weights * violations)
-            total_loss = total_loss + battery_loss
-            num_pairs += len(valid_pred_diffs)
+            total_loss  = total_loss + battery_loss
+            num_pairs   += len(valid_pred_diffs)
 
             if self.verbose:
                 print(f"    该电池 {len(valid_pred_diffs)} 个配对，损失={battery_loss.item():.6f}")
 
-        # 归一化（避免 batch size 和配对数量影响损失尺度）
         if num_pairs > 0:
             normalized_loss = total_loss / num_pairs
             if self.verbose:
@@ -284,21 +269,14 @@ class PhysicsConstrainedLoss(nn.Module):
         total_loss = torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
         num_valid = 0
 
-        # 预先创建 battery_id 到索引的映射（CPU 操作，只做一次）
-        battery_id_map = {}
-        for i, bid in enumerate(battery_ids):
-            if bid not in battery_id_map:
-                battery_id_map[bid] = []
-            battery_id_map[bid].append(i)
+        # 一次性编码，复用 _encode_battery_ids 避免重复 CPU→GPU 传输
+        bid_tensor, n_unique = self._encode_battery_ids(battery_ids, predictions.device)
 
-        # 遍历每个电池
-        for battery_id, idx_list in battery_id_map.items():
-            if len(idx_list) < 3:
-                # 需要至少 3 个点才能计算二阶差分
+        for uid in range(n_unique):
+            idx_tensor = (bid_tensor == uid).nonzero(as_tuple=True)[0]
+            if len(idx_tensor) < 3:
                 continue
-
-            # 直接使用列表创建 tensor（避免列表推导）
-            indices = torch.tensor(idx_list, device=predictions.device, dtype=torch.long)
+            indices = idx_tensor
 
             # 提取该电池的预测值和 cycle 索引（保持梯度）
             battery_preds = predictions[indices]
