@@ -1299,6 +1299,13 @@ def train_cross_battery_model(
                     if use_physics and battery_ids is not None:
                         loss = criterion(predictions, targets, battery_ids, cycle_indices,
                                          supervision_mask=is_labeled)
+                    elif is_labeled is not None and not is_labeled.all():
+                        # 非物理约束模式下的部分监督：手动计算 masked MSE
+                        mask = is_labeled.to(predictions.device).float()
+                        if mask.dim() == 1:
+                            mask = mask.unsqueeze(1)
+                        n_labeled = mask.sum().clamp(min=1.0)
+                        loss = ((predictions - targets) ** 2 * mask).sum() / n_labeled
                     else:
                         loss = criterion(predictions, targets)
 
