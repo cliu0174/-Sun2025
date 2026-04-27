@@ -1351,12 +1351,15 @@ def train_cross_battery_model(
                 predictions = model(features)
 
                 # 计算损失（部分监督：未标注样本 target=NaN，跳过其 MSE 贡献）
+                # 必须先把 NaN 替换为有限值再做减法，否则 (pred - NaN)**2 在前向虽
+                # 被 torch.where 屏蔽，反向仍会产生 NaN 梯度污染整个模型参数
                 finite_mask = torch.isfinite(targets)
                 if finite_mask.all():
                     loss = criterion(predictions, targets)
                 else:
                     n_labeled = finite_mask.sum().clamp(min=1.0)
-                    diff_sq = (predictions - targets) ** 2
+                    safe_targets = torch.where(finite_mask, targets, torch.zeros_like(targets))
+                    diff_sq = (predictions - safe_targets) ** 2
                     loss = torch.where(finite_mask, diff_sq, torch.zeros_like(diff_sq)).sum() / n_labeled
 
                 loss.backward()
