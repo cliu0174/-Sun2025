@@ -778,6 +778,27 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             window_size,
             seq2seq
         )
+
+        # 部分监督 mask：标准模式下也需要应用（之前被静默忽略，导致
+        # use_physics=False 时 supervision_ratio 完全失效）。
+        # 实现方式：把无标签样本的 target 设为 NaN，下游 loss 用 isfinite mask。
+        # 仅训练集需要 mask；val / test 始终全监督。
+        train_sup_mask_full = data_dict.get('train_supervision_mask', None)
+        if train_sup_mask_full is not None and not seq2seq:
+            # apply_windowing(many-to-one) 取 i+window_size-1 处的目标
+            # mask 同样对齐到 i+window_size-1 处
+            if window_size > 1:
+                train_sup_mask_windowed = train_sup_mask_full[window_size - 1:]
+            else:
+                train_sup_mask_windowed = train_sup_mask_full
+            assert len(train_sup_mask_windowed) == len(train_targ), \
+                f"supervision mask length mismatch: {len(train_sup_mask_windowed)} vs {len(train_targ)}"
+            train_targ = train_targ.astype(float, copy=True)
+            train_targ[~train_sup_mask_windowed] = np.nan
+            n_lab = int(train_sup_mask_windowed.sum())
+            n_tot = len(train_sup_mask_windowed)
+            print(f"  标准模式部分监督：{n_lab}/{n_tot} 样本有标签，"
+                  f"未标注样本 target 设为 NaN，loss 自动跳过")
         val_feat, val_targ, _ = apply_windowing(
             data_dict['val_features'],
             data_dict['val_targets'],
@@ -1315,7 +1336,7 @@ def train_cross_battery_model(
 
                     train_loss += loss.item() * features.size(0)
             else:
-                # 传统 tuple batch（window_size=1的情况）
+                # 传统 tuple batch（标准模式 / window_size=1）
                 features, targets = batch
                 features = features.to(device)
                 targets = targets.to(device)
@@ -1329,8 +1350,14 @@ def train_cross_battery_model(
                 optimizer.zero_grad()
                 predictions = model(features)
 
-                # 计算损失
-                loss = criterion(predictions, targets)
+                # 计算损失（部分监督：未标注样本 target=NaN，跳过其 MSE 贡献）
+                finite_mask = torch.isfinite(targets)
+                if finite_mask.all():
+                    loss = criterion(predictions, targets)
+                else:
+                    n_labeled = finite_mask.sum().clamp(min=1.0)
+                    diff_sq = (predictions - targets) ** 2
+                    loss = torch.where(finite_mask, diff_sq, torch.zeros_like(diff_sq)).sum() / n_labeled
 
                 loss.backward()
                 optimizer.step()
