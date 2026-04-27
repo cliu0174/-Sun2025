@@ -9,7 +9,7 @@
     "kernel_size": 7,
     "pool_size": 2,
     "fc_hidden_sizes": [64],
-    "dropout_rate": 0.4,
+    "dropout_rate": 0.1,
     "activation": "ReLU",
     "output_activation": "Sigmoid"
   },

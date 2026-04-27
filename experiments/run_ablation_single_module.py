@@ -43,6 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import time
 import argparse
+import contextlib
 import traceback
 from collections import defaultdict
 from typing import Optional
@@ -51,12 +52,13 @@ import numpy as np
 import torch
 
 from train_cross_battery import train_cross_battery_model
+from evaluation.physics_viz import compute_physics_violations
 
 # ================================================================
 # 全局配置
 # ================================================================
-SEEDS              = [42, 123]                 # 快速预览用 2 个种子，正式实验改回 [42, 123, 456, 789, 1024]
-SUPERVISION_RATIOS = [1.0, 0.5, 0.3]          # 快速预览用 3 个比例，正式实验改回 [1.0, 0.7, 0.5, 0.3]
+SEEDS              = [42, 123, 34, 999, 1024]
+SUPERVISION_RATIOS = [1.0, 0.5, 0.3]
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 
@@ -179,6 +181,16 @@ def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
         )
         elapsed = time.time() - t0
 
+        # 物理违规后验统计
+        phys_metrics = {}
+        preds_list = results.get('predictions')
+        tgts_list  = results.get('targets')
+        bids_list  = results.get('battery_ids')
+        if preds_list and bids_list:
+            phys_metrics = compute_physics_violations(
+                preds_list, tgts_list, bids_list, tolerance=0.01
+            )
+
         record = {
             'run_id':            run_id,
             'exp_id':            exp_id,
@@ -195,15 +207,21 @@ def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
             'best_epoch':        int(results['best_epoch']),
             'elapsed_sec':       elapsed,
             'note':              exp['note'],
+            **phys_metrics,      # mono_violation_rate / mono_violation_mean / boundary_violation_rate / delta_soh_mean / delta_soh_std
         }
 
         with open(result_fp, 'w', encoding='utf-8') as f:
             json.dump(record, f, indent=2, ensure_ascii=False)
 
+        phys_line = ""
+        if phys_metrics:
+            phys_line = (f"  违规率={phys_metrics['mono_violation_rate']:.2f}%  "
+                         f"ΔS均值={phys_metrics['delta_soh_mean']*100:.4f}%")
         print(f"  [DONE] MAE={record['test_mae']*100:.4f}%  "
               f"RMSE={record['test_rmse']*100:.4f}%  "
               f"R2={record['test_r2']:.4f}  "
-              f"elapsed={elapsed/60:.1f}min")
+              f"elapsed={elapsed/60:.1f}min"
+              + phys_line)
         return record
 
     except Exception as e:
@@ -237,6 +255,24 @@ def aggregate(all_results: list) -> None:
             maes  = [r['test_mae']  for r in runs]
             rmses = [r['test_rmse'] for r in runs]
             r2s   = [r['test_r2']   for r in runs]
+
+            # 物理违规指标（旧 result.json 可能没有，跳过）
+            mono_viol_rates = [r['mono_violation_rate'] for r in runs
+                               if 'mono_violation_rate' in r]
+            mono_viol_means = [r['mono_violation_mean'] for r in runs
+                               if 'mono_violation_mean' in r]
+            delta_soh_means = [r['delta_soh_mean'] for r in runs
+                               if 'delta_soh_mean' in r]
+
+            phys_stats = {}
+            if mono_viol_rates:
+                phys_stats = {
+                    'mono_viol_rate_mean': float(np.mean(mono_viol_rates)),
+                    'mono_viol_rate_std':  float(np.std(mono_viol_rates, ddof=1) if len(mono_viol_rates) > 1 else 0.0),
+                    'mono_viol_mean_mean': float(np.mean(mono_viol_means)),
+                    'delta_soh_mean_mean': float(np.mean(delta_soh_means)),
+                }
+
             stats[exp_id][ratio] = {
                 'n':         len(runs),
                 'mae_mean':  float(np.mean(maes)),
@@ -244,6 +280,7 @@ def aggregate(all_results: list) -> None:
                 'rmse_mean': float(np.mean(rmses)),
                 'rmse_std':  float(np.std(rmses, ddof=1) if len(rmses) > 1 else 0.0),
                 'r2_mean':   float(np.mean(r2s)),
+                **phys_stats,
             }
 
     # ── 打印对比表 ───────────────────────────────────────────────
@@ -303,6 +340,71 @@ def aggregate(all_results: list) -> None:
 
         print(sep2)
 
+    # ── 物理约束违规对比表 ───────────────────────────────────────
+    # 只有至少一组实验有物理数据时才打印
+    has_phys = any(
+        'mono_viol_rate_mean' in stats.get(exp['id'], {}).get(ratio, {})
+        for exp in EXPERIMENTS
+        for ratio in ratios_sorted
+    )
+    if has_phys:
+        print(f"\n\n{sep}")
+        print("  物理约束违规分析（单调性违规率 / 预测变化率 ΔS均值）")
+        print(f"  容忍量 tolerance=0.01  |  值越低 = 约束越有效")
+        print(sep)
+
+        # 子表头：违规率行
+        hdr2 = f"  {'方法':<26}"
+        for r in ratios_sorted:
+            hdr2 += f"  ratio={r:.1f}".center(col_w)
+        print(hdr2)
+        print(sep2)
+
+        baseline_phys = stats.get(baseline_id, {})
+
+        for exp in EXPERIMENTS:
+            exp_id   = exp['id']
+            exp_stat = stats.get(exp_id, {})
+
+            # ── 单调性违规率行 ────────────────────────────────
+            row_viol = f"  {exp['label']:<26}"
+            for ratio in ratios_sorted:
+                s = exp_stat.get(ratio, {})
+                if 'mono_viol_rate_mean' in s:
+                    cell = f"{s['mono_viol_rate_mean']:.2f}%"
+                else:
+                    cell = '—'
+                row_viol += cell.center(col_w)
+            print(row_viol)
+
+            # ── 相对 Baseline 的违规率变化（非 Baseline 才打印）
+            if exp_id != baseline_id:
+                row_rel = f"  {'':>4}{'vs Baseline':<22}"
+                for ratio in ratios_sorted:
+                    s  = exp_stat.get(ratio, {})
+                    bs = baseline_phys.get(ratio, {})
+                    if 'mono_viol_rate_mean' in s and 'mono_viol_rate_mean' in bs:
+                        delta = s['mono_viol_rate_mean'] - bs['mono_viol_rate_mean']
+                        sign  = '+' if delta > 0 else ''
+                        cell  = f"{sign}{delta:.2f}%"
+                    else:
+                        cell = '—'
+                    row_rel += cell.center(col_w)
+                print(row_rel)
+
+            # ── ΔS 均值行 ─────────────────────────────────────
+            row_ds = f"  {'':>4}{'ΔS均值(per step)':<22}"
+            for ratio in ratios_sorted:
+                s = exp_stat.get(ratio, {})
+                if 'delta_soh_mean_mean' in s:
+                    cell = f"{s['delta_soh_mean_mean']*100:.4f}%"
+                else:
+                    cell = '—'
+                row_ds += cell.center(col_w)
+            print(row_ds)
+
+            print(sep2)
+
     # ── 模块说明 ─────────────────────────────────────────────────
     print("\n  [模块说明]")
     for exp in EXPERIMENTS:
@@ -339,10 +441,19 @@ def aggregate(all_results: list) -> None:
                 if exp_id != baseline_id and bs and bs['mae_mean'] > 0:
                     delta = float(bs['mae_mean'] - s['mae_mean'])
                     rel   = float(delta / bs['mae_mean'] * 100)
+
+                # 物理违规相对 Baseline 的变化
+                phys_delta = None
+                if (exp_id != baseline_id
+                        and 'mono_viol_rate_mean' in s
+                        and bs and 'mono_viol_rate_mean' in bs):
+                    phys_delta = float(s['mono_viol_rate_mean'] - bs['mono_viol_rate_mean'])
+
                 entry['by_ratio'][str(ratio)] = {
                     **s,
-                    'delta_mae':        delta,
-                    'rel_improvement':  rel,
+                    'delta_mae':               delta,
+                    'rel_improvement':         rel,
+                    'mono_viol_rate_delta':    phys_delta,
                 }
         save_obj['experiments'].append(entry)
 
