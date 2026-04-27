@@ -196,11 +196,14 @@ def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
         elapsed = time.time() - t0
 
         # 物理违规后验统计
+        # 注意：use_physics=True 时 battery_ids 是 list；use_physics=False 时是 ndarray
+        # 因此必须显式判 None / 长度，不能直接用 truthy 判断（ndarray 会抛 ambiguous）
         phys_metrics = {}
         preds_list = results.get('predictions')
         tgts_list  = results.get('targets')
         bids_list  = results.get('battery_ids')
-        if preds_list and bids_list:
+        if preds_list is not None and bids_list is not None \
+                and len(preds_list) > 0 and len(bids_list) > 0:
             phys_metrics = compute_physics_violations(
                 preds_list, tgts_list, bids_list, tolerance=0.01
             )
