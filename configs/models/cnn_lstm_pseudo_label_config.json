@@ -57,10 +57,11 @@
   "physics_constraints": {
     "enabled": true,
     "base_loss_weight": 1.0,
-    "monotonic_weight": 0.1,
-    "boundary_weight": 0.05,
+    "monotonic_weight": 0.3,
+    "boundary_weight": 0.0,
     "smoothness_weight": 0.0,
-    "monotonic_tolerance": 0.01,
+    "monotonic_tolerance": 0.005,
+    "min_cycle": 300,
     "temporal_decay": {
       "enabled": true,
       "max_step": 40,

@@ -53,9 +53,10 @@
     "enabled": true,
     "base_loss_weight": 1.0,
     "monotonic_weight": 1.0,
-    "boundary_weight": 1.0,
+    "boundary_weight": 0.0,
     "smoothness_weight": 1.0,
-    "monotonic_tolerance": 0.01,
+    "monotonic_tolerance": 0.005,
+    "min_cycle": 300,
     "temporal_decay": {
       "enabled": true,
       "max_step": 40,
@@ -67,9 +68,9 @@
     "adaptive_weight": {
       "enabled": true,
       "l2_reg": 0.01,
-      "init_log_vars": [0.0, 2.3, 3.0, 5.0],
-      "_init_log_vars_note": "exp(-log_var) ≈ [1.0, 0.10, 0.05, 0.007]，对齐 baseline 初始权重，避免开局物理项 10-20× 过大导致 early stopping 过早触发",
-      "description": "M5 自适应权重：[base, monotonic, boundary, smoothness] 权重全部可学习"
+      "init_log_vars": [0.0, 1.2, 5.0, 5.0],
+      "_init_log_vars_note": "exp(-log_var) ≈ [1.0, 0.30, 0.007, 0.007]，对齐新 monotonic_weight=0.3，boundary 已移除（Sigmoid 保证），smoothness 保持极小初始值",
+      "description": "M5 自适应权重：[base, monotonic, boundary(冗余), smoothness] 权重全部可学习"
     },
     "description": "M5 自适应损失权重：用可学习 log_σᵢ 替代固定权重（含 M4 速率连续性约束）"
   },

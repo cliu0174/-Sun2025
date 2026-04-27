@@ -72,6 +72,16 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # ================================================================
 EXPERIMENTS = [
     {
+        'id':          'Eneg1_no_physics',
+        'label':       '无物理约束',
+        'modules':     'None',
+        'model_type':  'cnn_lstm',
+        'override':    {
+            'physics_constraints': {'enabled': False}
+        },
+        'note':        '纯 CNN-LSTM，无任何物理约束（对照组）',
+    },
+    {
         'id':          'E0_baseline',
         'label':       'Baseline',
         'modules':     '无',
@@ -79,11 +89,13 @@ EXPERIMENTS = [
         'override':    {
             'physics_constraints': {
                 'enabled': True,
-                'monotonic_weight': 0.1,
-                'boundary_weight': 0.05,
+                'monotonic_weight': 0.3,
+                'boundary_weight': 0.0,
+                'monotonic_tolerance': 0.005,
+                'min_cycle': 300,
             }
         },
-        'note':        'CNN-LSTM + 软单调 + 边界约束（baseline-v2.2）',
+        'note':        'CNN-LSTM + 软单调（min_cycle=300, w=0.3, tol=0.005）',
     },
     {
         'id':          'E1_m1_attention',
@@ -109,12 +121,14 @@ EXPERIMENTS = [
         'override':    {
             'physics_constraints': {
                 'enabled': True,
-                'monotonic_weight': 0.1,
-                'boundary_weight': 0.05,
+                'monotonic_weight': 0.3,
+                'boundary_weight': 0.0,
+                'monotonic_tolerance': 0.005,
+                'min_cycle': 300,
                 'smoothness_weight': M4_SMOOTHNESS_WEIGHT,
             }
         },
-        'note':        f'速率连续性约束 smoothness_weight={M4_SMOOTHNESS_WEIGHT}（固定值）',
+        'note':        f'速率连续性约束 smoothness_weight={M4_SMOOTHNESS_WEIGHT}，min_cycle=300',
     },
     {
         'id':          'E4_m5_adaptive',

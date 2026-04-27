@@ -1126,9 +1126,10 @@ def train_cross_battery_model(
             _base_criterion = PhysicsConstrainedLoss(
                 base_loss_weight=physics_config.get('base_loss_weight', 1.0),
                 monotonic_weight=physics_config.get('monotonic_weight', 0.1),
-                boundary_weight=physics_config.get('boundary_weight', 0.05),
+                boundary_weight=physics_config.get('boundary_weight', 0.0),
                 smoothness_weight=physics_config.get('smoothness_weight', 0.0),
                 monotonic_tolerance=physics_config.get('monotonic_tolerance', 0.01),
+                min_cycle=physics_config.get('min_cycle', 0),
                 temporal_decay_enabled=physics_config.get('temporal_decay', {}).get('enabled', True),
                 temporal_max_step=physics_config.get('temporal_decay', {}).get('max_step', 20),
                 temporal_decay_type=physics_config.get('temporal_decay', {}).get('decay_type', 'exp'),

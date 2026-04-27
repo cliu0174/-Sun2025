@@ -79,6 +79,9 @@ class PhysicsConstrainedLoss(nn.Module):
         smoothness_weight=0.0,
         # 软约束参数
         monotonic_tolerance=0.01,
+        # 容量回升保护：cycle < min_cycle 的配对不施加单调/平滑约束
+        # 与 SiamesePhysicsLoss 的 split_threshold 对齐（默认 0 = 全程约束）
+        min_cycle=0,
         # 时间衰减参数
         temporal_decay_enabled=True,
         temporal_max_step=20,
@@ -112,6 +115,7 @@ class PhysicsConstrainedLoss(nn.Module):
 
         # 软约束参数
         self.monotonic_tolerance = monotonic_tolerance
+        self.min_cycle = min_cycle
 
         # 时间衰减参数
         self.temporal_decay_enabled = temporal_decay_enabled
@@ -222,7 +226,14 @@ class PhysicsConstrainedLoss(nn.Module):
         same_battery = bid_tensor.unsqueeze(1) == bid_tensor.unsqueeze(0)          # (N, N)
 
         # 有效配对：同电池 & i 比 j 晚 & 间距在 max_step 以内
-        pair_mask = same_battery & (cycle_diff > 0) & (cycle_diff <= self.temporal_max_step)
+        # & 早期样本 j 的 cycle >= min_cycle（跳过容量回升阶段）
+        # cycle_diff[i,j] = cycle_i - cycle_j > 0 时，j 是早期样本，其 cycle = cycle_indices[j]
+        # cycle_indices.unsqueeze(0) 对应矩阵的 j 维度
+        if self.min_cycle > 0:
+            past_recovery = cycle_indices.unsqueeze(0) >= self.min_cycle   # (1, N) → broadcast (N, N)
+            pair_mask = same_battery & (cycle_diff > 0) & (cycle_diff <= self.temporal_max_step) & past_recovery
+        else:
+            pair_mask = same_battery & (cycle_diff > 0) & (cycle_diff <= self.temporal_max_step)
 
         # 只提取有效配对的值，避免对无效位置做 exp（cycle_diff 可能很大导致溢出）
         valid_pred_diffs  = pred_diff[pair_mask]
@@ -306,8 +317,9 @@ class PhysicsConstrainedLoss(nn.Module):
         sort_key   = bid_tensor.long() * CYCLE_BASE + cycle_indices.long()
         sort_order = torch.argsort(sort_key)
 
-        sorted_preds = predictions[sort_order]
-        sorted_bid   = bid_tensor[sort_order]
+        sorted_preds  = predictions[sort_order]
+        sorted_bid    = bid_tensor[sort_order]
+        sorted_cycles = cycle_indices[sort_order]
 
         # 一阶差分（相邻样本）
         first_diff = sorted_preds[1:] - sorted_preds[:-1]
@@ -318,6 +330,11 @@ class PhysicsConstrainedLoss(nn.Module):
         # second_diff[k] 来自 sorted_preds[k], [k+1], [k+2]
         second_valid = (sorted_bid[2:] == sorted_bid[1:-1]) & \
                        (sorted_bid[1:-1] == sorted_bid[:-2])
+
+        # 跳过容量回升阶段：三元组中最早的样本 [k] 须 >= min_cycle
+        # 因为已按 cycle 升序排列，[k] 最小，只需检查 [k]
+        if self.min_cycle > 0:
+            second_valid = second_valid & (sorted_cycles[:-2] >= self.min_cycle)
 
         num_valid = second_valid.sum()
         if num_valid == 0:
