@@ -16,6 +16,7 @@ def compute_physics_violations(
     targets,
     battery_ids,
     tolerance: float = 0.01,
+    min_cycle: int = 0,
 ) -> dict:
     """
     计算预测结果在物理约束上的后验违规统计。
@@ -25,6 +26,8 @@ def compute_physics_violations(
         targets     : (N,) 或 (N,1) array-like，真实 SOH
         battery_ids : list/array，长度 N，每个样本对应的电池 ID
         tolerance   : 单调性软约束容忍量（与训练时保持一致，默认 0.01）
+        min_cycle   : 与训练 PhysicsConstrainedLoss.min_cycle 对齐，
+                      跳过容量回升期的相邻配对（默认 0 = 全程统计）
 
     Returns:
         dict，包含以下 key：
@@ -51,6 +54,13 @@ def compute_physics_violations(
     for bid, indices in sorted(groups.items()):
         p     = preds[indices]
         diffs = np.diff(p)           # diff[t] = pred[t+1] - pred[t]
+
+        # min_cycle: 跳过容量回升期（早期样本 cycle < min_cycle 的相邻配对）
+        # 测试 loader shuffle=False 时，indices 即 cycle 顺序的位置索引；
+        # 这里用相对位置而非绝对 cycle，与训练时按 cycle_idx 过滤等效
+        # （前 min_cycle 个相邻 diff 跳过）
+        if min_cycle > 0 and len(diffs) > min_cycle:
+            diffs = diffs[min_cycle:]
 
         delta_sohs.extend(np.abs(diffs).tolist())
 

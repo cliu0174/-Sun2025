@@ -242,7 +242,12 @@ def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
         print(f"  [ERROR] {run_id}: {e}")
         traceback.print_exc()
         with open(os.path.join(run_dir, 'error.json'), 'w', encoding='utf-8') as f:
-            json.dump({'run_id': run_id, 'error': str(e)}, f, indent=2)
+            json.dump({
+                'run_id':    run_id,
+                'error':     str(e),
+                'error_type': type(e).__name__,
+                'traceback': traceback.format_exc(),
+            }, f, indent=2, ensure_ascii=False)
         return None
 
 
