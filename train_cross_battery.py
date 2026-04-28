@@ -1250,6 +1250,22 @@ def train_cross_battery_model(
     best_epoch = 0
     best_model_state = None
 
+    # ── 复合 model selection（方案1：解决 best_epoch < warmup 时伪标签无效问题）
+    # mode='val_mae'（默认，向后兼容）
+    # mode='composite' → score = val_mae + γ * val_mono_viol，且 epoch >= min_epoch 才更新 best
+    sel_cfg       = config.get('model_selection', {})
+    sel_mode      = sel_cfg.get('mode', 'val_mae')
+    sel_gamma     = sel_cfg.get('gamma', 0.1)
+    sel_min_epoch = sel_cfg.get('min_epoch', None)
+    if sel_min_epoch is None and pseudo_manager is not None:
+        sel_min_epoch = pseudo_manager.warmup_epochs  # 默认对齐伪标签 warmup
+    elif sel_min_epoch is None:
+        sel_min_epoch = 0
+    best_val_score = float('inf')  # composite 模式下使用
+    if sel_mode == 'composite':
+        print(f"  [ModelSelection] 复合评分模式：score = val_mae + {sel_gamma} * val_mono_viol，"
+              f"min_epoch={sel_min_epoch}")
+
     # Early stopping配置
     patience = config['training']['early_stopping'].get('patience', 10)
     patience_counter = 0
@@ -1412,6 +1428,10 @@ def train_cross_battery_model(
         val_loss = 0.0
         val_mae = 0.0
         val_rmse = 0.0
+        # 复合评分用：累积 val 集预测 + battery_ids（仅 standard mode 有效）
+        val_preds_buf: list = []
+        val_tgts_buf:  list = []
+        val_bids_buf:  list = []
 
         # 用于累积物理损失详情
         if use_physics:
@@ -1534,6 +1554,15 @@ def train_cross_battery_model(
                         val_loss += loss.item() * features.size(0)
                         val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
                         val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * features.size(0)
+
+                        # 复合评分：累积预测 + battery_ids（无 metric 开销，仅当 sel_mode='composite' 时使用）
+                        if sel_mode == 'composite' and battery_ids is not None:
+                            val_preds_buf.append(predictions.detach().cpu().numpy().flatten())
+                            val_tgts_buf.append(targets.detach().cpu().numpy().flatten())
+                            if isinstance(battery_ids, (list, tuple)):
+                                val_bids_buf.extend(battery_ids)
+                            else:
+                                val_bids_buf.extend(list(battery_ids))
                 else:
                     # 传统 tuple batch（window_size=1的情况）
                     features, targets = batch
@@ -1586,11 +1615,38 @@ def train_cross_battery_model(
         # ===== 保存最佳模型和Early Stopping =====
         patience_counter += 1  # 每个epoch递增
 
-        if val_mae < best_val_mae:  # 基于val_mae判断
-            best_val_mae = val_mae
-            best_epoch = epoch + 1
-            best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-            patience_counter = 0  # 重置early stopping计数器
+        # 复合评分：在 val_mae 上叠加 mono_viol 惩罚，并门控 epoch >= min_epoch
+        # 解决问题：仅看 val_mae 时模型可能在伪标签生效前就锁定 best checkpoint
+        val_mono_viol = 0.0
+        if sel_mode == 'composite' and val_preds_buf:
+            try:
+                from evaluation.physics_viz import compute_physics_violations
+                val_preds_arr = np.concatenate(val_preds_buf)
+                val_tgts_arr  = np.concatenate(val_tgts_buf)
+                _phys_cfg = config.get('physics_constraints', {}) or {}
+                _phys = compute_physics_violations(
+                    val_preds_arr, val_tgts_arr, val_bids_buf,
+                    tolerance=_phys_cfg.get('monotonic_tolerance', 0.005),
+                    min_cycle=_phys_cfg.get('min_cycle', 0),
+                )
+                val_mono_viol = float(_phys.get('mono_violation_rate', 0.0))
+            except Exception as _e:
+                val_mono_viol = 0.0  # 失败降级，不阻塞训练
+
+        if sel_mode == 'composite':
+            val_score = val_mae + sel_gamma * val_mono_viol
+            if (epoch + 1) >= sel_min_epoch and val_score < best_val_score:
+                best_val_score = val_score
+                best_val_mae = val_mae   # 仍记录 val_mae 供日志
+                best_epoch = epoch + 1
+                best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+                patience_counter = 0
+        else:
+            if val_mae < best_val_mae:  # 基于val_mae判断（默认）
+                best_val_mae = val_mae
+                best_epoch = epoch + 1
+                best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+                patience_counter = 0  # 重置early stopping计数器
 
         # 每10个epoch打印一次
         if (epoch + 1) % 10 == 0 or epoch == 0:

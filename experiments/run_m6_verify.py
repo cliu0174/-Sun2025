@@ -42,44 +42,61 @@ ABLATION_DIR = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ================================================================
-# 实验配置（5 组，warmup=10 使伪标签在 best_epoch 前生效）
+# 实验配置（Round 3：复合 model selection）
 # ================================================================
-# 背景：第一轮验证发现 seed=42 的 best_epoch=15 < warmup_epochs=30，
-# 导致伪标签从未影响最佳 checkpoint。此处统一将 warmup 降至 10，
-# 并重新设一个 E5_base_w10 对照，保证五组在相同 warmup 下公平比较。
-_W = {'warmup_epochs': 10}  # 公共 warmup override
+# 背景：Round 1/2 发现单调降 warmup 不行——seed=42 收敛过早（epoch 8）。
+# 根因是 best_epoch 仅看 val_mae，伪标签的物理一致性收益被忽略。
+# Round 3 引入 composite selection：score = val_mae + γ * val_mono_viol，
+# 且 epoch >= min_epoch 才允许更新 best，让 best_epoch 落在伪标签生效后。
+_W   = {'warmup_epochs': 10}                                       # 伪标签 warmup
+_SEL = {'mode': 'composite', 'gamma': 0.1, 'min_epoch': 10}        # 复合评分
 
 EXPERIMENTS = [
     {
-        'id':    'E5_base_w10',
-        'label': 'E5_base (warmup=10)',
-        'note':  '对照：warmup=10，无任何修复开关，确认伪标签已在 best_epoch 前生效',
-        'override': {'pseudo_labeling': {**_W}},
+        'id':    'E5_base_sel',
+        'label': 'E5_base (composite_sel)',
+        'note':  'Round3 对照：仅开 composite selection，无修复开关，验证 best_epoch 是否落在伪标签后',
+        'override': {
+            'pseudo_labeling':  {**_W},
+            'model_selection':  {**_SEL},
+        },
     },
     {
-        'id':    'E5_ema_w10',
-        'label': 'E5 + EMA (warmup=10)',
-        'note':  '仅开 EMA 平滑，观察第2次更新偏差是否被压制',
-        'override': {'pseudo_labeling': {**_W, 'use_ema': True, 'ema_alpha': 0.7}},
+        'id':    'E5_ema_sel',
+        'label': 'E5 + EMA (composite_sel)',
+        'note':  'composite + EMA，观察组合是否压制偏差自我强化',
+        'override': {
+            'pseudo_labeling':  {**_W, 'use_ema': True, 'ema_alpha': 0.7},
+            'model_selection':  {**_SEL},
+        },
     },
     {
-        'id':    'E5_filter_w10',
-        'label': 'E5 + 单调过滤 (warmup=10)',
-        'note':  '仅开单调性过滤，观察过滤率 > 0 且 mono_viol 下降',
-        'override': {'pseudo_labeling': {**_W, 'use_mono_filter': True}},
+        'id':    'E5_filter_sel',
+        'label': 'E5 + 单调过滤 (composite_sel)',
+        'note':  'composite + 单调过滤，观察过滤是否进一步降 mono_viol',
+        'override': {
+            'pseudo_labeling':  {**_W, 'use_mono_filter': True},
+            'model_selection':  {**_SEL},
+        },
     },
     {
-        'id':    'E5_lambda_w10',
-        'label': 'E5 + λ自适应 (warmup=10)',
-        'note':  '仅开 λ 自适应（r=0.3→0.02），观察降低伪标签权重是否单独有效',
-        'override': {'pseudo_labeling': {**_W, 'lambda_adaptive': True}},
+        'id':    'E5_lambda_sel',
+        'label': 'E5 + λ自适应 (composite_sel)',
+        'note':  'composite + λ 自适应，r=0.3 用 λ=0.02 降低劣质标签权重',
+        'override': {
+            'pseudo_labeling':  {**_W, 'lambda_adaptive': True},
+            'model_selection':  {**_SEL},
+        },
     },
     {
-        'id':    'E5_all_w10',
-        'label': 'E5 + 三合一 (warmup=10)',
-        'note':  'EMA + 过滤 + λ自适应组合，观察 MAE 是否回到 E0 ±1%',
-        'override': {'pseudo_labeling': {**_W, 'use_ema': True, 'ema_alpha': 0.7,
-                                         'use_mono_filter': True, 'lambda_adaptive': True}},
+        'id':    'E5_all_sel',
+        'label': 'E5 + 三合一 (composite_sel)',
+        'note':  'composite + EMA + 过滤 + λ自适应，组合上限',
+        'override': {
+            'pseudo_labeling':  {**_W, 'use_ema': True, 'ema_alpha': 0.7,
+                                 'use_mono_filter': True, 'lambda_adaptive': True},
+            'model_selection':  {**_SEL},
+        },
     },
 ]
 
@@ -187,9 +204,9 @@ def print_comparison(e0: Optional[dict],
     sep2 = '─' * 76
 
     all_r    = {r['exp_id']: r for r in new_results if r}
-    e5b_w10  = all_r.get('E5_base_w10')
-    e0_mae   = e0['test_mae']   if e0      else None
-    e5b_mae  = e5b_w10['test_mae'] if e5b_w10 else None
+    e5b      = all_r.get('E5_base_sel')
+    e0_mae   = e0['test_mae']   if e0  else None
+    e5b_mae  = e5b['test_mae']  if e5b else None
 
     def fmt_delta(val, ref):
         if val is None or ref is None:
@@ -206,13 +223,13 @@ def print_comparison(e0: Optional[dict],
         return str(r.get('best_epoch', '—')) if r else '—'
 
     print(f"\n\n{sep}")
-    print(f"  M6 三方向修复验证对比表  (ratio={RATIO}, seed={SEED}, warmup=10)")
+    print(f"  M6 验证 Round3：复合 model selection  (ratio={RATIO}, seed={SEED})")
     print(sep)
-    print(f"  {'方法':<36}  {'MAE%':>8}  {'Δ vs E0':>9}  {'Δ vs base_w10':>13}  {'违规率':>6}  {'bestEp':>6}")
+    print(f"  {'方法':<36}  {'MAE%':>8}  {'Δ vs E0':>9}  {'Δ vs base_sel':>13}  {'违规率':>6}  {'bestEp':>6}")
     print(sep2)
 
     rows = [('E0 Baseline (参照)', e0, True)] + \
-           [(exp['label'], all_r.get(exp['id']), exp['id'] == 'E5_base_w10')
+           [(exp['label'], all_r.get(exp['id']), exp['id'] == 'E5_base_sel')
             for exp in EXPERIMENTS]
 
     for label, r, is_base in rows:
@@ -227,37 +244,38 @@ def print_comparison(e0: Optional[dict],
     print(sep2)
 
     # 决策建议
-    e5_all = all_r.get('E5_all_w10')
+    e5_all = all_r.get('E5_all_sel')
     print("\n  [决策建议]")
-    if e5b_w10:
-        print(f"  E5_base_w10 best_epoch={e5b_w10.get('best_epoch','?')}  "
-              f"← {'✅ 伪标签已生效' if e5b_w10.get('best_epoch',0) > 10 else '⚠️ 仍在 warmup 前收敛，需进一步降 warmup'}")
+    if e5b:
+        be = e5b.get('best_epoch', 0)
+        if be >= 10:
+            print(f"  ✅ E5_base_sel best_epoch={be} ≥ 10：伪标签已生效，本轮验证有效")
+        else:
+            print(f"  ⚠️ E5_base_sel best_epoch={be} < 10：min_epoch 门控未生效或被覆盖，需检查")
     if e5_all and e0_mae:
         delta_pct = (e0_mae - e5_all['test_mae']) / e0_mae * 100
         viol_ok   = e5_all.get('mono_violation_rate', 99) < 0.10
         mae_ok    = abs(delta_pct) < 1.0
         if mae_ok and viol_ok:
-            print(f"  ✅ E5_all_w10 有效（MAE Δ={delta_pct:+.2f}%，违规率<10%）"
+            print(f"  ✅ E5_all_sel 有效（MAE Δ={delta_pct:+.2f}%，违规率<10%）"
                   f" → 方案 C-enhanced：Full Stack = M2+M4+M6（修复版）")
         elif not mae_ok:
-            print(f"  ⚠️  E5_all_w10 MAE Δ={delta_pct:+.2f}%（超出 ±1% 目标）")
-            e5_ema = all_r.get('E5_ema_w10')
-            if e5_ema and e5b_mae:
-                print(f"       E5_ema vs E5_base_w10: {fmt_delta(e5_ema['test_mae'], e5b_mae)}")
-            print(f"  → M6 在 r=0.3 不可靠 → 方案 C-clean（Full Stack = M2+M4，M6 仅 r≥0.5）")
+            print(f"  ⚠️  E5_all_sel MAE Δ={delta_pct:+.2f}%（超出 ±1% 目标）")
+            print(f"  → 方案1 失败，建议进入方案 3（EMA Teacher）")
         else:
-            print(f"  ⚠️  E5_all_w10 违规率仍高（{e5_all.get('mono_violation_rate',0)*100:.2f}%）")
+            print(f"  ⚠️  E5_all_sel 违规率仍高（{e5_all.get('mono_violation_rate',0)*100:.2f}%）")
     else:
-        print("  （E5_all_w10 结果缺失，无法判断）")
+        print("  （E5_all_sel 结果缺失，无法判断）")
     print(sep)
 
     # 保存汇总
     summary = {
-        'config':       {'ratio': RATIO, 'seed': SEED, 'warmup': 10},
+        'config':       {'ratio': RATIO, 'seed': SEED, 'warmup': 10,
+                         'selection': {'mode': 'composite', 'gamma': 0.1, 'min_epoch': 10}},
         'E0_baseline':  e0,
         **{r['exp_id']: r for r in new_results if r},
     }
-    out_fp = os.path.join(OUTPUT_DIR, 'summary_w10.json')
+    out_fp = os.path.join(OUTPUT_DIR, 'summary_sel.json')
     with open(out_fp, 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f"\n  汇总已保存: {out_fp}")
@@ -268,9 +286,9 @@ def print_comparison(e0: Optional[dict],
 # ================================================================
 if __name__ == '__main__':
     print('╔' + '═' * 62 + '╗')
-    print('║  M6 三方向修复验证 Round 2（warmup=10，5组×1seed×r=0.3）' + ' ' * 4 + '║')
+    print('║  M6 验证 Round 3：composite selection（5组×1seed×r=0.3）' + ' ' * 4 + '║')
     print('╠' + '═' * 62 + '╣')
-    print(f'║  ratio={RATIO}  seed={SEED}  warmup=10  device={DEVICE}' + ' ' * 28 + '║')
+    print(f'║  ratio={RATIO}  seed={SEED}  warmup=10  γ=0.1  min_epoch=10' + ' ' * 18 + '║')
     print(f'║  输出目录: experiments/m6_verify/' + ' ' * 28 + '║')
     print('╚' + '═' * 62 + '╝')
 
