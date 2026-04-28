@@ -1223,7 +1223,10 @@ def train_cross_battery_model(
         'train_loss': [],
         'val_loss': [],
         'val_mae': [],
-        'val_rmse': []
+        'val_rmse': [],
+        # M5 诊断：每 epoch 记录 log_vars 和有效权重，训练结束后存 JSON + 画图
+        'adaptive_log_vars':    [],   # shape: (n_epochs, 4)
+        'adaptive_eff_weights': [],   # shape: (n_epochs, 4)，= exp(-log_vars)
     }
 
     # 使用val_mae判断最佳模型
@@ -1550,6 +1553,14 @@ def train_cross_battery_model(
         history['val_loss'].append(val_loss)
         history['val_mae'].append(val_mae)
         history['val_rmse'].append(val_rmse)
+        # M5：记录当前 epoch 的 log_vars / 有效权重
+        if use_physics and isinstance(criterion, AdaptivePhysicsLoss):
+            history['adaptive_log_vars'].append(
+                criterion.log_vars.detach().cpu().tolist()
+            )
+            history['adaptive_eff_weights'].append(
+                [float(w) for w in torch.exp(-criterion.log_vars.detach().cpu())]
+            )
 
         # ===== 保存最佳模型和Early Stopping =====
         patience_counter += 1  # 每个epoch递增
@@ -1620,6 +1631,13 @@ def train_cross_battery_model(
                     print(f"    边界:   {bound_contrib:.6f} ({bound_contrib/total_weighted*100:.1f}%)")
                     print(f"    {second_order_name}: {second_order_contrib:.6f} ({second_order_contrib/total_weighted*100:.1f}%)")
 
+                # M5 自适应权重专项诊断（替换固定权重的贡献比例显示）
+                if isinstance(criterion, AdaptivePhysicsLoss):
+                    print(criterion.format_diagnostic_table(
+                        epoch=epoch + 1,
+                        raw_losses=physics_loss_details,
+                    ))
+
         # Early stopping检查
         if config['training']['early_stopping'].get('enabled', False):
             if patience_counter > patience:
@@ -1634,6 +1652,22 @@ def train_cross_battery_model(
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         print(f"已恢复最佳模型 (Epoch {best_epoch}, Val MAE: {best_val_mae*100:.4f}%)")
+
+    # M5 训练结束权重变化摘要
+    if use_physics and isinstance(criterion, AdaptivePhysicsLoss) and history['adaptive_log_vars']:
+        _init_lv = aw_cfg.get('init_log_vars', [0.0] * 4)
+        _final_lv = history['adaptive_log_vars'][-1]
+        _final_ew = history['adaptive_eff_weights'][-1]
+        print("\n[M5] 权重变化摘要（初始 → 训练结束）：")
+        print(f"  {'损失项':<14}{'初始 log_var':>12}{'末尾 log_var':>12}"
+              f"{'初始权重':>10}{'末尾权重':>10}{'趋势':>10}")
+        print("  " + "─" * 68)
+        for i, name in enumerate(AdaptivePhysicsLoss.TASK_NAMES):
+            _init_ew = float(np.exp(-_init_lv[i]))
+            _delta = _final_ew[i] - _init_ew
+            _trend = "↓ 弱化" if _delta < -0.05 else ("↑ 增强" if _delta > 0.05 else "≈ 稳定")
+            print(f"  {name:<14}{_init_lv[i]:>12.4f}{_final_lv[i]:>12.4f}"
+                  f"{_init_ew:>10.5f}{_final_ew[i]:>10.5f}{_trend:>10}")
 
     # 9. 测试集评估
     print("\n在测试集上评估...")
@@ -1764,10 +1798,76 @@ def train_cross_battery_model(
                                 final_battery_ids if color_by_battery else None,
                                 results_dir, highlight_anomalies)
 
+    # M5 诊断数据保存（JSON 历史 + 权重曲线图）
+    if use_physics and isinstance(criterion, AdaptivePhysicsLoss) and history['adaptive_log_vars']:
+        _init_lv = aw_cfg.get('init_log_vars', [0.0] * 4)
+        _diag = {
+            'task_names':         AdaptivePhysicsLoss.TASK_NAMES,
+            'l2_reg':             aw_cfg.get('l2_reg', 0.0),
+            'init_log_vars':      _init_lv,
+            'init_eff_weights':   [float(np.exp(-v)) for v in _init_lv],
+            'epochs_trained':     len(history['adaptive_log_vars']),
+            'best_epoch':         best_epoch,
+            'log_vars_history':   history['adaptive_log_vars'],
+            'eff_weights_history': history['adaptive_eff_weights'],
+            'final_log_vars':     history['adaptive_log_vars'][-1],
+            'final_eff_weights':  history['adaptive_eff_weights'][-1],
+        }
+        _diag_path = os.path.join(results_dir, 'adaptive_weight_diagnostic.json')
+        with open(_diag_path, 'w', encoding='utf-8') as _f:
+            json.dump(_diag, _f, indent=2)
+        print(f"[M5] 权重历史已保存: {_diag_path}")
+
+        # 权重历史曲线图
+        _plot_adaptive_weights(
+            history['adaptive_eff_weights'],
+            AdaptivePhysicsLoss.TASK_NAMES,
+            _init_lv,
+            results_dir,
+        )
+
     print(f"\n所有结果已保存到: {results_dir}/")
     print("="*70)
 
     return wrapper, results, data_dict
+
+
+def _plot_adaptive_weights(eff_weights_history, task_names, init_log_vars, save_dir):
+    """
+    绘制 M5 自适应权重随 epoch 变化的曲线图。
+    4 条实线 = 训练过程中的有效权重；4 条虚线 = 各项初始权重参考。
+    """
+    arr = np.array(eff_weights_history)          # (n_epochs, 4)
+    epochs = np.arange(1, len(arr) + 1)
+    colors = ['royalblue', 'tomato', 'forestgreen', 'darkorange']
+    init_ews = [float(np.exp(-v)) for v in init_log_vars]
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7), sharex=True)
+    axes = axes.flatten()
+
+    for i, (name, color, init_ew) in enumerate(zip(task_names, colors, init_ews)):
+        ax = axes[i]
+        ax.plot(epochs, arr[:, i], color=color, linewidth=2, label=name)
+        ax.axhline(init_ew, color=color, linewidth=1, linestyle='--',
+                   alpha=0.5, label=f'初始 {init_ew:.4f}')
+        ax.axhline(0.05, color='gray', linewidth=0.8, linestyle=':', alpha=0.6)
+        if name in ('monotonic', 'smoothness'):
+            ax.axhline(0.15, color='orange', linewidth=0.8, linestyle=':', alpha=0.6)
+        ax.set_title(name, fontsize=11)
+        ax.set_ylabel('有效权重 exp(-log_var)')
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    for ax in axes:
+        ax.set_xlabel('Epoch')
+
+    fig.suptitle('[M5] 自适应权重训练曲线（虚线=初始值，灰色点线=熄灭阈值 0.05）', fontsize=12)
+    plt.tight_layout()
+    _path = os.path.join(save_dir, 'adaptive_weight_history.png')
+    plt.savefig(_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"[M5] 权重曲线图已保存: {_path}")
 
 
 def plot_cross_battery_results(history, predictions, targets, battery_ids, save_dir, highlight_anomalies=True):
