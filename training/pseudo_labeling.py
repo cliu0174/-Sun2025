@@ -274,7 +274,7 @@ class PseudoLabelManager:
         stds_flat:    torch.Tensor,   # (N_ul,)  所有无标签样本的 σ
         sorted_idx:   torch.Tensor,   # (n_accept,) 接受样本在 stds_flat 中的索引
         means_flat:   torch.Tensor,   # (N_ul,)  所有无标签样本的预测均值 μ
-        true_soh_all: torch.Tensor | None,  # (N_ul,) 真实 SOH（可能为 None）
+        true_soh_all: Optional[torch.Tensor],  # (N_ul,) 真实 SOH（可能为 None）
         n_ul:         int,
         n_accept:     int,
     ) -> dict:
