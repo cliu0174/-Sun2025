@@ -1,15 +1,16 @@
 """
-Exp-07：Full Stack — M1+M2+M4+M5+M6+M7
+Exp-07：Full Stack — M2+M4+M7（最终版）
 =========================================
-论文最终方法：将所有 P0/P1 模块全部启用的完整组合。
+论文最终方法。模块组合经消融验证确定：
 
-模块组合：
-    M1  循环级注意力       — 增强时序表征
-    M2  MC Dropout        — 不确定性量化基础
-    M4  速率连续性约束     — 精化物理先验
-    M5  自适应损失权重     — 替代人工调参
-    M6  不确定性伪标签     — 利用未标注区间（依赖 M2）
-    M7  置信区间评估       — PICP/MPIW 指标（依赖 M2）
+    M2  MC Dropout        — 不确定性量化（r=1.0 +4.42%）
+    M4  速率连续性约束     — 物理一致性（smoothness_weight=0.05）
+    M7  置信区间评估       — PICP/MPIW/Spearman（依赖 M2）
+
+已淘汰（不含）：
+    M1  循环级注意力       — 低标签率有害，淘汰
+    M5  自适应损失权重     — log_var 学歪，放弃
+    M6  不确定性伪标签     — r≤0.5 不稳定，不进 Full Stack
 
 验证配置：
     supervision_ratios = [1.0, 0.7, 0.5, 0.3]
@@ -19,9 +20,9 @@ Exp-07：Full Stack — M1+M2+M4+M5+M6+M7
 结果目录：experiments/exp07_full_stack/
 
 论文用途：
-    - 消融表的最后一行（"Our Method"）
-    - 与各单模块实验对比，验证组合增益
-    - M7 指标（PICP/MPIW）在此实验中计算
+    - 消融表最后一行（"Our Method / Full Stack"）
+    - 与 E0/E2/E3 对比，验证 M2+M4 组合增益
+    - M7 指标（PICP/MPIW/Spearman）在此实验中计算
 """
 
 import os, sys
@@ -160,7 +161,7 @@ def aggregate(all_results: list):
 
     summary = {}
     print(f"\n{'='*65}")
-    print("Exp-07 汇总（Full Stack M1+M2+M4+M5+M6+M7）")
+    print("Exp-07 汇总（Full Stack M2+M4+M7）")
     print(f"{'='*65}")
     print(f"  {'ratio':>6}  {'MAE mean':>10}  {'MAE std':>9}  "
           f"{'RMSE mean':>11}  {'PICP':>6}  runs")
@@ -199,7 +200,7 @@ def aggregate(all_results: list):
 
 if __name__ == '__main__':
     total = len(SEEDS) * len(SUPERVISION_RATIOS)
-    print(f"Exp-07: Full Stack (M1+M2+M4+M5+M6+M7)  |  device={DEVICE}")
+    print(f"Exp-07: Full Stack (M2+M4+M7)  |  device={DEVICE}")
     print(f"  seeds={SEEDS}  ratios={SUPERVISION_RATIOS}")
     print(f"  总运行次数: {total}\n")
 

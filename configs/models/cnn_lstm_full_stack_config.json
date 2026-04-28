@@ -1,6 +1,6 @@
 {
   "model_type": "CNN_LSTM_MC",
-  "model_name": "CNN-LSTM Full Stack (M1+M2+M4+M5+M6+M7)",
+  "model_name": "CNN-LSTM Full Stack (M2+M4+M7)",
   "architecture": {
     "input_size": -1,
     "hidden_size": 64,
@@ -9,15 +9,13 @@
     "kernel_size": 7,
     "pool_size": 2,
     "fc_hidden_sizes": [64],
-    "dropout_rate": 0.4,
+    "dropout_rate": 0.1,
     "activation": "ReLU",
     "output_activation": "Sigmoid"
   },
   "attention": {
-    "enabled": true,
-    "num_heads": 4,
-    "dropout": 0.1,
-    "description": "M1: 循环级 Multi-Head Self-Attention，聚焦退化敏感历史区间"
+    "enabled": false,
+    "_disabled_reason": "M1 淘汰：低标签率下有害（稀疏标签导致注意力过拟合）"
   },
   "mc_dropout": {
     "enabled": true,
@@ -63,10 +61,11 @@
   "physics_constraints": {
     "enabled": true,
     "base_loss_weight": 1.0,
-    "monotonic_weight": 1.0,
-    "boundary_weight": 1.0,
-    "smoothness_weight": 1.0,
-    "monotonic_tolerance": 0.01,
+    "monotonic_weight": 0.3,
+    "boundary_weight": 0.0,
+    "smoothness_weight": 0.05,
+    "monotonic_tolerance": 0.005,
+    "min_cycle": 300,
     "temporal_decay": {
       "enabled": true,
       "max_step": 40,
@@ -76,25 +75,14 @@
     "siamese_sampling": {"enabled": false},
     "triplet_sampling": {"enabled": false},
     "adaptive_weight": {
-      "enabled": true,
-      "l2_reg": 0.01,
-      "init_log_vars": [0.0, 2.3, 3.0, 5.0],
-      "_init_log_vars_note": "exp(-log_var) ≈ [1.0, 0.10, 0.05, 0.007]，对齐 baseline 初始权重",
-      "description": "M5: 可学习 log_vars 自适应平衡 [base, monotonic, boundary, smoothness]"
+      "enabled": false,
+      "_disabled_reason": "M5 放弃：log_var 学歪，monotonic 权重持续趋零"
     },
-    "description": "M4+M5: 速率连续性约束 + 自适应损失权重全组合"
+    "description": "M4 速率连续性约束（smoothness_weight=0.05）+ 软单调（w=0.3, tol=0.005, min_cycle=300）"
   },
   "pseudo_labeling": {
-    "enabled": true,
-    "warmup_epochs": 30,
-    "update_every_k": 5,
-    "n_mc_samples": 50,
-    "threshold_percentile": 20,
-    "max_pseudo_ratio": 0.3,
-    "lambda_pseudo": 0.1,
-    "epsilon": 1e-6,
-    "inference_batch_size": 512,
-    "description": "M6: Warmup 30 epoch 后每 5 epoch 刷新伪标签，取不确定性最低 20% 无标签样本（保守筛选），lambda=0.1 弱监督附加训练"
+    "enabled": false,
+    "_disabled_reason": "M6 不进 Full Stack：r<=0.5 不稳定，仅 r=1.0 有效（见 docs/m6_verification_final_20260429.md）"
   },
-  "description": "Exp-07 Full Stack: M1 循环级注意力 + M2 MC Dropout + M4 速率连续性 + M5 自适应权重 + M6 伪标签 + M7 置信区间评估。论文最终方法。"
+  "description": "Exp-07 Full Stack（最终版）: M2 MC Dropout + M4 速率连续性 + M7 置信区间评估。不含 M1/M5/M6（已淘汰或适用范围受限）。"
 }
