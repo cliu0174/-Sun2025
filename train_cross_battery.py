@@ -1638,11 +1638,9 @@ def train_cross_battery_model(
             val_score = val_mae + sel_gamma * val_mono_viol
             cur_ep = epoch + 1
             if cur_ep < sel_min_epoch:
-                # min_epoch 前不保存模型，但仍跟踪 score 历史（避免 inf 初值导致首个合法 epoch 必然中标）
-                # 同时不累加 patience，让 early stopping 真正从 min_epoch 开始
+                # min_epoch 前只冻结 patience，不预跟踪 best_val_score
+                # （预跟踪会导致 warmup 期低值"锁死"基线，post-warmup 永远无法保存 checkpoint）
                 patience_counter = 0
-                if val_score < best_val_score:
-                    best_val_score = val_score
             else:
                 if val_score < best_val_score:
                     best_val_score = val_score
