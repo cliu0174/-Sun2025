@@ -1555,8 +1555,8 @@ def train_cross_battery_model(
                         val_mae += torch.mean(torch.abs(predictions - targets)).item() * features.size(0)
                         val_rmse += torch.sqrt(torch.mean((predictions - targets) ** 2)).item() * features.size(0)
 
-                        # 复合评分：累积预测 + battery_ids（无 metric 开销，仅当 sel_mode='composite' 时使用）
-                        if sel_mode == 'composite' and battery_ids is not None:
+                        # 复合评分：累积预测 + battery_ids（仅 gamma>0 时才有意义）
+                        if sel_mode == 'composite' and sel_gamma > 0 and battery_ids is not None:
                             val_preds_buf.append(predictions.detach().cpu().numpy().flatten())
                             val_tgts_buf.append(targets.detach().cpu().numpy().flatten())
                             if isinstance(battery_ids, (list, tuple)):
@@ -1617,8 +1617,9 @@ def train_cross_battery_model(
 
         # 复合评分：在 val_mae 上叠加 mono_viol 惩罚，并门控 epoch >= min_epoch
         # 解决问题：仅看 val_mae 时模型可能在伪标签生效前就锁定 best checkpoint
+        # gamma=0 时跳过 compute_physics_violations（无用且有性能成本）
         val_mono_viol = 0.0
-        if sel_mode == 'composite' and val_preds_buf:
+        if sel_mode == 'composite' and sel_gamma > 0 and val_preds_buf:
             try:
                 from evaluation.physics_viz import compute_physics_violations
                 val_preds_arr = np.concatenate(val_preds_buf)
@@ -1663,7 +1664,8 @@ def train_cross_battery_model(
                 print(f"  LR:         {current_lr:.6f}")
             print(f"  Train Loss: {train_loss:.6f}")
             print(f"  Val Loss:   {val_loss:.6f}")
-            print(f"  Val MAE:    {val_mae*100:.4f}% (Best: {best_val_mae*100:.4f}%)")
+            _best_disp = f"{best_val_mae*100:.4f}%" if best_val_mae < 1e8 else "—"
+            print(f"  Val MAE:    {val_mae*100:.4f}% (Best: {_best_disp})")
             print(f"  Val RMSE:   {val_rmse*100:.4f}%")
             print(f"  Best Epoch: {best_epoch}")
             if config['training']['early_stopping'].get('enabled', False):
@@ -1725,7 +1727,7 @@ def train_cross_battery_model(
 
         # Early stopping检查
         if config['training']['early_stopping'].get('enabled', False):
-            if patience_counter > patience:
+            if patience_counter >= patience:
                 print(f"\n早停触发！验证集MAE连续{patience}个epoch未改善")
                 print(f"最佳epoch: {best_epoch}, 最佳val_mae: {best_val_mae*100:.4f}%")
                 break
