@@ -63,6 +63,10 @@ class PseudoLabelManager:
         lambda_pseudo: float = 1.0,
         epsilon: float = 1e-6,
         inference_batch_size: int = 512,
+        # ── 雪崩防护参数（新增）─────────────────────────
+        sigma_floor: float = 0.001,        # σ 下界，防止 1/σ² 爆炸
+        w_max: float = 10.0,                # 归一化后单样本权重上界（× 平均权重）
+        collapse_std_thresh: float = 0.001, # 伪标签方差低于此值视为模型塌缩
     ):
         self.warmup_epochs        = warmup_epochs
         self.update_every_k       = update_every_k
@@ -72,6 +76,9 @@ class PseudoLabelManager:
         self.lambda_pseudo        = lambda_pseudo
         self.epsilon              = epsilon
         self.inference_batch_size = inference_batch_size
+        self.sigma_floor          = sigma_floor
+        self.w_max                = w_max
+        self.collapse_std_thresh  = collapse_std_thresh
 
         # 伪标签存储（在 update() 后填充）
         self.pseudo_X: torch.Tensor | None = None   # (N_accept, T, F)
@@ -167,16 +174,42 @@ class PseudoLabelManager:
         # 4. 构建伪标签 TensorDataset
         self.pseudo_X = features_all[sorted_idx].clone()          # (N_accept, T, F)
         self.pseudo_y = means_all[sorted_idx].clone()             # (N_accept, 1)
-        sigma_sq      = stds_flat[sorted_idx] ** 2 + self.epsilon
-        self.pseudo_w = (1.0 / sigma_sq).unsqueeze(1).clone()     # (N_accept, 1)
+        # 权重稳定化（修复 σ→0 雪崩）：
+        #   ① σ 下界 clamp(min=sigma_floor)，防止 1/σ² 数值爆炸
+        #   ② 归一化到均值 1，避免不同 batch 间权重量级漂移
+        #   ③ 上界 clip(max=w_max)，限制单样本权重相对差异
+        sigma_clamped = stds_flat[sorted_idx].clamp(min=self.sigma_floor)
+        raw_w         = 1.0 / (sigma_clamped ** 2 + self.epsilon)
+        norm_w        = raw_w / raw_w.mean().clamp(min=1e-8)       # 均值=1
+        self.pseudo_w = norm_w.clamp(max=self.w_max).unsqueeze(1).clone()  # (N_accept, 1)
         self.n_pseudo = n_accept
         self._update_count += 1
 
-        # 5. 诊断：σ 分布 + 伪标签质量（命中率）
+        # 5. 模型塌缩检测：若伪标签方差过低（模型输出近常数），撤回本次伪标签
+        pseudo_y_std = float(self.pseudo_y.std().item())
+        if pseudo_y_std < self.collapse_std_thresh:
+            print(f"  [PseudoLabel] ⚠️ 模型输出方差过低 "
+                  f"(pseudo_y_std={pseudo_y_std:.5f} < {self.collapse_std_thresh})，"
+                  f"判定模型塌缩，跳过本次伪标签训练")
+            # 记录诊断后清空伪标签，避免常数伪标签继续污染训练
+            self.last_diag = self._compute_diag(
+                stds_flat, sorted_idx, means_all.squeeze(),
+                true_soh_all, n_ul, n_accept,
+            )
+            self.last_diag['collapsed']      = True
+            self.last_diag['pseudo_y_std']   = pseudo_y_std
+            self._print_diag(self.last_diag)
+            self.pseudo_X = self.pseudo_y = self.pseudo_w = None
+            self.n_pseudo = 0
+            return
+
+        # 6. 正常路径：诊断 σ 分布 + 伪标签质量
         self.last_diag = self._compute_diag(
             stds_flat, sorted_idx, means_all.squeeze(),
             true_soh_all, n_ul, n_accept,
         )
+        self.last_diag['collapsed']    = False
+        self.last_diag['pseudo_y_std'] = pseudo_y_std
         self._print_diag(self.last_diag)
 
     def get_pseudo_loader(self, batch_size: int = 256) -> Optional[DataLoader]:

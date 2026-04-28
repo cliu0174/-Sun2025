@@ -1209,6 +1209,10 @@ def train_cross_battery_model(
             lambda_pseudo      = pl_cfg.get('lambda_pseudo', 1.0),
             epsilon            = pl_cfg.get('epsilon', 1e-6),
             inference_batch_size = pl_cfg.get('inference_batch_size', 512),
+            # 雪崩防护
+            sigma_floor          = pl_cfg.get('sigma_floor', 0.001),
+            w_max                = pl_cfg.get('w_max', 10.0),
+            collapse_std_thresh  = pl_cfg.get('collapse_std_thresh', 0.001),
         )
         unlabeled_indices = PseudoLabelManager.get_unlabeled_indices(
             train_loader.dataset

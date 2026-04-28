@@ -79,10 +79,13 @@
     "n_mc_samples": 50,
     "threshold_percentile": 20,
     "max_pseudo_ratio": 0.3,
-    "lambda_pseudo": 0.1,
+    "lambda_pseudo": 0.05,
     "epsilon": 1e-6,
     "inference_batch_size": 512,
-    "description": "M6: 不确定性引导伪标签。Warmup 30 epoch 后，每 5 epoch 刷新；取不确定性最低 20% 无标签样本为伪标签（保守筛选），lambda=0.1 弱监督附加训练"
+    "sigma_floor": 0.001,
+    "w_max": 10.0,
+    "collapse_std_thresh": 0.001,
+    "description": "M6 v2 雪崩防护：σ→0 触底+权重归一化+塌缩检测。Warmup 30 epoch 后每 5 epoch 刷新；σ 最低 20% 无标签样本，权重 1/σ² 经归一化(均值=1) + clip(max=10) + σ_floor=0.001 三重保护；伪标签输出方差 < 0.001 视为模型塌缩并跳过该轮；lambda 由 0.1 降至 0.05"
   },
   "description": "Exp-06: baseline-v2.2 + M2 MC Dropout + M6 不确定性引导伪标签。核心创新：在部分监督场景下利用高置信度预测扩展监督信号。"
 }
