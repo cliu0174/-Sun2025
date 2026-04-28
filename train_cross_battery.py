@@ -1200,19 +1200,29 @@ def train_cross_battery_model(
     pl_cfg = config.get('pseudo_labeling', {})
     if pl_cfg.get('enabled', False):
         from training.pseudo_labeling import PseudoLabelManager
+        # λ 自适应：当 lambda_adaptive=True 时按监督比例选择 λ_pseudo
+        _lambda_map = {1.0: 0.03, 0.5: 0.05, 0.3: 0.02}
+        if pl_cfg.get('lambda_adaptive', False):
+            _lambda_val = _lambda_map.get(supervision_ratio, pl_cfg.get('lambda_pseudo', 1.0))
+        else:
+            _lambda_val = pl_cfg.get('lambda_pseudo', 1.0)
         pseudo_manager = PseudoLabelManager(
             warmup_epochs      = pl_cfg.get('warmup_epochs', 30),
             update_every_k     = pl_cfg.get('update_every_k', 5),
             n_mc_samples       = pl_cfg.get('n_mc_samples', 50),
             threshold_percentile = pl_cfg.get('threshold_percentile', 30.0),
             max_pseudo_ratio   = pl_cfg.get('max_pseudo_ratio', 0.5),
-            lambda_pseudo      = pl_cfg.get('lambda_pseudo', 1.0),
+            lambda_pseudo      = _lambda_val,
             epsilon            = pl_cfg.get('epsilon', 1e-6),
             inference_batch_size = pl_cfg.get('inference_batch_size', 512),
             # 雪崩防护
             sigma_floor          = pl_cfg.get('sigma_floor', 0.001),
             w_max                = pl_cfg.get('w_max', 10.0),
             collapse_std_thresh  = pl_cfg.get('collapse_std_thresh', 0.001),
+            # 偏差修复开关
+            use_ema              = pl_cfg.get('use_ema', False),
+            ema_alpha            = pl_cfg.get('ema_alpha', 0.7),
+            use_mono_filter      = pl_cfg.get('use_mono_filter', False),
         )
         unlabeled_indices = PseudoLabelManager.get_unlabeled_indices(
             train_loader.dataset

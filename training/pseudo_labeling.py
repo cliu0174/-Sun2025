@@ -67,6 +67,10 @@ class PseudoLabelManager:
         sigma_floor: float = 0.001,        # σ 下界，防止 1/σ² 爆炸
         w_max: float = 10.0,                # 归一化后单样本权重上界（× 平均权重）
         collapse_std_thresh: float = 0.001, # 伪标签方差低于此值视为模型塌缩
+        # ── 偏差修复开关（默认全关，通过 config 控制）─────────
+        use_ema: bool = False,              # EMA 平滑伪标签（防第2次偏差突变）
+        ema_alpha: float = 0.7,             # EMA 系数（越大历史权重越高）
+        use_mono_filter: bool = False,      # 单调性过滤（去除 SOH 上升的伪标签）
     ):
         self.warmup_epochs        = warmup_epochs
         self.update_every_k       = update_every_k
@@ -79,6 +83,9 @@ class PseudoLabelManager:
         self.sigma_floor          = sigma_floor
         self.w_max                = w_max
         self.collapse_std_thresh  = collapse_std_thresh
+        self.use_ema              = use_ema
+        self.ema_alpha            = ema_alpha
+        self.use_mono_filter      = use_mono_filter
 
         # 伪标签存储（在 update() 后填充）
         self.pseudo_X: torch.Tensor | None = None   # (N_accept, T, F)
@@ -89,6 +96,8 @@ class PseudoLabelManager:
         # 诊断信息（每次 update() 后填充）
         self.last_diag: dict = {}
         self._update_count: int = 0                 # 已更新次数（用于打印标记）
+        # EMA 缓存：{global_dataset_idx: ema_pseudo_y_value}
+        self._pseudo_y_buffer: dict = {}
 
     # ------------------------------------------------------------------ #
     #  Public API
@@ -184,6 +193,43 @@ class PseudoLabelManager:
         self.pseudo_w = norm_w.clamp(max=self.w_max).unsqueeze(1).clone()  # (N_accept, 1)
         self.n_pseudo = n_accept
         self._update_count += 1
+
+        # 4b. EMA 平滑：逐样本用历史缓存加权，压制单次更新的偏差突变
+        if self.use_ema:
+            ema_y = self.pseudo_y.clone()
+            for j, ul_local in enumerate(sorted_idx.tolist()):
+                gidx = unlabeled_indices[ul_local]
+                if gidx in self._pseudo_y_buffer:
+                    old_v = self._pseudo_y_buffer[gidx]
+                    new_v = float(self.pseudo_y[j, 0].item())
+                    blended = self.ema_alpha * old_v + (1.0 - self.ema_alpha) * new_v
+                    ema_y[j, 0] = blended
+                    self._pseudo_y_buffer[gidx] = blended
+                else:
+                    self._pseudo_y_buffer[gidx] = float(self.pseudo_y[j, 0].item())
+            self.pseudo_y = ema_y
+
+        # 4c. 单调性过滤：按数据集位置排序后，去除 SOH 上升（违反单调递减）的伪标签
+        if self.use_mono_filter and self.n_pseudo > 1:
+            # sorted_idx[j] = 在无标签子集中的位置（shuffle=False，等同于循环顺序代理）
+            cycle_order = torch.argsort(sorted_idx)          # 按循环位置排序的索引
+            pseudo_y_cycle = self.pseudo_y[cycle_order].squeeze(1)  # (N_accept,) 循环顺序
+
+            keep_cycle = torch.ones(len(pseudo_y_cycle), dtype=torch.bool)
+            for i in range(len(pseudo_y_cycle) - 1):
+                if not keep_cycle[i]:
+                    continue
+                if pseudo_y_cycle[i + 1] > pseudo_y_cycle[i]:
+                    keep_cycle[i + 1] = False
+
+            n_filtered = int((~keep_cycle).sum().item())
+            if n_filtered > 0:
+                keep_orig = cycle_order[keep_cycle]
+                self.pseudo_X = self.pseudo_X[keep_orig].clone()
+                self.pseudo_y = self.pseudo_y[keep_orig].clone()
+                self.pseudo_w = self.pseudo_w[keep_orig].clone()
+                self.n_pseudo = int(keep_cycle.sum().item())
+            print(f"  [单调过滤] {n_filtered}/{n_accept} 样本被过滤，保留 {self.n_pseudo}")
 
         # 5. 模型塌缩检测：若伪标签方差过低（模型输出近常数），撤回本次伪标签
         pseudo_y_std = float(self.pseudo_y.std().item())
@@ -429,6 +475,12 @@ class PseudoLabelManager:
         print()
 
     def __repr__(self):
+        flags = []
+        if self.use_ema:
+            flags.append(f"EMA(α={self.ema_alpha})")
+        if self.use_mono_filter:
+            flags.append("mono_filter")
+        flag_str = "+".join(flags) if flags else "no_fix"
         return (
             f"PseudoLabelManager("
             f"warmup={self.warmup_epochs}, "
@@ -436,5 +488,6 @@ class PseudoLabelManager:
             f"mc={self.n_mc_samples}, "
             f"pct={self.threshold_percentile}%, "
             f"λ={self.lambda_pseudo}, "
+            f"{flag_str}, "
             f"n_pseudo={self.n_pseudo})"
         )
