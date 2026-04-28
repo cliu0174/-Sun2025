@@ -42,52 +42,44 @@ ABLATION_DIR = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ================================================================
-# 实验配置（4 组）
+# 实验配置（5 组，warmup=10 使伪标签在 best_epoch 前生效）
 # ================================================================
+# 背景：第一轮验证发现 seed=42 的 best_epoch=15 < warmup_epochs=30，
+# 导致伪标签从未影响最佳 checkpoint。此处统一将 warmup 降至 10，
+# 并重新设一个 E5_base_w10 对照，保证五组在相同 warmup 下公平比较。
+_W = {'warmup_epochs': 10}  # 公共 warmup override
+
 EXPERIMENTS = [
     {
-        'id':    'E5_ema',
-        'label': 'E5 + EMA(α=0.7)',
+        'id':    'E5_base_w10',
+        'label': 'E5_base (warmup=10)',
+        'note':  '对照：warmup=10，无任何修复开关，确认伪标签已在 best_epoch 前生效',
+        'override': {'pseudo_labeling': {**_W}},
+    },
+    {
+        'id':    'E5_ema_w10',
+        'label': 'E5 + EMA (warmup=10)',
         'note':  '仅开 EMA 平滑，观察第2次更新偏差是否被压制',
-        'override': {
-            'pseudo_labeling': {
-                'use_ema':   True,
-                'ema_alpha': 0.7,
-            }
-        },
+        'override': {'pseudo_labeling': {**_W, 'use_ema': True, 'ema_alpha': 0.7}},
     },
     {
-        'id':    'E5_filter',
-        'label': 'E5 + 单调过滤',
+        'id':    'E5_filter_w10',
+        'label': 'E5 + 单调过滤 (warmup=10)',
         'note':  '仅开单调性过滤，观察过滤率 > 0 且 mono_viol 下降',
-        'override': {
-            'pseudo_labeling': {
-                'use_mono_filter': True,
-            }
-        },
+        'override': {'pseudo_labeling': {**_W, 'use_mono_filter': True}},
     },
     {
-        'id':    'E5_lambda',
-        'label': 'E5 + λ自适应',
+        'id':    'E5_lambda_w10',
+        'label': 'E5 + λ自适应 (warmup=10)',
         'note':  '仅开 λ 自适应（r=0.3→0.02），观察降低伪标签权重是否单独有效',
-        'override': {
-            'pseudo_labeling': {
-                'lambda_adaptive': True,
-            }
-        },
+        'override': {'pseudo_labeling': {**_W, 'lambda_adaptive': True}},
     },
     {
-        'id':    'E5_all',
-        'label': 'E5 + EMA + 过滤 + λ自适应',
-        'note':  '三合一组合，观察 MAE 是否回到 E0 ±1%',
-        'override': {
-            'pseudo_labeling': {
-                'use_ema':         True,
-                'ema_alpha':       0.7,
-                'use_mono_filter': True,
-                'lambda_adaptive': True,
-            }
-        },
+        'id':    'E5_all_w10',
+        'label': 'E5 + 三合一 (warmup=10)',
+        'note':  'EMA + 过滤 + λ自适应组合，观察 MAE 是否回到 E0 ±1%',
+        'override': {'pseudo_labeling': {**_W, 'use_ema': True, 'ema_alpha': 0.7,
+                                         'use_mono_filter': True, 'lambda_adaptive': True}},
     },
 ]
 
@@ -96,20 +88,17 @@ EXPERIMENTS = [
 # 读取已有基线结果
 # ================================================================
 def load_baseline_results() -> tuple[Optional[dict], Optional[dict]]:
-    """读取 E0 和 E5_base 的 seed42/ratio0.3 结果（来自 ablation_single_module）。"""
+    """读取 E0 的 seed42/ratio0.3 结果（来自 ablation_single_module）。
+    E5_base_w10 由本脚本自己跑，不从缓存读。"""
     ratio_tag = f"{RATIO:.1f}".replace('.', 'p')
 
-    e0_fp   = os.path.join(ABLATION_DIR, 'E0_baseline',
-                           f'ratio{ratio_tag}', f'seed{SEED}', 'result.json')
-    e5b_fp  = os.path.join(ABLATION_DIR, 'E5_m2_m6_pseudo',
-                           f'ratio{ratio_tag}', f'seed{SEED}', 'result.json')
+    e0_fp = os.path.join(ABLATION_DIR, 'E0_baseline',
+                         f'ratio{ratio_tag}', f'seed{SEED}', 'result.json')
+    e0 = json.load(open(e0_fp, encoding='utf-8')) if os.path.exists(e0_fp) else None
 
-    e0  = json.load(open(e0_fp,  encoding='utf-8')) if os.path.exists(e0_fp)  else None
-    e5b = json.load(open(e5b_fp, encoding='utf-8')) if os.path.exists(e5b_fp) else None
-
-    if e0  is None: print(f"  ⚠️  E0 基线结果不存在: {e0_fp}")
-    if e5b is None: print(f"  ⚠️  E5_base 结果不存在: {e5b_fp}")
-    return e0, e5b
+    if e0 is None:
+        print(f"  ⚠️  E0 基线结果不存在: {e0_fp}")
+    return e0
 
 
 # ================================================================
@@ -192,19 +181,15 @@ def run_single(exp: dict) -> Optional[dict]:
 # ================================================================
 # 打印对比表
 # ================================================================
-def print_comparison(e0: Optional[dict], e5b: Optional[dict],
+def print_comparison(e0: Optional[dict],
                      new_results: list[Optional[dict]]) -> None:
-    sep  = '═' * 72
-    sep2 = '─' * 72
+    sep  = '═' * 76
+    sep2 = '─' * 76
 
-    print(f"\n\n{sep}")
-    print(f"  M6 三方向修复验证对比表  (ratio={RATIO}, seed={SEED})")
-    print(sep)
-    print(f"  {'方法':<32}  {'MAE%':>8}  {'Δ vs E0':>9}  {'Δ vs E5b':>9}  {'违规率':>8}")
-    print(sep2)
-
-    e0_mae  = e0['test_mae']  if e0  else None
-    e5b_mae = e5b['test_mae'] if e5b else None
+    all_r    = {r['exp_id']: r for r in new_results if r}
+    e5b_w10  = all_r.get('E5_base_w10')
+    e0_mae   = e0['test_mae']   if e0      else None
+    e5b_mae  = e5b_w10['test_mae'] if e5b_w10 else None
 
     def fmt_delta(val, ref):
         if val is None or ref is None:
@@ -214,59 +199,65 @@ def print_comparison(e0: Optional[dict], e5b: Optional[dict],
 
     def viol_str(r):
         if r and 'mono_violation_rate' in r:
-            return f"{r['mono_violation_rate']:.2f}%"
+            return f"{r['mono_violation_rate']:.4f}"
         return '—'
 
-    rows = [
-        ('E0 Baseline (参照)',  e0,  True),
-        ('E5_base (当前 M6)',   e5b, False),
-    ] + [(exp['label'], r, False)
-         for exp, r in zip(EXPERIMENTS, new_results)]
+    def best_ep(r):
+        return str(r.get('best_epoch', '—')) if r else '—'
 
-    for label, r, is_ref in rows:
+    print(f"\n\n{sep}")
+    print(f"  M6 三方向修复验证对比表  (ratio={RATIO}, seed={SEED}, warmup=10)")
+    print(sep)
+    print(f"  {'方法':<36}  {'MAE%':>8}  {'Δ vs E0':>9}  {'Δ vs base_w10':>13}  {'违规率':>6}  {'bestEp':>6}")
+    print(sep2)
+
+    rows = [('E0 Baseline (参照)', e0, True)] + \
+           [(exp['label'], all_r.get(exp['id']), exp['id'] == 'E5_base_w10')
+            for exp in EXPERIMENTS]
+
+    for label, r, is_base in rows:
         if r is None:
-            print(f"  {label:<32}  {'(缺失)'}")
+            print(f"  {label:<36}  {'(缺失)'}")
             continue
         mae_str = f"{r['test_mae']*100:.4f}%"
-        d_e0    = '(基准)' if is_ref else fmt_delta(r['test_mae'], e0_mae)
-        d_e5b   = '—'      if is_ref else fmt_delta(r['test_mae'], e5b_mae)
-        v_str   = viol_str(r)
-        print(f"  {label:<32}  {mae_str:>8}  {d_e0:>9}  {d_e5b:>9}  {v_str:>8}")
+        d_e0    = '(基准)' if (label == 'E0 Baseline (参照)') else fmt_delta(r['test_mae'], e0_mae)
+        d_e5b   = '(对照)' if is_base or label == 'E0 Baseline (参照)' \
+                           else fmt_delta(r['test_mae'], e5b_mae)
+        print(f"  {label:<36}  {mae_str:>8}  {d_e0:>9}  {d_e5b:>13}  {viol_str(r):>6}  {best_ep(r):>6}")
     print(sep2)
 
     # 决策建议
-    all_r  = dict(zip([e['id'] for e in EXPERIMENTS], new_results))
-    e5_all = all_r.get('E5_all')
+    e5_all = all_r.get('E5_all_w10')
     print("\n  [决策建议]")
+    if e5b_w10:
+        print(f"  E5_base_w10 best_epoch={e5b_w10.get('best_epoch','?')}  "
+              f"← {'✅ 伪标签已生效' if e5b_w10.get('best_epoch',0) > 10 else '⚠️ 仍在 warmup 前收敛，需进一步降 warmup'}")
     if e5_all and e0_mae:
         delta_pct = (e0_mae - e5_all['test_mae']) / e0_mae * 100
-        viol_ok   = e5_all.get('mono_violation_rate', 99) < 10
+        viol_ok   = e5_all.get('mono_violation_rate', 99) < 0.10
         mae_ok    = abs(delta_pct) < 1.0
         if mae_ok and viol_ok:
-            print(f"  ✅ E5_all 有效（MAE Δ={delta_pct:+.2f}%，违规率<10%）"
+            print(f"  ✅ E5_all_w10 有效（MAE Δ={delta_pct:+.2f}%，违规率<10%）"
                   f" → 方案 C-enhanced：Full Stack = M2+M4+M6（修复版）")
         elif not mae_ok:
-            print(f"  ⚠️  E5_all MAE Δ={delta_pct:+.2f}%（超出 ±1% 目标）")
-            e5_ema = all_r.get('E5_ema')
+            print(f"  ⚠️  E5_all_w10 MAE Δ={delta_pct:+.2f}%（超出 ±1% 目标）")
+            e5_ema = all_r.get('E5_ema_w10')
             if e5_ema and e5b_mae:
-                ema_delta = (e5b_mae - e5_ema['test_mae']) / e5b_mae * 100
-                print(f"       E5_ema vs E5_base: {ema_delta:+.2f}%")
-            print(f"  → 若偏差仍漂移：M6 在 r=0.3 不可靠 → 方案 C-clean（M6 仅 r≥0.5）")
+                print(f"       E5_ema vs E5_base_w10: {fmt_delta(e5_ema['test_mae'], e5b_mae)}")
+            print(f"  → M6 在 r=0.3 不可靠 → 方案 C-clean（Full Stack = M2+M4，M6 仅 r≥0.5）")
         else:
-            print(f"  ⚠️  E5_all 违规率仍高（{e5_all.get('mono_violation_rate', '?'):.2f}%）"
-                  f"，考虑提高置信阈值 top10%→top5%")
+            print(f"  ⚠️  E5_all_w10 违规率仍高（{e5_all.get('mono_violation_rate',0)*100:.2f}%）")
     else:
-        print("  （E5_all 结果缺失，无法判断）")
+        print("  （E5_all_w10 结果缺失，无法判断）")
     print(sep)
 
     # 保存汇总
     summary = {
-        'config': {'ratio': RATIO, 'seed': SEED},
-        'E0_baseline': e0,
-        'E5_base':     e5b,
+        'config':       {'ratio': RATIO, 'seed': SEED, 'warmup': 10},
+        'E0_baseline':  e0,
         **{r['exp_id']: r for r in new_results if r},
     }
-    out_fp = os.path.join(OUTPUT_DIR, 'summary.json')
+    out_fp = os.path.join(OUTPUT_DIR, 'summary_w10.json')
     with open(out_fp, 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f"\n  汇总已保存: {out_fp}")
@@ -276,27 +267,25 @@ def print_comparison(e0: Optional[dict], e5b: Optional[dict],
 # 主入口
 # ================================================================
 if __name__ == '__main__':
-    print('╔' + '═' * 60 + '╗')
-    print('║  M6 三方向修复最小验证（4组 × 1seed × r=0.3）' + ' ' * 11 + '║')
-    print('╠' + '═' * 60 + '╣')
-    print(f'║  ratio={RATIO}  seed={SEED}  device={DEVICE}' + ' ' * 32 + '║')
-    print(f'║  输出目录: experiments/m6_verify/' + ' ' * 26 + '║')
-    print('╚' + '═' * 60 + '╝')
+    print('╔' + '═' * 62 + '╗')
+    print('║  M6 三方向修复验证 Round 2（warmup=10，5组×1seed×r=0.3）' + ' ' * 4 + '║')
+    print('╠' + '═' * 62 + '╣')
+    print(f'║  ratio={RATIO}  seed={SEED}  warmup=10  device={DEVICE}' + ' ' * 28 + '║')
+    print(f'║  输出目录: experiments/m6_verify/' + ' ' * 28 + '║')
+    print('╚' + '═' * 62 + '╝')
 
-    e0_result, e5b_result = load_baseline_results()
+    e0_result = load_baseline_results()
 
     print(f"\n载入参照结果:")
     if e0_result:
-        print(f"  E0  MAE={e0_result['test_mae']*100:.4f}%")
-    if e5b_result:
-        print(f"  E5b MAE={e5b_result['test_mae']*100:.4f}%  "
-              f"违规率={e5b_result.get('mono_violation_rate', '?'):.2f}%")
+        print(f"  E0  MAE={e0_result['test_mae']*100:.4f}%  "
+              f"best_epoch={e0_result.get('best_epoch','?')}")
 
-    print(f"\n开始运行 {len(EXPERIMENTS)} 组实验...")
+    print(f"\n开始运行 {len(EXPERIMENTS)} 组实验（含新对照 E5_base_w10）...")
     new_results = []
     for exp in EXPERIMENTS:
         r = run_single(exp)
         new_results.append(r)
 
-    print_comparison(e0_result, e5b_result, new_results)
+    print_comparison(e0_result, new_results)
     print("\n✅ M6 验证完成！")
