@@ -4,8 +4,8 @@
 > **数据集**: HUST 77 块电池，14 维特征
 > **基线**: **baseline-v2.2**（CNN-LSTM + 软单调约束 + 边界约束）
 > **创建日期**: 2026-04-17
-> **最后更新**: 2026-04-18（Stage 4-5 代码完成）
-> **状态**: ✅ Stage 0-5 代码全部完成 | ⏳ 所有实验待服务器运行 | ✍️ 写作阶段待实验数据
+> **最后更新**: 2026-04-29（M6 验证完成，Full Stack 最终确定）
+> **状态**: ✅ M6 验证关闭 | ✅ Full Stack = M2+M4 确定 | ⏳ Exp-07/08 待服务器运行
 > **用途**: 硕士论文第四章 / 潜在期刊投稿
 
 ---
@@ -28,26 +28,33 @@
 ### 最终定稿的核心叙事（论文故事线）
 
 ```
-论文主故事：
+论文主故事（2026-04-29 定稿）：
 
 在电池 SOH 估计的"部分生命周期监督"场景下，我们：
-1. 通过注意力机制（M1）增强时序表征
-2. 通过速率连续性约束（M4）精化物理先验
-3. 通过自适应损失权重（M5）替代人工调参
-4. 通过 MC Dropout（M2）+ 不确定性伪标签（M6）主动利用未标注区间信息
-5. 通过置信区间评估（M7）为 BMS 决策提供可靠性量化
+1. 通过 MC Dropout（M2）量化预测不确定性，为 BMS 决策提供置信区间
+2. 通过速率连续性约束（M4）精化物理先验，提升预测平滑性
+3. 通过置信区间评估（M7）报告 PICP/MPIW/Spearman 指标
 
 核心卖点图：
-  "监督稀疏度 vs 模型误差"——我们的方法在稀疏监督下优势更大
+  "监督稀疏度 vs 模型误差"——物理约束在稀疏监督下的正则化价值
+  "置信区间质量"——MC Dropout 不确定性估计的校准性
 ```
 
-### 推荐的最终模块组合
+> ⚠️ **已淘汰模块（不进 Full Stack）**
+> - M1 循环级注意力：低标签率下有害（过拟合稀疏标签），❌ 放弃
+> - M5 自适应损失权重：log_var 学歪，monotonic 权重趋零，❌ 放弃
+> - M6 伪标签：r=0.3/0.5 不稳定（seed 敏感），r=1.0 有效（+3.09%），⚠️ 仅消融表报告
+
+### 推荐的最终模块组合（定稿）
 
 ```
-核心架构：CNN-LSTM + 循环级注意力（M1）
-损失函数：自适应权重（M5）+ 软单调 + 边界 + 速率连续性约束（M4）
-训练策略：不确定性引导伪标签扩展部分监督（M6）⭐核心
+核心架构：CNN-LSTM（无注意力，M1 已淘汰）
+损失函数：软单调 + 边界 + 速率连续性约束（M4）
 评估：MC Dropout 置信区间（M2+M7）+ 特征缺失鲁棒性（M8）
+
+不含：M1（有害）、M5（已放弃）、M6（低监督率不稳定）
+M6 结论：作为 limitation 报告——仅在 r=1.0 有效，r≤0.5 失效，
+         根因为低监督下模型质量不足以产生可靠伪标签
 ```
 
 ---
@@ -117,16 +124,16 @@
 
 ### 3.1 模块总览表
 
-| ID | 模块 | 实际文件位置 | 类型 | 依赖 | 优先级 | 状态 |
-|----|------|------------|------|------|--------|------|
-| M1 | 循环级注意力 | `models/modules/attention.py` | 架构 | 无 | P0 | ✅ |
-| M2 | MC Dropout 包装 | `models/modules/mc_dropout.py` | 架构 | 无 | P0 | ✅ |
-| M3 | 个体归一化 | `models/modules/instance_norm.py` | 架构 | 无 | P2 | ⬜ |
-| M4 | 速率连续性约束 | `models/physics_loss.py::smoothness_loss()` | 损失 | 无 | P0 | ✅ |
-| M5 | 自适应损失权重 | `models/adaptive_loss.py` | 损失 | 无 | P0 | ✅ |
-| M6 | 不确定性伪标签 | `training/pseudo_labeling.py` | 训练 | M2 | P1 | ✅ |
-| M7 | 置信区间评估 | `evaluation/uncertainty_eval.py` | 评估 | M2 | P0 | ✅ |
-| M8 | 特征缺失鲁棒性 | `evaluation/robustness_eval.py` | 评估 | 无 | P1 | ✅ |
+| ID | 模块 | 实际文件位置 | 类型 | Full Stack | 状态 |
+|----|------|------------|------|-----------|------|
+| M1 | 循环级注意力 | `models/modules/attention.py` | 架构 | ❌ 已淘汰 | 代码保留，不启用 |
+| M2 | MC Dropout 包装 | `models/modules/mc_dropout.py` | 架构 | ✅ 保留 | ✅ 有效 |
+| M3 | 个体归一化 | — | 架构 | — | ⬜ 未实现 |
+| M4 | 速率连续性约束 | `models/physics_loss.py::smoothness_loss()` | 损失 | ✅ 保留 | ✅ 有效 |
+| M5 | 自适应损失权重 | `models/adaptive_loss.py` | 损失 | ❌ 已放弃 | 代码保留，不启用 |
+| M6 | 不确定性伪标签 | `training/pseudo_labeling.py` | 训练 | ❌ 不进 Full Stack | ⚠️ 仅 r=1.0 有效 |
+| M7 | 置信区间评估 | `evaluation/uncertainty_eval.py` | 评估 | ✅ 保留 | ✅ 依赖 M2 |
+| M8 | 特征缺失鲁棒性 | `evaluation/robustness_eval.py` | 评估 | ✅ 保留 | ✅ 评估用 |
 
 > **优先级说明**：P0 必做，P1 强烈建议，P2 时间充裕再做
 
@@ -169,7 +176,7 @@
 - **论文说辞**：
   > "本文采用基于不确定性的多任务加权框架，以可学习参数 log σᵢ 自适应调整各损失项权重，消除人工调参负担，并为各项物理约束的贡献提供可解释的不确定性估计。"
 
-#### M6：不确定性引导伪标签（Uncertainty-Guided Pseudo-Labeling）⭐核心创新 ✅
+#### M6：不确定性引导伪标签（Uncertainty-Guided Pseudo-Labeling）⚠️ 已验证边界条件
 - **位置**：`training/pseudo_labeling.py::PseudoLabelManager`
 - **依赖**：M2（MCDropout 层，推理时保持激活）
 - **训练流程**：
@@ -181,8 +188,14 @@
   3. **附加训练轮次**：独立 DataLoader，对伪标签样本做加权 MSE
 - **防漂移机制**：每次刷新完全重置（不累积历史伪标签）
 - **开关**：配置中 `pseudo_labeling.enabled: true`
-- **论文说辞**：
-  > "本文提出不确定性引导的自监督边界扩展策略：在 Warmup 训练后，利用 MC Dropout 对未标注循环区间的预测置信度动态筛选高质量伪标签，仅将不确定性低于自适应阈值的预测纳入辅助监督，伪标签权重与预测置信度正相关。该策略有效利用了部分监督场景中大量未标注数据，在低标注比例下尤为显著。"
+- **最终结论（2026-04-29 验证完成）**：
+  - r=1.0：+3.09%（有效，消融表保留）
+  - r=0.5：−19.81%（无效，best_epoch=10，早停在 warmup 后立即触发）
+  - r=0.3：3 seeds 中仅 1/3 有效（+4.55%），均值 −14.83%，不稳定
+  - **根因**：低监督率下模型质量不足 → 伪标签质量差（pseudo_mae_all_unlabeled 震荡于 0.7%~2.2%）→ 自我强化负偏差
+  - **处置**：不进入 Full Stack；作为消融项在论文中报告适用边界
+- **论文说辞（改为 limitation 表述）**：
+  > "实验表明，M6 在全监督场景（r=1.0）下可有效提升预测精度（+3.09%），但在低监督率（r≤0.5）下因初始模型质量不足导致伪标签质量不可靠，反而引发性能退化。这揭示了不确定性引导伪标签在部分生命周期监督场景下的适用边界：当真实标签足够支撑模型建立可靠的不确定性估计时，该策略方能奏效。"
 
 #### M7：置信区间评估 ✅
 - **位置**：`evaluation/uncertainty_eval.py`
@@ -225,17 +238,19 @@
 - [x] **Exp-05**：M4+M5 联合（4 ratios × 5 seeds）→ `experiments/run_exp05_combined_loss.py`
 - [ ] **⏳ 运行 Exp-03/04/05**（服务器）
 
-### Stage 3：训练策略升级 ✅ 代码完成 ⭐核心
-- [x] **Exp-06**：M2 + M6 伪标签（4 ratios × 5 seeds）→ `experiments/run_exp06_pseudo_label.py`
-- [ ] **⏳ 运行 Exp-06**（服务器，重点看 ratio=0.5/0.3 的增益）
+### Stage 3：训练策略升级 ✅ 验证完成（结论：M6 不进 Full Stack）
+- [x] **Exp-06**：M2 + M6 消融（4 ratios × 5 seeds）→ `experiments/run_exp06_pseudo_label.py`
+- [x] **M6 多轮验证**（4 Rounds，2026-04-28~29）→ `experiments/run_m6_verify.py` / `run_m6_multiseed.py` / `run_m6_r05_probe.py`
+- **结论**：M6 仅在 r=1.0 有效，r≤0.5 不稳定，**不进 Full Stack**
+- [ ] **⏳ 运行 Exp-06**（服务器，作为消融对比，仅记录 r=1.0 数字）
 
-### Stage 4：全模块集成 ✅ 代码完成
-- [x] **Exp-07**：Full Stack（M1+M2+M4+M5+M6+M7）→ `experiments/run_exp07_full_stack.py`
-  - `configs/models/cnn_lstm_full_stack_config.json`：全模块启用
-  - Warmup 30 epoch → 每 5 epoch 更新伪标签 → M5 全程自适应权重
-  - M7 指标（PICP/MPIW）在聚合函数中输出
+### Stage 4：全模块集成 ✅ 配置已更新
+- [x] **Exp-07**：Full Stack（**M2+M4**，不含 M1/M5/M6）→ `experiments/run_exp07_full_stack.py`
+  - Full Stack 配置：CNN-LSTM + M2（MC Dropout）+ M4（速率连续性）+ M7（置信区间）
   - 4 ratios × 5 seeds = 20 次
-- [ ] **⏳ 运行 Exp-07**（服务器，消融表最后一行）
+  - **待更新**：`run_exp07_full_stack.py` 和对应 config 需去掉 M1/M5/M6
+- [ ] **⏳ 更新 Exp-07 配置**（移除 M1/M5/M6）
+- [ ] **⏳ 运行 Exp-07**（服务器，论文主表最后一行）
 
 ### Stage 5：鲁棒性验证 ✅ 代码完成
 - [x] **Exp-08**：M8 特征缺失鲁棒性 → `experiments/run_exp08_robustness.py`
@@ -286,20 +301,19 @@ python experiments/run_exp08_robustness.py         # Stage 5，鲁棒性对比
 
 每个实验在 4 个监督比例下都要跑（ratio ∈ [1.0, 0.7, 0.5, 0.3]）：
 
-| 实验 | M1 | M2 | M4 | M5 | M6 | MAE@100% | MAE@70% | MAE@50% | MAE@30% | PICP |
-|------|----|----|----|----|----|---------|---------|---------|---------|------|
-| baseline-v2.2 | | | | | | — | — | — | — | — |
-| Exp-01 | ✓ | | | | | | | | | |
-| Exp-02 | | ✓ | | | | | | | | ✓ |
-| Exp-03 | | | ✓ | | | | | | | |
-| Exp-04 | | | | ✓ | | | | | | |
-| Exp-05 | | | ✓ | ✓ | | | | | | |
-| Exp-06 | | ✓ | | | ✓ | | | | | ✓ |
-| **Exp-07 Full** | ✓ | ✓ | ✓ | ✓ | ✓ | | | | | ✓ |
+| 实验 | M2 | M4 | M6 | MAE@100% | MAE@50% | MAE@30% | PICP | 备注 |
+|------|----|----|----|---------|---------|---------|------|------|
+| baseline-v2.2 | | | | — | — | — | — | 参照 |
+| Exp-01（M1）| | | | | | | | ❌ M1 低标签有害，仅记录 |
+| Exp-02（M2）| ✓ | | | | | | ✓ | ✅ r=1.0 最佳 |
+| Exp-03（M4）| | ✓ | | | | | | ✅ 物理一致性故事 |
+| Exp-04（M5）| | | | | | | | ❌ M5 已放弃，仅记录 |
+| Exp-06（M6）| ✓ | | ✓ | | | | ✓ | ⚠️ 仅 r=1.0 有效 |
+| **Exp-07 Full Stack** | ✓ | ✓ | | | | | ✓ | **论文主方法** |
 
 每格填入 5 次运行的 `mean ± std`（百分比）。
 
-**核心论文图**：监督比例 vs MAE 曲线（多方法折线图，体现稀疏监督下 M6 增益放大）
+**核心论文图**：监督比例 vs MAE 曲线（Baseline / M2 / M4 / Full Stack 四线对比）
 
 ---
 
@@ -343,20 +357,28 @@ train_cross_battery_model(
 
 ## 9. 下一步行动
 
-**当前优先级（2026-04-18，Stage 0-5 代码全部完成）**：
+**当前优先级（2026-04-29，M6 验证完成，Full Stack 确定）**：
 
-1. **⏳ 服务器实验排队**（按顺序依次运行全部脚本）：
-   - `run_baseline_v22.py` → 基准数字（其他实验的对比基础）
-   - `run_exp01/02` → Stage 1 架构增强
-   - `run_exp03/04/05` → Stage 2 损失精化
-   - `run_exp06` → Stage 3 伪标签（核心，重点观察低比例增益）
-   - `run_exp07` → Stage 4 Full Stack（论文最终方法）
-   - `run_exp08` → Stage 5 鲁棒性（Baseline vs Full Stack）
+1. **🔧 更新 Exp-07 Full Stack 配置**（本地，优先）：
+   - `experiments/run_exp07_full_stack.py`：去掉 M1/M5/M6，保留 M2+M4+M7
+   - 对应 config 文件同步更新
 
-2. **论文写作**（实验结果出来后）：
-   - 填充消融表（Table 4.x）
+2. **⏳ 服务器实验排队**（按顺序）：
+   ```bash
+   python run_baseline_v22.py                    # Stage 0 基准
+   python experiments/run_exp02_mc_dropout.py    # M2（重点）
+   python experiments/run_exp03_rate_smoothness.py # M4（重点）
+   python experiments/run_exp06_pseudo_label.py  # M6 消融（仅看 r=1.0）
+   python experiments/run_exp07_full_stack.py    # Full Stack 主表
+   python experiments/run_exp08_robustness.py    # 鲁棒性对比
+   # Exp-01/04/05 可选跑，仅供消融完整性
+   ```
+
+3. **论文写作**（实验结果出来后）：
+   - 填充消融表（Table 4.x）：Baseline / M2 / M4 / Full Stack（M2+M4）
    - 绘制监督比例 vs MAE 折线图（Figure 4.x）
-   - 绘制鲁棒性对比图（Figure 4.y）
+   - 绘制置信区间质量图（Figure 4.y，PICP/MPIW）
+   - M6 limitation 段落（边界条件分析）
    - 第四章撰写
 
 ---
@@ -371,6 +393,18 @@ train_cross_battery_model(
 ---
 
 ## 11. 变更日志
+
+### 2026-04-29（M6 验证完成，Full Stack 最终确定）
+- ✅ **M6 验证彻底关闭**：经 Round 1~4（4 轮共 25+ 次运行）+ 多 seed 验证 + r=0.5 探针，结论：
+  - r=0.3：3/3 seed 中仅 1 有效，均值 Δ=−14.83%，不稳定
+  - r=0.5：Δ=−19.81%，best_epoch=10（early stopping 在 warmup 后即触发）
+  - r=1.0：Δ=+3.09%（有效，消融表保留）
+  - 根因：低监督率下初始模型质量不足，伪标签质量在各更新轮次间震荡（0.7%~2.2%）
+- ✅ **Full Stack 最终确定**：M2（MC Dropout）+ M4（速率连续性），不含 M1/M5/M6
+- ✅ **已淘汰模块确认**：M1（低标签率有害）、M5（log_var 学歪）、M6（低监督不稳定）
+- 🔧 **待办**：更新 Exp-07 配置文件，去掉 M1/M5/M6
+
+
 
 ### 2026-04-18（Stage 4-5 代码完成）
 - ✅ Stage 4：新建 `configs/models/cnn_lstm_full_stack_config.json`（全模块 M1+M2+M4+M5+M6 启用）；新建 `experiments/run_exp07_full_stack.py`（4 ratios × 5 seeds，含 M7 PICP/MPIW 输出）；更新 `models/model_factory.py`
