@@ -1227,6 +1227,8 @@ def train_cross_battery_model(
         # M5 诊断：每 epoch 记录 log_vars 和有效权重，训练结束后存 JSON + 画图
         'adaptive_log_vars':    [],   # shape: (n_epochs, 4)
         'adaptive_eff_weights': [],   # shape: (n_epochs, 4)，= exp(-log_vars)
+        # M6 诊断：每次 update() 后记录一条伪标签质量快照
+        'pseudo_diag':          [],   # list of diag dicts
     }
 
     # 使用val_mae判断最佳模型
@@ -1250,6 +1252,11 @@ def train_cross_battery_model(
                 model, train_loader.dataset, unlabeled_indices,
                 device, collate_fn=custom_collate_fn,
             )
+            # M6 诊断：记录本次更新的质量快照（含 epoch 编号）
+            if pseudo_manager.last_diag:
+                snap = dict(pseudo_manager.last_diag)
+                snap['epoch'] = epoch + 1
+                history['pseudo_diag'].append(snap)
             model.train()   # 恢复训练模式
         # ===== 训练阶段 =====
         model.train()
@@ -1797,6 +1804,28 @@ def train_cross_battery_model(
     plot_cross_battery_results(history, predictions_np, targets_np,
                                 final_battery_ids if color_by_battery else None,
                                 results_dir, highlight_anomalies)
+
+    # M6 诊断数据保存
+    if history.get('pseudo_diag'):
+        _m6_path = os.path.join(results_dir, 'pseudo_label_diagnostic.json')
+        with open(_m6_path, 'w', encoding='utf-8') as _f:
+            json.dump(history['pseudo_diag'], _f, indent=2, ensure_ascii=False)
+        print(f"[M6] 伪标签诊断历史已保存: {_m6_path}")
+
+        # 打印训练全程质量摘要
+        if any(d.get('has_quality_metrics') for d in history['pseudo_diag']):
+            print("\n[M6] 伪标签质量演变摘要:")
+            print(f"  {'更新次':<6}{'Epoch':<8}{'接受率':>8}{'σ阈值':>10}"
+                  f"{'接受MAE':>10}{'偏差':>10}{'σ-ρ':>8}")
+            print("  " + "─" * 60)
+            for d in history['pseudo_diag']:
+                if d.get('has_quality_metrics'):
+                    print(f"  {d['update_count']:<6}{d['epoch']:<8}"
+                          f"{d['accept_rate']*100:>7.1f}%"
+                          f"{d['sigma_threshold']:>10.5f}"
+                          f"{d['pseudo_mae_accepted']*100:>9.4f}%"
+                          f"{d['pseudo_bias_accepted']*100:>+9.4f}%"
+                          f"{d['sigma_error_spearman_rho']:>8.4f}")
 
     # M5 诊断数据保存（JSON 历史 + 权重曲线图）
     if use_physics and isinstance(criterion, AdaptivePhysicsLoss) and history['adaptive_log_vars']:

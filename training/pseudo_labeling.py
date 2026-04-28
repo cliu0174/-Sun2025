@@ -79,6 +79,9 @@ class PseudoLabelManager:
         self.pseudo_w: torch.Tensor | None = None   # (N_accept, 1) — weights (1/σ²)
         self.n_pseudo: int = 0
         self._last_tau: float = 0.0                 # 最后一次更新的不确定性阈值
+        # 诊断信息（每次 update() 后填充）
+        self.last_diag: dict = {}
+        self._update_count: int = 0                 # 已更新次数（用于打印标记）
 
     # ------------------------------------------------------------------ #
     #  Public API
@@ -128,12 +131,15 @@ class PseudoLabelManager:
         )
 
         model.eval()
-        all_features, all_means, all_stds = [], [], []
+        all_features, all_means, all_stds, all_true_soh = [], [], [], []
 
         with torch.no_grad():
             for batch in loader:
                 if isinstance(batch, dict):
                     x = batch['window'].to(device)
+                    # target_soh 对所有样本（含无标签）均为真实 SOH，直接用于诊断
+                    if 'target_soh' in batch:
+                        all_true_soh.append(batch['target_soh'].cpu().float())
                 else:
                     x = batch[0].to(device)
 
@@ -146,6 +152,8 @@ class PseudoLabelManager:
         means_all    = torch.cat(all_means,    dim=0)   # (N_ul, 1)
         stds_all     = torch.cat(all_stds,     dim=0)   # (N_ul, 1)
         stds_flat    = stds_all.squeeze(1)               # (N_ul,)
+        true_soh_all = (torch.cat(all_true_soh, dim=0).squeeze()
+                        if all_true_soh else None)       # (N_ul,) 或 None
 
         # 2. 确定接受数量（取 percentile 和 max_ratio 的最小值）
         n_by_percentile = max(1, int(n_ul * self.threshold_percentile / 100.0))
@@ -162,10 +170,14 @@ class PseudoLabelManager:
         sigma_sq      = stds_flat[sorted_idx] ** 2 + self.epsilon
         self.pseudo_w = (1.0 / sigma_sq).unsqueeze(1).clone()     # (N_accept, 1)
         self.n_pseudo = n_accept
+        self._update_count += 1
 
-        print(f"  [PseudoLabel] 接受 {self.n_pseudo}/{n_ul} 无标签样本  "
-              f"σ_threshold={self._last_tau:.4f}  "
-              f"w_mean={self.pseudo_w.mean().item():.2f}")
+        # 5. 诊断：σ 分布 + 伪标签质量（命中率）
+        self.last_diag = self._compute_diag(
+            stds_flat, sorted_idx, means_all.squeeze(),
+            true_soh_all, n_ul, n_accept,
+        )
+        self._print_diag(self.last_diag)
 
     def get_pseudo_loader(self, batch_size: int = 256) -> Optional[DataLoader]:
         """
@@ -252,6 +264,136 @@ class PseudoLabelManager:
             offset += len(sub_ds)
 
         return unlabeled
+
+    # ------------------------------------------------------------------ #
+    #  诊断辅助方法
+    # ------------------------------------------------------------------ #
+
+    def _compute_diag(
+        self,
+        stds_flat:    torch.Tensor,   # (N_ul,)  所有无标签样本的 σ
+        sorted_idx:   torch.Tensor,   # (n_accept,) 接受样本在 stds_flat 中的索引
+        means_flat:   torch.Tensor,   # (N_ul,)  所有无标签样本的预测均值 μ
+        true_soh_all: torch.Tensor | None,  # (N_ul,) 真实 SOH（可能为 None）
+        n_ul:         int,
+        n_accept:     int,
+    ) -> dict:
+        """计算伪标签诊断指标，返回 dict。"""
+        n_reject = n_ul - n_accept
+
+        # σ 分布（全部无标签样本）
+        sigma_all = stds_flat.cpu().float()
+        diag = {
+            'update_count':      self._update_count,
+            'n_unlabeled':       n_ul,
+            'n_accepted':        n_accept,
+            'n_rejected':        n_reject,
+            'accept_rate':       n_accept / max(n_ul, 1),
+            'sigma_threshold':   self._last_tau,
+            'sigma_min':         float(sigma_all.min()),
+            'sigma_max':         float(sigma_all.max()),
+            'sigma_mean':        float(sigma_all.mean()),
+            'sigma_p50':         float(sigma_all.median()),
+            'sigma_p20':         float(torch.quantile(sigma_all, 0.20)),
+            'w_mean':            float(self.pseudo_w.mean()),
+            'w_max':             float(self.pseudo_w.max()),
+        }
+
+        if true_soh_all is not None:
+            true_all = true_soh_all.cpu().float()
+            mu_all   = means_flat.cpu().float()
+
+            # 接受组 mask
+            accept_mask = torch.zeros(n_ul, dtype=torch.bool)
+            accept_mask[sorted_idx] = True
+
+            # 接受组质量
+            err_acc  = (mu_all[accept_mask] - true_all[accept_mask])
+            mae_acc  = float(err_acc.abs().mean())
+            bias_acc = float(err_acc.mean())
+            std_acc  = float(err_acc.std())
+
+            # 全无标签 MAE（不分接受/拒绝）
+            err_all = (mu_all - true_all)
+            mae_all = float(err_all.abs().mean())
+
+            # 拒绝组 MAE（应高于接受组，否则筛选无效）
+            mae_rej = float((mu_all[~accept_mask] - true_all[~accept_mask]).abs().mean()) \
+                      if n_reject > 0 else float('nan')
+
+            # σ 与误差的 Spearman 相关（越高说明 σ 越能反映真实误差）
+            try:
+                import scipy.stats as stats
+                rho, pval = stats.spearmanr(
+                    sigma_all.numpy(), err_all.abs().numpy()
+                )
+                spearman_rho = float(rho)
+                spearman_p   = float(pval)
+            except Exception:
+                spearman_rho = float('nan')
+                spearman_p   = float('nan')
+
+            diag.update({
+                'has_quality_metrics': True,
+                'pseudo_mae_accepted': mae_acc,
+                'pseudo_bias_accepted': bias_acc,
+                'pseudo_std_accepted':  std_acc,
+                'pseudo_mae_all_unlabeled': mae_all,
+                'pseudo_mae_rejected':  mae_rej,
+                'sigma_error_spearman_rho': spearman_rho,
+                'sigma_error_spearman_p':   spearman_p,
+            })
+        else:
+            diag['has_quality_metrics'] = False
+
+        return diag
+
+    def _print_diag(self, d: dict) -> None:
+        """打印格式化的伪标签诊断表格。"""
+        sep = "  " + "─" * 66
+        print(f"\n  ── [M6 伪标签] 第 {d['update_count']} 次更新诊断 " + "─" * 36)
+
+        # 接受情况
+        print(f"  接受样本:    {d['n_accepted']:>5} / {d['n_unlabeled']:>5}"
+              f"  ({d['accept_rate']*100:.1f}%)")
+
+        # σ 分布
+        print(f"  σ 分布:      min={d['sigma_min']:.5f}  "
+              f"p20={d['sigma_p20']:.5f}  "
+              f"p50={d['sigma_p50']:.5f}  "
+              f"mean={d['sigma_mean']:.5f}  "
+              f"max={d['sigma_max']:.5f}")
+        print(f"  σ 阈值:      {d['sigma_threshold']:.5f}  "
+              f"（仅接受 σ < 阈值的样本）")
+        print(f"  伪标签权重:  mean={d['w_mean']:.2f}  max={d['w_max']:.2f}")
+
+        if d.get('has_quality_metrics'):
+            print(sep)
+            print(f"  伪标签质量（vs 真实 SOH）:")
+            print(f"    接受组 MAE:   {d['pseudo_mae_accepted']*100:.4f}%  "
+                  f"偏差: {d['pseudo_bias_accepted']*100:+.4f}%  "
+                  f"标准差: {d['pseudo_std_accepted']*100:.4f}%")
+            print(f"    全无标签 MAE: {d['pseudo_mae_all_unlabeled']*100:.4f}%  "
+                  f"拒绝组 MAE: {d['pseudo_mae_rejected']*100:.4f}%")
+            rho = d['sigma_error_spearman_rho']
+            p   = d['sigma_error_spearman_p']
+            print(f"    σ-误差 Spearman ρ: {rho:.4f}  (p={p:.4f})"
+                  f"  ← {'σ 能有效表征误差 ✅' if rho > 0.3 else 'σ 与误差相关性弱 ⚠️'}")
+
+            # 自动预警
+            sup_mae_est = d['pseudo_mae_all_unlabeled']  # 用全无标签 MAE 作参考
+            noise_ratio = d['pseudo_mae_accepted'] / max(sup_mae_est, 1e-8)
+            if d['pseudo_mae_accepted'] > 0.03:
+                print(f"  ⚠️  【伪标签噪声过高】接受组 MAE={d['pseudo_mae_accepted']*100:.4f}%，"
+                      f"超过 3%，伪标签信号质量差")
+            if d['pseudo_mae_rejected'] < d['pseudo_mae_accepted']:
+                print(f"  ⚠️  【筛选无效】拒绝组 MAE 低于接受组，"
+                      f"σ 未能有效区分高/低质量预测")
+            if abs(d['pseudo_bias_accepted']) > 0.01:
+                print(f"  ⚠️  【系统性偏差】伪标签偏差={d['pseudo_bias_accepted']*100:+.4f}%，"
+                      f"模型对无标签区间存在系统偏估")
+
+        print()
 
     def __repr__(self):
         return (
