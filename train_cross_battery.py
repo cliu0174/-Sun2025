@@ -1635,12 +1635,20 @@ def train_cross_battery_model(
 
         if sel_mode == 'composite':
             val_score = val_mae + sel_gamma * val_mono_viol
-            if (epoch + 1) >= sel_min_epoch and val_score < best_val_score:
-                best_val_score = val_score
-                best_val_mae = val_mae   # 仍记录 val_mae 供日志
-                best_epoch = epoch + 1
-                best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            cur_ep = epoch + 1
+            if cur_ep < sel_min_epoch:
+                # min_epoch 前不保存模型，但仍跟踪 score 历史（避免 inf 初值导致首个合法 epoch 必然中标）
+                # 同时不累加 patience，让 early stopping 真正从 min_epoch 开始
                 patience_counter = 0
+                if val_score < best_val_score:
+                    best_val_score = val_score
+            else:
+                if val_score < best_val_score:
+                    best_val_score = val_score
+                    best_val_mae = val_mae   # 仍记录 val_mae 供日志
+                    best_epoch = cur_ep
+                    best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+                    patience_counter = 0
         else:
             if val_mae < best_val_mae:  # 基于val_mae判断（默认）
                 best_val_mae = val_mae
