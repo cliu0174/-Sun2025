@@ -544,6 +544,18 @@ if __name__ == '__main__':
             '可用 ID 前缀：E0 E1 E2 E3 E4 E5'
         ),
     )
+    parser.add_argument(
+        '--ratio',
+        type=float,
+        default=None,
+        help='只运行指定监督比例（单个值），如 --ratio 1.0',
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='只运行指定随机种子（单个值），如 --seed 42',
+    )
     args = parser.parse_args()
 
     # 根据 --exp 过滤要运行的实验列表
@@ -559,6 +571,10 @@ if __name__ == '__main__':
             sys.exit(1)
     else:
         run_experiments = EXPERIMENTS
+
+    # --ratio / --seed 过滤（诊断模式，不影响汇总表读取历史结果）
+    run_ratios = [args.ratio] if args.ratio is not None else SUPERVISION_RATIOS
+    run_seeds  = [args.seed]  if args.seed  is not None else SEEDS
 
     done, total = count_done(run_experiments)
 
@@ -581,7 +597,7 @@ if __name__ == '__main__':
     # ── 按 ratio → experiment → seed 顺序运行 ──────────────────
     new_results = []
 
-    for ratio in SUPERVISION_RATIOS:
+    for ratio in run_ratios:
         ratio_tag = f"ratio={ratio:.1f}"
         print(f"\n{'▶'*3}  开始 {ratio_tag}  {'▶'*3}")
 
@@ -589,7 +605,7 @@ if __name__ == '__main__':
             label_pad = f"{exp['label']}（{exp['modules']}）"
             print(f"\n  ┌── {label_pad} | {ratio_tag}")
 
-            for seed in SEEDS:
+            for seed in run_seeds:
                 r = run_single(exp, seed, ratio)
                 new_results.append(r)
 
