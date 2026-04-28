@@ -67,6 +67,16 @@ EXPERIMENTS = [
         },
     },
     {
+        'id':    'E5_lambda',
+        'label': 'E5 + λ自适应',
+        'note':  '仅开 λ 自适应（r=0.3→0.02），观察降低伪标签权重是否单独有效',
+        'override': {
+            'pseudo_labeling': {
+                'lambda_adaptive': True,
+            }
+        },
+    },
+    {
         'id':    'E5_all',
         'label': 'E5 + EMA + 过滤 + λ自适应',
         'note':  '三合一组合，观察 MAE 是否回到 E0 ±1%',
