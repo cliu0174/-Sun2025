@@ -1867,7 +1867,8 @@ def plot_cross_battery_results(history, predictions, targets, battery_ids, save_
     axes[0].grid(True)
 
     errors = predictions - targets
-    axes[1].hist(errors, bins=50, edgecolor='black')
+    finite_errors = errors[np.isfinite(errors)]  # 防御：过滤 NaN/Inf，避免 matplotlib hist 崩
+    axes[1].hist(finite_errors if len(finite_errors) > 0 else [0], bins=50, edgecolor='black')
     axes[1].axvline(x=0, color='r', linestyle='--', lw=2)
     axes[1].set_xlabel('Error')
     axes[1].set_ylabel('Count')
