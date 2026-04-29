@@ -15,6 +15,7 @@
     │  E3   + M4             速率连续性约束    cnn_lstm (override)  │
     │  E4   + M5             自适应损失权重    cnn_lstm_adaptive_weight│
     │  E5   + M2+M6          不确定性伪标签    cnn_lstm_pseudo_label│
+    │  E7   Full Stack       M2+M4（最终方法） cnn_lstm_full_stack  │
     └──────────────────────────────────────────────────────────────┘
 
 说明：
@@ -26,7 +27,7 @@
 验证配置：
     supervision_ratios = [1.0, 0.7, 0.5, 0.3]  ← 4 个稀疏度
     seeds              = [42, 123, 456, 789, 1024]
-    总运行次数          = 6 × 4 × 5 = 120 次
+    总运行次数          = 7 × 4 × 5 = 140 次
 
 结果目录：experiments/ablation_single_module/
 
@@ -145,6 +146,14 @@ EXPERIMENTS = [
         'model_type':  'cnn_lstm_pseudo_label',
         'override':    None,
         'note':        'MC Dropout 估计不确定性，筛选高置信无标签样本作伪标签（ratio<1.0 有效）',
+    },
+    {
+        'id':          'E7_full_stack',
+        'label':       'Full Stack (Our Method)',
+        'modules':     'M2+M4',
+        'model_type':  'cnn_lstm_full_stack',
+        'override':    None,
+        'note':        'E2+E3 组合：MC Dropout（50次采样）+ 速率连续性约束（smoothness_weight=0.05）',
     },
 ]
 

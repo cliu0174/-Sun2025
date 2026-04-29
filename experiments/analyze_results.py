@@ -8,12 +8,12 @@
     python experiments/analyze_results.py
 
 前提：
-    - run_ablation_single_module.py 已运行（seeds=[42,123,34,999,1024]）
-    - run_exp07_full_stack.py 已运行（seeds=[42,123,34,999,1024]）
+    - run_ablation_single_module.py 已运行（含 E7_full_stack，seeds=[42,123,34,999,1024]）
+    - run_exp07_full_stack.py 仅用于 M7 指标（PICP/MPIW/Spearman），MAE/违规率从消融脚本读取
 
 对比设计：
-    消融实验和 Full Stack 使用相同 seeds，可做配对 t 检验。
-    E0_baseline 来自消融脚本（而非 run_baseline_v22.py，种子集不同）。
+    所有消融实验（含 Full Stack）使用相同 seeds，可做配对 t 检验。
+    E7 的 MAE + 违规率来自消融脚本的 E7_full_stack。
 """
 
 import os
@@ -55,9 +55,12 @@ ABLATION_EXPS = [
     {'id': 'E3_m4_smoothness', 'label': '+M4 速率连续性 (E3)'},
     {'id': 'E4_m5_adaptive',   'label': '+M5 自适应权重 (E4)'},
     {'id': 'E5_m2_m6_pseudo',  'label': '+M2+M6 伪标签 (E5)'},
+    {'id': 'E7_full_stack',    'label': 'Full Stack M2+M4 (E7)'},  # 已整合进消融脚本
 ]
 
-FULLSTACK_ID    = 'exp07_full_stack'
+# E7 现在也在消融脚本里，FULLSTACK 数据优先从消融脚本读取
+# run_exp07_full_stack.py 仍保留，用于输出 PICP/MPIW/Spearman（M7 专项）
+FULLSTACK_ID    = 'E7_full_stack'     # 消融脚本里的 id
 FULLSTACK_LABEL = 'Full Stack M2+M4 (E7)'
 BASELINE_ID     = 'E0_baseline'
 
