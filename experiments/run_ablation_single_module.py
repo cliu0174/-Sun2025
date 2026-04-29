@@ -58,7 +58,7 @@ from evaluation.physics_viz import compute_physics_violations
 # 全局配置
 # ================================================================
 SEEDS              = [42, 123, 34, 999, 1024]
-SUPERVISION_RATIOS = [1.0, 0.5, 0.3]
+SUPERVISION_RATIOS = [1.0, 0.7, 0.5, 0.3]
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 
