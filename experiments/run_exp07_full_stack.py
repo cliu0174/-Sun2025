@@ -93,17 +93,22 @@ def run_single(seed: int, ratio: float) -> Optional[dict]:
         with open(result_file, encoding='utf-8') as f:
             r = json.load(f)
         # 若已有完整 M7 + 物理指标则跳过；否则重新训练补充
-        if 'picp' in r and 'mono_violation_rate' in r:
+        # picp 存在且不是 NaN 才算有效
+        picp_val   = r.get('picp')
+        picp_valid = (picp_val is not None
+                      and isinstance(picp_val, float)
+                      and not np.isnan(picp_val))
+        if picp_valid and 'mono_violation_rate' in r:
             print(f"  [SKIP] {run_id}  MAE={r['test_mae']*100:.4f}%  "
                   f"PICP={r['picp']:.3f}  违规率={r['mono_violation_rate']:.2f}%")
             return r
         else:
             missing = []
-            if 'picp' not in r:
+            if not picp_valid:
                 missing.append('M7(picp/mpiw/spearman)')
             if 'mono_violation_rate' not in r:
                 missing.append('物理违规率')
-            print(f"  [RERUN] {run_id}  缺少 {', '.join(missing)}，重新训练补充")
+            print(f"  [RERUN] {run_id}  缺少/无效 {', '.join(missing)}，重新训练补充")
 
     os.makedirs(run_dir, exist_ok=True)
     t0 = time.time()
@@ -139,7 +144,7 @@ def run_single(seed: int, ratio: float) -> Optional[dict]:
         uncertainty_metrics = {}
         try:
             uncertainty_metrics = compute_uncertainty_metrics(
-                model, data_dict, device, n_mc_samples=50
+                model, data_dict, DEVICE, n_mc_samples=50
             )
         except Exception as e:
             print(f"  [WARN] M7 指标计算失败: {e}")
