@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>部分生命周期监督 数据缺失场景示意图 — PI-CNNLSTM SOH</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #0f1419;
+    color: #e6e6e6;
+    padding: 24px;
+    line-height: 1.6;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    color: #4fc3f7;
+    margin-bottom: 8px;
+    border-left: 4px solid #4fc3f7;
+    padding-left: 12px;
+  }
+  .subtitle { color: #999; font-size: 14px; margin-bottom: 24px; }
+
+  .control-panel {
+    background: #1e2530;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .control-panel h3 { font-size: 14px; color: #ffa726; margin-bottom: 14px; }
+
+  .ratio-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ratio-btn {
+    background: #2d3748;
+    border: 1px solid #3d4758;
+    color: #e6e6e6;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    font-family: monospace;
+  }
+  .ratio-btn:hover { background: #3d4758; }
+  .ratio-btn.active {
+    background: #4fc3f7;
+    color: #0f1419;
+    border-color: #4fc3f7;
+    font-weight: bold;
+  }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row label { font-size: 13px; color: #999; min-width: 110px; }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    background: #2d3748;
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: #4fc3f7;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .ratio-display {
+    font-family: monospace;
+    color: #4fc3f7;
+    font-size: 16px;
+    min-width: 50px;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #1e2530;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .stat-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 22px; font-weight: bold; color: #e6e6e6; margin-top: 4px; font-family: monospace; }
+  .stat-value.green { color: #66bb6a; }
+  .stat-value.gray { color: #757575; }
+  .stat-value.blue { color: #4fc3f7; }
+
+  .viz-section {
+    background: #1e2530;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .viz-section h3 {
+    font-size: 14px;
+    color: #ffa726;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .legend { display: flex; gap: 20px; font-size: 12px; color: #999; font-weight: normal; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-bar { width: 14px; height: 4px; border-radius: 2px; }
+
+  .battery-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    font-family: monospace;
+    font-size: 11px;
+  }
+  .battery-label { width: 70px; color: #999; flex-shrink: 0; }
+  .battery-cycles { color: #666; width: 50px; text-align: right; padding-right: 8px; flex-shrink: 0; }
+  .battery-track {
+    flex: 1;
+    position: relative;
+    height: 18px;
+    background: #2d3748;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .battery-track svg { width: 100%; height: 100%; display: block; }
+
+  .info-box {
+    background: #1a1f2a;
+    border-left: 3px solid #4fc3f7;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #ccc;
+  }
+  .info-box strong { color: #4fc3f7; }
+  .info-box code {
+    background: #0f1419;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #ffa726;
+    font-size: 12px;
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .comparison-table th, .comparison-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #2d3748;
+  }
+  .comparison-table th {
+    color: #ffa726;
+    font-weight: 600;
+    font-size: 12px;
+    background: #1a1f2a;
+  }
+  .comparison-table td.highlight { color: #4fc3f7; font-weight: bold; }
+  .comparison-table tr.our-method { background: #1a3340; }
+
+  .footer { text-align: center; color: #555; font-size: 11px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>部分生命周期监督（Partial Lifecycle Supervision）数据缺失场景</h1>
+  <div class="subtitle">PI-CNNLSTM SOH 估计 · HUST 数据集 · 77 块电池 · 14 维特征</div>
+
+  <!-- 控制面板 -->
+  <div class="control-panel">
+    <h3>⚙ 监督比例控制</h3>
+    <div class="ratio-buttons">
+      <button class="ratio-btn" data-ratio="1.0">r = 1.0 (完全监督)</button>
+      <button class="ratio-btn active" data-ratio="0.7">r = 0.7</button>
+      <button class="ratio-btn" data-ratio="0.5">r = 0.5</button>
+      <button class="ratio-btn" data-ratio="0.3">r = 0.3 (稀疏)</button>
+    </div>
+    <div class="slider-row">
+      <label>自定义 ratio:</label>
+      <input type="range" id="ratio-slider" min="0.05" max="1.0" step="0.01" value="0.7">
+      <span class="ratio-display" id="ratio-display">0.70</span>
+    </div>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">训练电池数</div>
+      <div class="stat-value blue">46</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">总训练 cycles</div>
+      <div class="stat-value" id="stat-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">有标签 cycles</div>
+      <div class="stat-value green" id="stat-labeled">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">无标签 cycles</div>
+      <div class="stat-value gray" id="stat-unlabeled">—</div>
+    </div>
+  </div>
+
+  <!-- 可视化 -->
+  <div class="viz-section">
+    <h3>
+      <span>📊 12 块训练电池生命周期视图（每块电池标签随机分布）</span>
+      <span class="legend">
+        <span class="legend-item"><span class="legend-bar" style="background:#2d3748"></span>无标签 cycle</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#66bb6a"></span>有标签 cycle (参与 MSE)</span>
+      </span>
+    </h3>
+    <div id="battery-vis"></div>
+    <div class="info-box">
+      <strong>关键设计：</strong>每块电池<strong>独立采样</strong>——在该电池整个生命周期内随机抽取 <code>n_labeled = round(n_cycles × ratio)</code> 个 cycle 保留 SOH 标签，其余 cycle 标签被 mask 掉。<strong>未标记样本仍然参与</strong>物理约束计算（M4 速率连续性、软单调性），但<strong>不参与 MSE 监督</strong>。这正是 <code>generate_supervision_mask</code> 函数（<code>train_cross_battery.py:235</code>）的实现逻辑。
+    </div>
+  </div>
+
+  <!-- 数据集划分 -->
+  <div class="viz-section">
+    <h3><span>🔀 数据集划分（60/20/20 split, seed=42）</span></h3>
+    <div id="split-vis" style="display: flex; gap: 4px; height: 36px; border-radius: 4px; overflow: hidden;">
+      <div style="flex: 60; background: linear-gradient(135deg, #1976d2, #4fc3f7); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: bold;">
+        Train (60%) · 46 batteries · 仅此部分施加 label masking
+      </div>
+      <div style="flex: 20; background: #ffa726; display: flex; align-items: center; justify-content: center; color: #0f1419; font-size: 12px; font-weight: bold;">
+        Val (20%) · 15
+      </div>
+      <div style="flex: 20; background: #66bb6a; display: flex; align-items: center; justify-content: center; color: #0f1419; font-size: 12px; font-weight: bold;">
+        Test (20%) · 16 · 完全监督
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>注意：</strong>验证集和测试集<strong>始终保持完全监督</strong>（label mask 全 True），保证公平评估。只有训练集的标签会被 mask。
+    </div>
+  </div>
+
+  <!-- 与其他范式对比 -->
+  <div class="viz-section">
+    <h3><span>📚 与其他数据缺失范式对比</span></h3>
+    <table class="comparison-table">
+      <tr>
+        <th style="width: 22%;">范式</th>
+        <th style="width: 38%;">缺失模式</th>
+        <th style="width: 25%;">代表论文</th>
+        <th style="width: 15%;">与本工作差异</th>
+      </tr>
+      <tr>
+        <td>传感器稀疏</td>
+        <td>电压/温度/电流采样不全（特征维度缺失）</td>
+        <td>Ma et al. (2025)</td>
+        <td>缺失在<strong>特征</strong></td>
+      </tr>
+      <tr>
+        <td>规律稀疏采样</td>
+        <td>每隔 K 个 cycle 才采样一次（特征+标签都没有）</td>
+        <td>多数 BMS 工程论文</td>
+        <td>缺失<strong>样本本身</strong></td>
+      </tr>
+      <tr>
+        <td>退役电池历史缺失</td>
+        <td>first-life 数据完全不可得，只有 second-life 数据</td>
+        <td>Zhu et al. (2025)</td>
+        <td>缺失在<strong>整段时间</strong></td>
+      </tr>
+      <tr>
+        <td>连续段缺失</td>
+        <td>生命周期某连续段没有数据</td>
+        <td>Tian et al. (UDE-SEI)</td>
+        <td>缺失是<strong>连续区间</strong></td>
+      </tr>
+      <tr class="our-method">
+        <td class="highlight">★ 部分生命周期监督</td>
+        <td><strong>样本（特征 X）全部保留，但 SOH 标签随机 mask</strong></td>
+        <td class="highlight">本工作</td>
+        <td class="highlight">缺失在<strong>标签</strong></td>
+      </tr>
+    </table>
+    <div class="info-box">
+      <strong>核心差异：</strong>本工作场景下，所有 cycle 的<strong>输入特征 X 仍然完整保留</strong>，物理约束（M4 速率连续性、软单调性）依然能在所有相邻 cycle 之间施加；但只有 ratio 比例的 cycle 拥有 ground-truth SOH 标签参与 MSE 监督。这意味着模型可以利用<strong>无标签样本的物理一致性</strong>来辅助标签稀疏区域的学习——这正是 M6 伪标签机制能够发挥作用的物理基础。
+    </div>
+  </div>
+
+  <div class="footer">
+    PI-CNNLSTM Battery SOH · Generated 2026-04-29 · Interactive visualization
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// 模拟 46 块训练电池的 cycle 数（HUST 实测约 1500-2700 cycles/battery）
+// 这里展示 12 块代表性电池
+// ============================================================
+const BATTERIES = [
+  { id: '1-1',  cycles: 1487 },
+  { id: '1-3',  cycles: 1825 },
+  { id: '2-2',  cycles: 2613 },
+  { id: '2-5',  cycles: 1956 },
+  { id: '3-1',  cycles: 2104 },
+  { id: '4-7',  cycles: 1742 },
+  { id: '5-3',  cycles: 2650 },
+  { id: '6-2',  cycles: 1893 },
+  { id: '7-4',  cycles: 2210 },
+  { id: '8-1',  cycles: 1654 },
+  { id: '9-1',  cycles: 2035 },
+  { id: '10-5', cycles: 2398 },
+];
+
+// 模拟全部 46 块电池的 cycle 总数（用于全局统计）
+const TOTAL_TRAIN_CYCLES = 46 * 2050; // 约 94,300 个 cycle 总数
+
+// 简单 LCG 伪随机（保证可复现）
+function makeRng(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+// 模拟 generate_supervision_mask 的逻辑
+function generateMask(nCycles, ratio, seed) {
+  const nLabeled = Math.max(1, Math.round(nCycles * ratio));
+  const rng = makeRng(seed);
+  const indices = Array.from({length: nCycles}, (_, i) => i);
+  // Fisher-Yates shuffle
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return new Set(indices.slice(0, nLabeled));
+}
+
+function renderBatteries(ratio) {
+  const container = document.getElementById('battery-vis');
+  container.innerHTML = '';
+
+  let totalCycles = 0;
+  let totalLabeled = 0;
+
+  BATTERIES.forEach((bat, idx) => {
+    totalCycles += bat.cycles;
+    const seed = 42 + idx * 7;
+    const labeledSet = generateMask(bat.cycles, ratio, seed);
+    totalLabeled += labeledSet.size;
+
+    // 构建 SVG
+    const w = 1000; // viewBox 宽度（可缩放）
+    const h = 18;
+    const cycleW = w / bat.cycles;
+
+    // 为了渲染速度，把 labeled cycle 合并成 SVG line 元素
+    let svgLines = '';
+    for (const i of labeledSet) {
+      const x = i * cycleW;
+      svgLines += `<line x1="${x.toFixed(2)}" y1="0" x2="${x.toFixed(2)}" y2="${h}" stroke="#66bb6a" stroke-width="${Math.max(cycleW, 0.5).toFixed(2)}" />`;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'battery-row';
+    row.innerHTML = `
+      <span class="battery-label">${bat.id}</span>
+      <span class="battery-cycles">${bat.cycles}</span>
+      <div class="battery-track">
+        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${svgLines}</svg>
+      </div>
+      <span style="margin-left: 10px; color: #66bb6a; min-width: 60px; text-align: right;">${labeledSet.size} 标签</span>
+    `;
+    container.appendChild(row);
+  });
+
+  // 用全局电池数估算（实际应该是 46 块的总和）
+  const globalTotal = TOTAL_TRAIN_CYCLES;
+  const globalLabeled = Math.round(globalTotal * ratio);
+  const globalUnlabeled = globalTotal - globalLabeled;
+
+  document.getElementById('stat-total').textContent = globalTotal.toLocaleString();
+  document.getElementById('stat-labeled').textContent = globalLabeled.toLocaleString();
+  document.getElementById('stat-unlabeled').textContent = globalUnlabeled.toLocaleString();
+}
+
+// ============================================================
+// 事件绑定
+// ============================================================
+const slider = document.getElementById('ratio-slider');
+const display = document.getElementById('ratio-display');
+const buttons = document.querySelectorAll('.ratio-btn');
+
+function setRatio(r, fromButton = false) {
+  display.textContent = r.toFixed(2);
+  slider.value = r;
+
+  // 更新按钮高亮
+  buttons.forEach(btn => {
+    const btnRatio = parseFloat(btn.dataset.ratio);
+    btn.classList.toggle('active', Math.abs(btnRatio - r) < 0.001);
+  });
+
+  renderBatteries(r);
+}
+
+slider.addEventListener('input', (e) => {
+  const r = parseFloat(e.target.value);
+  setRatio(r);
+});
+
+buttons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const r = parseFloat(btn.dataset.ratio);
+    setRatio(r, true);
+  });
+});
+
+// 初始化
+setRatio(0.7);
+</script>
+
+</body>
+</html>

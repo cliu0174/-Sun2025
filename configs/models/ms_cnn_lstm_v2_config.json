@@ -1,0 +1,70 @@
+{
+  "model_type": "ms_cnn_lstm_v2",
+  "model_name": "MultiScale-CNN-LSTM V2",
+  "description": "多尺度 CNN-LSTM V2 实验架构。use_multiscale 控制是否启用多尺度并联 CNN（默认 3 路 kernel=3/7/15），per_window_norm 控制是否在输入端加 LayerNorm（M3）。",
+  "architecture": {
+    "input_size": -1,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "use_multiscale": true,
+    "multiscale_kernels": [3, 7, 15],
+    "branch_channels": [64, 64],
+    "fused_channels": 128,
+    "pool_size": 2,
+    "per_window_norm": false,
+    "cnn_channels": [256, 128],
+    "kernel_size": 7,
+    "fc_hidden_sizes": [64],
+    "dropout_rate": 0.4,
+    "activation": "ReLU",
+    "output_activation": "Sigmoid"
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 256,
+    "learning_rate": 0.0005,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {
+      "enabled": true,
+      "type": "WarmupCosineDecay",
+      "warmup_epochs": 20,
+      "warmup_lr": 0.002,
+      "base_lr": 0.005,
+      "final_lr": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 20,
+      "min_delta": 1e-05
+    }
+  },
+  "data": {
+    "window_size": 40,
+    "train_ratio": 0.75,
+    "shuffle": true,
+    "normalize_target": true
+  },
+  "feature_selection": {
+    "enabled": true,
+    "correlation_threshold": 0.5,
+    "top_k": 6,
+    "method": "correlation"
+  },
+  "regularization": {
+    "l1_weight": 0.0,
+    "l2_weight": 0.0
+  },
+  "physics_constraints": {
+    "enabled": false,
+    "base_loss_weight": 1.0,
+    "monotonic_weight": 0.0,
+    "boundary_weight": 0.0,
+    "smoothness_weight": 0.0,
+    "monotonic_tolerance": 0.005,
+    "min_cycle": 300
+  },
+  "visualization": {
+    "color_by_battery": true
+  }
+}
