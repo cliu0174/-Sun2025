@@ -41,7 +41,7 @@ BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 ABLATION_DIR = os.path.join(BASE_DIR, 'ablation_single_module')
 EXP07_DIR    = os.path.join(BASE_DIR, 'exp07_full_stack')
 
-SEEDS   = [42, 123, 34, 999, 1024]
+SEEDS   = [929, 2262, 7]
 RATIOS  = [1.0, 0.7, 0.5, 0.3]
 
 # ================================================================

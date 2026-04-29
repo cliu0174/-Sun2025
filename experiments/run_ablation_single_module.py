@@ -27,7 +27,7 @@
 验证配置：
     supervision_ratios = [1.0, 0.7, 0.5, 0.3]  ← 4 个稀疏度
     seeds              = [42, 123, 456, 789, 1024]
-    总运行次数          = 7 × 4 × 5 = 140 次
+    总运行次数          = 7 × 4 × 3 = 84 次
 
 结果目录：experiments/ablation_single_module/
 
@@ -58,7 +58,7 @@ from evaluation.physics_viz import compute_physics_violations
 # ================================================================
 # 全局配置
 # ================================================================
-SEEDS              = [42, 123, 34, 999, 1024]
+SEEDS              = [929, 2262, 7]
 SUPERVISION_RATIOS = [1.0, 0.7, 0.5, 0.3]
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
