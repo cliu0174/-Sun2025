@@ -126,28 +126,43 @@ def load_cache(exp_key, seed):
     if not os.path.exists(p):
         return None
     d = np.load(p, allow_pickle=True)
+    preds   = d['preds']
+    targets = d['targets']
+    bids    = list(d['battery_ids'])
+    mc_std  = d['mc_std'] if 'mc_std' in d else None
+
+    # ── 一致性检查：三个主数组必须等长 ──────────────────────────────
+    sizes = (len(preds), len(targets), len(bids))
+    if len(set(sizes)) != 1:
+        print(f"  [WARN]  缓存 {exp_key}/seed={seed} 尺寸不一致 "
+              f"preds={sizes[0]}, targets={sizes[1]}, bids={sizes[2]} → 删除并重训")
+        os.remove(p)
+        return None                 # 触发重新训练
+
     return {
         'mae'        : float(d['mae'][0]),
-        'preds'      : d['preds'],
-        'targets'    : d['targets'],
-        'battery_ids': list(d['battery_ids']),
-        'mc_std'     : d['mc_std'] if 'mc_std' in d else None,
+        'preds'      : preds,
+        'targets'    : targets,
+        'battery_ids': bids,
+        'mc_std'     : mc_std,
     }
 
 # ═══════════════════════════════════════════════════════════════════
 # MC Dropout 批量推理
 # ═══════════════════════════════════════════════════════════════════
-def run_mc_inference(model, test_features, test_battery_ids,
+def run_mc_inference(model, test_features, test_targets, test_battery_ids,
                      window_size, device, n_samples=50, batch_size=512):
     """
     对 test_features（已缩放，2D: N×F）先滑窗，再 MC 采样。
-    返回 (mc_mean, mc_std, windowed_bids)，均为 numpy。
+
+    注意：preds / targets / bids 全部来自同一次 _apply_windowing，
+    保证三者长度一致，不依赖外部 results['targets']。
+
+    返回 (mc_mean, mc_std, windowed_targets, windowed_bids)，均为 numpy。
     """
-    X, _, bids = _apply_windowing(
-        test_features,
-        np.zeros(len(test_features)),   # targets 只用于对齐，不用于推理
-        test_battery_ids,
-        window_size
+    placeholder = test_targets if test_targets is not None else np.zeros(len(test_features))
+    X, y_win, bids = _apply_windowing(
+        test_features, placeholder, test_battery_ids, window_size
     )
     x_t = torch.tensor(X, dtype=torch.float32).to(device)
     means, stds = [], []
@@ -155,7 +170,7 @@ def run_mc_inference(model, test_features, test_battery_ids,
         m, s = mc_predict(model, x_t[i:i + batch_size], n_samples=n_samples)
         means.append(m.cpu().numpy().squeeze(-1))
         stds.append(s.cpu().numpy().squeeze(-1))
-    return np.concatenate(means), np.concatenate(stds), bids
+    return np.concatenate(means), np.concatenate(stds), y_win, bids
 
 # ═══════════════════════════════════════════════════════════════════
 # 单次训练 / 缓存加载
@@ -192,18 +207,22 @@ def run_one(exp_key, seed, cfg, skip_if_cached):
     # MC Dropout 置信区间（仅 M2 模型）
     mc_std = None
     if cfg['use_mc'] and wrapper is not None:
-        model = wrapper.model if hasattr(wrapper, 'model') else wrapper
+        model     = wrapper.model if hasattr(wrapper, 'model') else wrapper
         test_feat = data_dict.get('test_features')
+        test_tgts = data_dict.get('test_targets')
         test_bids = data_dict.get('test_battery_ids')
         if test_feat is not None and test_bids is not None:
             print(f"  [MC]     运行 {cfg['n_mc']} 次采样…")
-            mc_mean, mc_std, mc_bids = run_mc_inference(
-                model, test_feat, test_bids,
+            mc_mean, mc_std, mc_targets, mc_bids = run_mc_inference(
+                model, test_feat, test_tgts, test_bids,
                 window_size, DEVICE, n_samples=cfg['n_mc']
             )
-            # 用 MC 均值覆盖原始点估计（两者应高度一致）
+            # preds / targets / battery_ids 全部来自同一次滑窗 → 长度自洽
             preds       = mc_mean
+            targets     = mc_targets   # ← 关键：随 MC 窗口同步更新
             battery_ids = list(mc_bids)
+            print(f"  [MC]     preds={len(preds)}, targets={len(targets)}, "
+                  f"bids={len(battery_ids)}")
 
     # 保存模型
     if wrapper is not None:
