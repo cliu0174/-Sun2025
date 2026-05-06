@@ -125,10 +125,14 @@ def _eval_loader(model: torch.nn.Module,
 
     with torch.no_grad():
         for batch in loader:
-            if not isinstance(batch, dict) or 'window' not in batch:
+            if isinstance(batch, dict) and 'window' in batch:
+                x = batch['window'].to(device)
+                y = batch['target_soh'].to(device)
+            elif isinstance(batch, (tuple, list)) and len(batch) >= 2:
+                x = batch[0].to(device)
+                y = batch[1].to(device)
+            else:
                 continue
-            x = batch['window'].to(device)
-            y = batch['target_soh'].to(device)
 
             if perturb_fn is not None:
                 x = perturb_fn(x)
