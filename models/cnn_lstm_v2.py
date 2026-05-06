@@ -23,6 +23,8 @@ V2 架构实验模块 —— 独立支线，不影响原有任何代码
 import torch
 import torch.nn as nn
 
+from .modules.mc_dropout import MCDropout
+
 
 def _make_single_branch(in_ch: int, channels: list, kernel_size: int,
                         pool_size: int, activation: nn.Module) -> nn.Sequential:
@@ -146,6 +148,11 @@ class MultiScaleCNN_LSTM(nn.Module):
             dropout=dropout_rate if num_layers > 1 else 0,
         )
 
+        # ── M2: MC Dropout（可选） ───────────────────────────────────────────
+        mc_cfg = config.get('mc_dropout', {})
+        use_mc_dropout = mc_cfg.get('enabled', False)
+        DropoutClass = MCDropout if use_mc_dropout else nn.Dropout
+
         # ── FC 头 ────────────────────────────────────────────────────────────
         fc_layers = []
         prev = hidden_size
@@ -153,7 +160,7 @@ class MultiScaleCNN_LSTM(nn.Module):
             fc_layers += [
                 nn.Linear(prev, fc_sz),
                 self.activation,
-                nn.Dropout(dropout_rate),
+                DropoutClass(dropout_rate),
             ]
             prev = fc_sz
         fc_layers.append(nn.Linear(prev, 1))
