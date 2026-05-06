@@ -6,21 +6,23 @@ Exp-09：多尺度 CNN Full Stack — A1 + M2 + M4 + M7
       确定最终论文方法是 A1 standalone 还是 A1 + Full Stack。
 
 实验列表：
-  ┌──────────┬──────────────────────────────────────────────────────┐
-  │    ID    │ 描述                                                 │
-  ├──────────┼──────────────────────────────────────────────────────┤
-  │  Exp09a  │ MS-CNN-LSTM + M2 + M4（monotonic_weight=0.3，同E7） │
-  │  Exp09b  │ MS-CNN-LSTM + M2 + M4（monotonic_weight=0.1，轻约束）│
-  └──────────┴──────────────────────────────────────────────────────┘
+  ┌──────────┬──────────────────────────────────────────────────────────┐
+  │    ID    │ 描述                                                     │
+  ├──────────┼──────────────────────────────────────────────────────────┤
+  │  Exp09a  │ MS-CNN-LSTM + M2 + M4（monotonic_weight=0.3，同E7）     │
+  │  Exp09b  │ MS-CNN-LSTM + M2 + M4（monotonic_weight=0.1，轻约束）   │
+  │  Exp09c  │ MS-CNN-LSTM + 仅软单调（同E0配置，无M2/M4）             │
+  └──────────┴──────────────────────────────────────────────────────────┘
 
 参照组（从已有结果加载，不重跑）：
   A1      (ms_cnn_lstm_v2, 无物理)     ← ablation_arch_mvp/A1_multiscale/
+  E0      (cnn_lstm + 软单调, 无M2/M4) ← ablation_single_module/E0_baseline/
   E7      (cnn_lstm_full_stack, M2+M4) ← exp07_full_stack/
 
 验证配置：
   seeds  = [929, 2262, 7]
   ratios = [1.0, 0.7, 0.5, 0.3]
-  总运行次数 = 2 × 4 × 3 = 24
+  总运行次数 = 3 × 4 × 3 = 36
 
 结果目录：experiments/exp09_ms_full_stack/
 """
@@ -48,6 +50,7 @@ SUPERVISION_RATIOS = [1.0, 0.7, 0.5, 0.3]
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'exp09_ms_full_stack')
 ARCH_MVP_DIR       = os.path.join(os.path.dirname(__file__), 'ablation_arch_mvp')
+ABLATION_DIR       = os.path.join(os.path.dirname(__file__), 'ablation_single_module')
 EXP07_DIR          = os.path.join(os.path.dirname(__file__), 'exp07_full_stack')
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -133,6 +136,27 @@ EXPERIMENTS = [
             },
         },
         'note': '多尺度CNN + M2 MC Dropout + M4 速率连续性，轻物理权重 w=0.1',
+    },
+    {
+        'id':         'Exp09c_ms_pi_only',
+        'label':      'Exp09c: PI-MS-CNN-LSTM (仅软单调)',
+        'model_type': 'ms_cnn_lstm_v2',
+        'override': {
+            'architecture': {
+                'use_multiscale': True,
+                'per_window_norm': False,
+            },
+            'physics_constraints': {
+                'enabled': True,
+                'base_loss_weight': 1.0,
+                'monotonic_weight': 0.3,
+                'boundary_weight': 0.0,
+                'smoothness_weight': 0.0,
+                'monotonic_tolerance': 0.005,
+                'min_cycle': 300,
+            },
+        },
+        'note': '多尺度CNN + 仅软单调约束（同E0配置），无M2/M4，纯PI架构对比',
     },
 ]
 
@@ -289,10 +313,10 @@ def run_single(exp: dict, seed: int, ratio: float) -> Optional[dict]:
 # 加载参照组结果
 # ================================================================
 def load_reference_results() -> dict:
-    """加载 A1 standalone 和 E7 Full Stack 结果作为参照。"""
+    """加载 A1 standalone、E0 PI-CNN-LSTM 和 E7 Full Stack 结果作为参照。"""
     refs = {}
 
-    # A1 from arch_mvp
+    # A1 from arch_mvp (MS-CNN-LSTM, 无物理)
     a1_data = defaultdict(list)
     for seed in SEEDS:
         for ratio in SUPERVISION_RATIOS:
@@ -303,6 +327,18 @@ def load_reference_results() -> dict:
                     a1_data[tag].append(json.load(f))
     if a1_data:
         refs['A1_multiscale'] = a1_data
+
+    # E0 from ablation_single_module (PI-CNN-LSTM, 仅软单调)
+    e0_data = defaultdict(list)
+    for seed in SEEDS:
+        for ratio in SUPERVISION_RATIOS:
+            tag = f"{ratio:.1f}".replace('.', 'p')
+            fp  = os.path.join(ABLATION_DIR, 'E0_baseline', f"ratio{tag}", f"seed{seed}", 'result.json')
+            if os.path.exists(fp):
+                with open(fp, encoding='utf-8') as f:
+                    e0_data[tag].append(json.load(f))
+    if e0_data:
+        refs['E0_baseline'] = e0_data
 
     # E7 from exp07 (seeds 可能不同，取交集)
     e7_data = defaultdict(list)
@@ -358,6 +394,7 @@ def aggregate_and_print(all_results: list, ref_results: dict) -> dict:
     # 参照组汇总
     label_map = {
         'A1_multiscale': '[REF] A1: MS-CNN（无物理）',
+        'E0_baseline':   '[REF] E0: PI-CNN-LSTM（仅软单调）',
         'E7_full_stack': '[REF] E7: CNN-LSTM Full Stack (M2+M4)',
     }
     for ref_id, by_ratio in ref_results.items():
@@ -381,17 +418,19 @@ def aggregate_and_print(all_results: list, ref_results: dict) -> dict:
 
     # 打印对比表
     ratio_tags = [f"{r:.1f}".replace('.', 'p') for r in SUPERVISION_RATIOS]
-    print_order = ['A1_multiscale', 'E7_full_stack',
+    print_order = ['A1_multiscale', 'E0_baseline', 'E7_full_stack',
+                   'Exp09c_ms_pi_only',
                    'Exp09a_ms_full_stack_w03', 'Exp09b_ms_full_stack_w01']
 
     for tag in ratio_tags:
         ratio_val = tag.replace('p', '.')
-        print(f"\n{'='*90}")
+        print(f"\n{'='*100}")
         print(f"  ratio = {ratio_val}")
-        print(f"  {'方法':<45} {'MAE%':>8} {'±':>6} {'RMSE%':>8} {'R²':>7} {'违规率':>7} {'vs A1':>8}")
-        print(f"  {'-'*88}")
+        print(f"  {'方法':<48} {'MAE%':>8} {'±':>6} {'RMSE%':>8} {'R²':>7} {'违规率':>7} {'vs E0':>8} {'vs A1':>8}")
+        print(f"  {'-'*98}")
 
         a1_mae = summary.get('A1_multiscale', {}).get(tag, {}).get('mae_mean', None)
+        e0_mae = summary.get('E0_baseline',   {}).get(tag, {}).get('mae_mean', None)
 
         for exp_id in print_order:
             if exp_id not in summary or tag not in summary[exp_id]:
@@ -405,14 +444,20 @@ def aggregate_and_print(all_results: list, ref_results: dict) -> dict:
 
             viol_str = f"{s['viol_mean']:.2f}%" if s['viol_mean'] is not None else '  N/A'
 
-            if a1_mae is not None and a1_mae > 0 and exp_id != 'A1_multiscale':
-                delta = (a1_mae - s['mae_mean']) / a1_mae * 100
-                vs_str = f"{delta:+.2f}%"
+            if e0_mae is not None and e0_mae > 0 and exp_id != 'E0_baseline':
+                delta_e0 = (e0_mae - s['mae_mean']) / e0_mae * 100
+                vs_e0_str = f"{delta_e0:+.2f}%"
             else:
-                vs_str = '—'
+                vs_e0_str = '—'
+
+            if a1_mae is not None and a1_mae > 0 and exp_id != 'A1_multiscale':
+                delta_a1 = (a1_mae - s['mae_mean']) / a1_mae * 100
+                vs_a1_str = f"{delta_a1:+.2f}%"
+            else:
+                vs_a1_str = '—'
 
             flag = ' ◀' if exp_id.startswith('Exp09') else ''
-            print(f"  {lbl:<45} {mae:>8.4f} {std:>6.4f} {rms:>8.4f} {r2:>7.4f} {viol_str:>7} {vs_str:>8}{flag}")
+            print(f"  {lbl:<48} {mae:>8.4f} {std:>6.4f} {rms:>8.4f} {r2:>7.4f} {viol_str:>7} {vs_e0_str:>8} {vs_a1_str:>8}{flag}")
 
     # 保存汇总 JSON
     summary_fp = os.path.join(OUTPUT_DIR, 'summary.json')
@@ -421,12 +466,12 @@ def aggregate_and_print(all_results: list, ref_results: dict) -> dict:
     print(f"\n[保存] 汇总结果 → {summary_fp}")
 
     # 结论提示
-    print(f"\n{'='*90}")
+    print(f"\n{'='*100}")
     print("  决策参考：")
-    print("  - 若 Exp09a/b MAE < A1 standalone → 最终方法 = MS-CNN + M2 + M4")
-    print("  - 若 Exp09a/b MAE ≈ A1 → 物理约束在多尺度架构下冗余，选 A1 + M2（仅做置信区间）")
-    print("  - 若 Exp09b(w=0.1) < Exp09a(w=0.3) → 多尺度架构下物理约束应减轻")
-    print(f"{'='*90}")
+    print("  - Exp09c vs E0 → 纯 PI 对比：同样软单调约束下，多尺度架构是否优于基线？")
+    print("  - Exp09c vs A1 → 多尺度架构加物理约束是否有增益？")
+    print("  - Exp09a/b vs Exp09c → M2+M4 在多尺度架构上是否有额外增益？")
+    print(f"{'='*100}")
 
     return summary
 
@@ -460,6 +505,8 @@ def main():
     ref_results = load_reference_results()
     if 'A1_multiscale' not in ref_results:
         print("  [警告] 未找到 ablation_arch_mvp/A1_multiscale/ 参照结果")
+    if 'E0_baseline' not in ref_results:
+        print("  [警告] 未找到 ablation_single_module/E0_baseline/ 参照结果")
     if 'E7_full_stack' not in ref_results:
         print("  [警告] 未找到 exp07_full_stack/ 参照结果（E7 seeds 可能不同）")
 
