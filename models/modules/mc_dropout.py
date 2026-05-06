@@ -44,11 +44,13 @@ def mc_predict(model: nn.Module, x: torch.Tensor, n_samples: int = 50):
         mean: 预测均值，shape (B, 1)
         std:  预测标准差（不确定性），shape (B, 1)
     """
-    model.eval()   # BN 使用运行统计量；MCDropout 层始终激活
+    # 兼容 UnifiedModelWrapper（取内部 nn.Module）
+    raw = getattr(model, 'model', model)
+    raw.eval()   # BN 使用运行统计量；MCDropout 层始终激活
 
     with torch.no_grad():
         preds = torch.stack(
-            [model(x) for _ in range(n_samples)],
+            [raw(x) for _ in range(n_samples)],
             dim=0
         )  # (n_samples, B, 1)
 

@@ -118,7 +118,8 @@ def _eval_loader(model: torch.nn.Module,
     Returns:
         {'mae': float, 'rmse': float, 'n': int}
     """
-    model.eval()
+    raw = getattr(model, 'model', model)
+    raw.eval()
     total_ae = 0.0
     total_se = 0.0
     n = 0
@@ -137,7 +138,7 @@ def _eval_loader(model: torch.nn.Module,
             if perturb_fn is not None:
                 x = perturb_fn(x)
 
-            pred = model(x)
+            pred = raw(x)
             if isinstance(pred, (tuple, list)):
                 pred = pred[0]
             pred = pred.squeeze(-1)
