@@ -148,6 +148,10 @@ class SOHReconstructionTransformer(nn.Module):
             nn.Linear(d_model // 2, 1),
         )
 
+        # SOH 范围约束参数
+        self.soh_min = 0.70
+        self.soh_range = 0.35  # max ~1.05
+
         self.d_model = d_model
 
     def forward(self, soh_values, known_mask, pad_mask=None):
@@ -156,7 +160,6 @@ class SOHReconstructionTransformer(nn.Module):
             soh_values: (B, T) 已知位置填真值，未知位置填 0
             known_mask: (B, T) bool, True=已知
             pad_mask:   (B, T) bool, True=有效位置, False=padding
-                        传给 Transformer 的 src_key_padding_mask 需要反转
 
         Returns:
             reconstructed: (B, T) 重建的完整 SOH 序列
@@ -173,15 +176,17 @@ class SOHReconstructionTransformer(nn.Module):
         x = self.pos_encoder(x)
 
         # Transformer 编码（传入 padding mask）
-        # src_key_padding_mask: True 表示忽略该位置，所以需要反转 pad_mask
         if pad_mask is not None:
-            key_padding_mask = ~pad_mask  # True = padding 位置需要被忽略
+            key_padding_mask = ~pad_mask
         else:
             key_padding_mask = None
 
         x = self.transformer_encoder(x, src_key_padding_mask=key_padding_mask)
 
-        out = self.output_head(x).squeeze(-1)  # (B, T)
+        raw = self.output_head(x).squeeze(-1)  # (B, T)
+
+        # Sigmoid 约束输出到 SOH 合理范围 [0.70, 1.05]
+        out = self.soh_min + self.soh_range * torch.sigmoid(raw)
         return out
 
 
@@ -223,12 +228,14 @@ def train_transformer(model, train_seqs, val_seqs, ratio, device,
 
     # 按长度排序，相近长度的放一个 batch，减少 padding
     sorted_seqs = sorted(train_seqs, key=len)
-    n_batches = max(1, len(sorted_seqs) // batch_size)
+
+    # 用 ceil 确保所有序列都被覆盖
+    n_batches = max(1, (len(sorted_seqs) + batch_size - 1) // batch_size)
 
     for epoch in range(epochs):
         model.train()
 
-        # 每 epoch 打乱 batch 顺序（但同一 batch 内的序列长度相近）
+        # 每 epoch 打乱 batch 顺序
         batch_indices = list(range(n_batches))
         rng.shuffle(batch_indices)
 
@@ -239,6 +246,8 @@ def train_transformer(model, train_seqs, val_seqs, ratio, device,
             start = bi * batch_size
             end = min(start + batch_size, len(sorted_seqs))
             batch_seqs = sorted_seqs[start:end]
+            if len(batch_seqs) == 0:
+                continue
 
             # 每次重新 mask（数据增强）
             max_len = max(len(s) for s in batch_seqs)
@@ -265,19 +274,32 @@ def train_transformer(model, train_seqs, val_seqs, ratio, device,
             optimizer.zero_grad()
             pred = model(soh_t, known_t, pad_t)
 
-            # Loss：被 mask 掉且非 padding 的位置
-            loss_mask = pad_t & ~known_t
-            if loss_mask.sum() > 0:
-                loss = ((pred - full_t) ** 2 * loss_mask.float()).sum() / loss_mask.sum()
-            else:
-                loss = ((pred - full_t) ** 2 * pad_t.float()).sum() / pad_t.sum()
+            # Loss：在 ALL 有效位置计算（已知 + 未知）
+            # 已知位置：教模型"复读"正确值（建立输出锚点）
+            # 未知位置：教模型"补全"缺失值（核心目标）
+            # 未知位置权重更高，强调补全能力
+            known_loss_mask = pad_t & known_t
+            masked_loss_mask = pad_t & ~known_t
+
+            loss = 0.0
+            n_total = 0
+            if masked_loss_mask.sum() > 0:
+                masked_loss = ((pred - full_t) ** 2 * masked_loss_mask.float()).sum()
+                loss = loss + masked_loss
+                n_total += masked_loss_mask.sum().item()
+            if known_loss_mask.sum() > 0:
+                known_loss = ((pred - full_t) ** 2 * known_loss_mask.float()).sum() * 0.5
+                loss = loss + known_loss
+                n_total += known_loss_mask.sum().item() * 0.5
+
+            loss = loss / max(n_total, 1)
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
-            epoch_loss += loss.item() * loss_mask.sum().item()
-            epoch_count += loss_mask.sum().item()
+            epoch_loss += loss.item() * max(n_total, 1)
+            epoch_count += max(n_total, 1)
 
         scheduler.step()
         avg_train_loss = epoch_loss / max(epoch_count, 1)
