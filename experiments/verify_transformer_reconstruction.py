@@ -79,14 +79,52 @@ def load_battery_soh_sequences(data_dir=None):
     return sequences
 
 
-def mask_soh_sequence(soh, ratio, rng):
-    """对单条 SOH 序列做 label masking"""
+def mask_soh_sequence(soh, ratio, rng, mode='contiguous'):
+    """
+    对单条 SOH 序列做 label masking。
+
+    Args:
+        soh:   (T,) 完整 SOH 序列
+        ratio: float, 保留标签的比例
+        rng:   np.random.RandomState
+        mode:  masking 模式
+            'contiguous' - 连续片段缺失（默认，模拟部分生命周期监督）
+            'random'     - 随机散点缺失
+
+    连续缺失模式会随机选择以下方案之一：
+        - 'head':   只保留前 ratio 部分
+        - 'tail':   只保留后 ratio 部分
+        - 'both':   保留前 ratio/2 + 后 ratio/2（中间缺失）
+        - 'middle': 保留中间 ratio 部分（两端缺失）
+    """
     T = len(soh)
-    n_keep = max(2, int(round(T * ratio)))  # 至少保留 2 个点（插值需要）
-    keep_idx = rng.choice(T, size=n_keep, replace=False)
+    n_keep = max(2, int(round(T * ratio)))
 
     mask = np.zeros(T, dtype=bool)
-    mask[keep_idx] = True
+
+    if mode == 'random':
+        keep_idx = rng.choice(T, size=n_keep, replace=False)
+        mask[keep_idx] = True
+
+    elif mode == 'contiguous':
+        pattern = rng.choice(['head', 'tail', 'both', 'middle'])
+
+        if pattern == 'head':
+            # 只有前 ratio 有标签
+            mask[:n_keep] = True
+        elif pattern == 'tail':
+            # 只有后 ratio 有标签
+            mask[T - n_keep:] = True
+        elif pattern == 'both':
+            # 前后各一半，中间缺失
+            n_head = max(1, n_keep // 2)
+            n_tail = n_keep - n_head
+            mask[:n_head] = True
+            mask[T - n_tail:] = True
+        elif pattern == 'middle':
+            # 只有中间部分有标签，两端缺失
+            start = (T - n_keep) // 2
+            mask[start:start + n_keep] = True
 
     masked_soh = np.full(T, np.nan, dtype=np.float32)
     masked_soh[mask] = soh[mask]
@@ -524,7 +562,7 @@ def plot_reconstruction(model, test_seqs, ratio, device, output_dir, seed=42):
         ax.set_title(f'Battery {bid} (T={T})', fontweight='bold')
         ax.legend(fontsize=7, loc='lower left')
 
-    plt.suptitle(f'SOH Reconstruction at r={ratio}', fontsize=14, fontweight='bold')
+    plt.suptitle(f'SOH Reconstruction at r={ratio} (contiguous missing)', fontsize=14, fontweight='bold')
     plt.tight_layout()
 
     path = os.path.join(output_dir, f'reconstruction_r{ratio}.png')
