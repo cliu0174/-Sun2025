@@ -26,7 +26,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 plt.rcParams.update({
-    'font.family': 'Times New Roman',
+    'font.family': 'serif',
     'font.size': 10,
     'figure.dpi': 300,
     'savefig.dpi': 300,

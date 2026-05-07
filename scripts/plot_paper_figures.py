@@ -27,7 +27,7 @@ from matplotlib.colors import LinearSegmentedColormap
 # 全局设置
 # ============================================================
 plt.rcParams.update({
-    'font.family': 'Times New Roman',
+    'font.family': 'serif',
     'font.size': 10,
     'axes.labelsize': 11,
     'axes.titlesize': 12,

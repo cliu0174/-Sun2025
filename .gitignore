@@ -52,5 +52,8 @@ Thumbs.db
 # Reference papers (too large for git, keep locally only)
 paper/
 
+# Generated figures (re-generate locally via scripts/)
+figures/
+
 # Draft Word documents (use git LFS if version control needed)
 *.docx
