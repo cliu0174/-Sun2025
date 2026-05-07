@@ -505,33 +505,65 @@ def estimate_confidence(model, soh, mask, device, n_masks=20, seed=42):
 # 7. 可视化
 # ============================================================
 
+def _mask_with_pattern(soh, ratio, pattern):
+    """用指定模式生成 mask"""
+    T = len(soh)
+    n_keep = max(2, int(round(T * ratio)))
+    mask = np.zeros(T, dtype=bool)
+
+    if pattern == 'head':
+        mask[:n_keep] = True
+    elif pattern == 'tail':
+        mask[T - n_keep:] = True
+    elif pattern == 'both':
+        n_head = max(1, n_keep // 2)
+        n_tail = n_keep - n_head
+        mask[:n_head] = True
+        mask[T - n_tail:] = True
+    elif pattern == 'middle':
+        start = (T - n_keep) // 2
+        mask[start:start + n_keep] = True
+
+    masked_soh = np.full(T, np.nan, dtype=np.float32)
+    masked_soh[mask] = soh[mask]
+    return masked_soh, mask
+
+
 def plot_reconstruction(model, test_seqs, ratio, device, output_dir, seed=42):
     """
-    可视化重建效果：选 4 块代表性电池，展示真值 / 已知点 / Transformer重建 / 插值
+    可视化重建效果：四种缺失模式各选一块电池，展示真值 / 已知段 / Transformer重建 / 插值
     """
     model.eval()
-    rng = np.random.RandomState(seed)
 
-    # 选 4 块电池（不同长度）
+    patterns = ['head', 'tail', 'both', 'middle']
+    pattern_labels = {
+        'head':   'Only first {r}% known (extrapolate future)',
+        'tail':   'Only last {r}% known (extrapolate past)',
+        'both':   'First+Last {rh}% known (interpolate middle)',
+        'middle': 'Only middle {r}% known (extrapolate both ends)',
+    }
+
+    # 选 4 块不同电池
     sorted_bids = sorted(test_seqs.keys(), key=lambda b: len(test_seqs[b]))
     n = len(sorted_bids)
     if n >= 4:
         indices = [0, n // 3, 2 * n // 3, n - 1]
     else:
-        indices = list(range(n))
+        indices = list(range(min(n, 4)))
     selected = [sorted_bids[i] for i in indices]
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     axes = axes.flatten()
 
-    for ax_idx, bid in enumerate(selected):
-        if ax_idx >= len(axes):
-            break
+    for ax_idx, pattern in enumerate(patterns):
         ax = axes[ax_idx]
+        bid = selected[ax_idx % len(selected)]
         soh = test_seqs[bid]
         T = len(soh)
-        masked_soh, mask = mask_soh_sequence(soh, ratio, rng)
         cycles = np.arange(T)
+
+        # 用指定模式 mask
+        masked_soh, mask = _mask_with_pattern(soh, ratio, pattern)
 
         # Transformer 预测
         soh_input = np.where(mask, soh, 0.0).astype(np.float32)
@@ -543,32 +575,60 @@ def plot_reconstruction(model, test_seqs, ratio, device, output_dir, seed=42):
         # 线性插值
         interp = linear_interpolation(masked_soh, mask)
 
-        # 只在 masked 位置计算 MAE
+        # MAE（只在缺失位置）
         eval_mask = ~mask
-        trans_mae = np.mean(np.abs(pred[eval_mask] - soh[eval_mask])) * 100
-        interp_mae = np.mean(np.abs(interp[eval_mask] - soh[eval_mask])) * 100
+        if eval_mask.sum() > 0:
+            trans_mae = np.mean(np.abs(pred[eval_mask] - soh[eval_mask])) * 100
+            interp_mae = np.mean(np.abs(interp[eval_mask] - soh[eval_mask])) * 100
+        else:
+            trans_mae = interp_mae = 0.0
 
-        # 画图
-        ax.plot(cycles, soh, 'k-', linewidth=1.5, alpha=0.4, label='True SOH')
-        ax.scatter(cycles[mask], soh[mask], c='blue', s=12, zorder=5,
-                   label=f'Known ({mask.sum()}/{T})', alpha=0.7)
-        ax.plot(cycles, pred, 'r-', linewidth=1.2, alpha=0.8,
+        # 画图：已知区域用浅蓝色背景标出
+        known_ranges = _get_contiguous_ranges(mask)
+        for rng_start, rng_end in known_ranges:
+            ax.axvspan(rng_start, rng_end, alpha=0.10, color='blue')
+
+        ax.plot(cycles, soh, 'k-', linewidth=1.8, alpha=0.5, label='True SOH')
+        ax.scatter(cycles[mask], soh[mask], c='#1976D2', s=8, zorder=5,
+                   alpha=0.6, label=f'Known ({mask.sum()}/{T})')
+        ax.plot(cycles, pred, 'r-', linewidth=1.5, alpha=0.85, zorder=4,
                 label=f'Transformer (MAE={trans_mae:.3f}%)')
-        ax.plot(cycles, interp, 'g--', linewidth=1.0, alpha=0.7,
+        ax.plot(cycles, interp, 'g--', linewidth=1.2, alpha=0.7, zorder=3,
                 label=f'Interpolation (MAE={interp_mae:.3f}%)')
 
         ax.set_xlabel('Cycle')
         ax.set_ylabel('SOH')
-        ax.set_title(f'Battery {bid} (T={T})', fontweight='bold')
+
+        r_pct = int(ratio * 100)
+        title = pattern_labels[pattern].format(r=r_pct, rh=r_pct//2)
+        ax.set_title(f'{title}\nBattery {bid}', fontsize=9, fontweight='bold')
         ax.legend(fontsize=7, loc='lower left')
 
-    plt.suptitle(f'SOH Reconstruction at r={ratio} (contiguous missing)', fontsize=14, fontweight='bold')
+    plt.suptitle(f'SOH Reconstruction: 4 Missing Patterns at r={ratio}',
+                 fontsize=13, fontweight='bold')
     plt.tight_layout()
 
     path = os.path.join(output_dir, f'reconstruction_r{ratio}.png')
     plt.savefig(path)
     plt.close()
     print(f'  [PLOT] Saved: {path}')
+
+
+def _get_contiguous_ranges(mask):
+    """从 bool mask 中提取连续 True 区段的 (start, end) 列表"""
+    ranges = []
+    in_range = False
+    start = 0
+    for i, v in enumerate(mask):
+        if v and not in_range:
+            start = i
+            in_range = True
+        elif not v and in_range:
+            ranges.append((start, i - 1))
+            in_range = False
+    if in_range:
+        ranges.append((start, len(mask) - 1))
+    return ranges
 
 
 def plot_summary(all_results, output_dir):
