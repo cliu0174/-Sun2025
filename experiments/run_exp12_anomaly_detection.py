@@ -17,13 +17,26 @@ Exp-12：基于物理约束的电芯异常检测
     - 严重度：mild (alpha=0.2) / moderate (alpha=0.4) / severe (alpha=0.7)
     - 供体：退化最严重的 5 颗电芯
 
-对比模型：
-    E0       → PI-CNN-LSTM（基线）
-    Exp09c   → PI-MS-CNN-LSTM（最终方案）
+对比模型（7 个，形成完整对比梯队）：
+    ── 纯序列基线（无 CNN、无物理）──
+    B1_lstm      → 纯 LSTM
+    B2_gru       → 纯 GRU
+    ── CNN-LSTM 系列 ──
+    Eneg1        → CNN-LSTM（无物理约束）
+    E0           → PI-CNN-LSTM（软单调，基线）
+    E2_mc        → PI-CNN-LSTM + MC Dropout（已知失效模块）
+    ── 多尺度系列 ──
+    A1_ms_nophys → MS-CNN-LSTM（无物理约束）
+    Exp09c ★     → PI-MS-CNN-LSTM（最终方案）
+
+对比维度：
+    ① 架构升级价值：  LSTM / GRU < CNN-LSTM < MS-CNN-LSTM
+    ② 物理约束价值：  无物理 < 有物理（异常检测信号来源）
+    ③ 复杂度陷阱：    +MC Dropout 是否反而降低检测能力
 
 检测信号：
     1. input_zscore    输入特征 z-score
-    2. mono_violation  单调违规率
+    2. mono_violation  单调违规率（物理约束副产物）
     3. rate_anomaly    退化速率突变
     4. combined        综合分数
 
@@ -70,25 +83,85 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 # ================================================================
-# 模型配置（同 Exp-11）
+# 物理约束公共配置
+# ================================================================
+_PI_COMMON = {
+    'enabled': True,
+    'monotonic_weight': 0.3,
+    'boundary_weight': 0.0,
+    'smoothness_weight': 0.0,
+    'monotonic_tolerance': 0.005,
+    'min_cycle': 300,
+}
+
+_NO_PHYSICS = {
+    'enabled': False,
+    'monotonic_weight': 0.0,
+    'boundary_weight': 0.0,
+    'smoothness_weight': 0.0,
+}
+
+
+# ================================================================
+# 7 个对比模型
 # ================================================================
 MODELS = {
-    'E0_baseline': {
-        'label':      'E0: PI-CNN-LSTM',
+    # ── 纯序列基线（无 CNN、无物理）──
+    'B1_lstm': {
+        'label':      'B1: LSTM (no CNN, no physics)',
+        'model_type': 'lstm',
+        'override': {
+            'physics_constraints': _NO_PHYSICS,
+        },
+    },
+    'B2_gru': {
+        'label':      'B2: GRU (no CNN, no physics)',
+        'model_type': 'gru',
+        'override': {
+            'physics_constraints': _NO_PHYSICS,
+        },
+    },
+
+    # ── CNN-LSTM 系列 ──
+    'Eneg1_no_physics': {
+        'label':      'Eneg1: CNN-LSTM (no physics)',
         'model_type': 'cnn_lstm',
         'override': {
-            'physics_constraints': {
-                'enabled': True,
-                'monotonic_weight': 0.3,
-                'boundary_weight': 0.0,
-                'smoothness_weight': 0.0,
-                'monotonic_tolerance': 0.005,
-                'min_cycle': 300,
+            'physics_constraints': _NO_PHYSICS,
+        },
+    },
+    'E0_baseline': {
+        'label':      'E0: PI-CNN-LSTM (baseline)',
+        'model_type': 'cnn_lstm',
+        'override': {
+            'physics_constraints': {**_PI_COMMON},
+        },
+    },
+    'E2_mc_dropout': {
+        'label':      'E2: PI-CNN-LSTM + MC Dropout',
+        'model_type': 'cnn_lstm_mc',
+        'override': {
+            'physics_constraints': {**_PI_COMMON},
+            'model': {
+                'mc_dropout': {'enabled': True, 'rate': 0.1},
             },
         },
     },
+
+    # ── 多尺度系列 ──
+    'A1_ms_no_physics': {
+        'label':      'A1: MS-CNN-LSTM (no physics)',
+        'model_type': 'ms_cnn_lstm_v2',
+        'override': {
+            'architecture': {
+                'use_multiscale': True,
+                'per_window_norm': False,
+            },
+            'physics_constraints': _NO_PHYSICS,
+        },
+    },
     'Exp09c_ms_pi': {
-        'label':      'Exp09c: PI-MS-CNN-LSTM',
+        'label':      'Exp09c: PI-MS-CNN-LSTM [Ours]',
         'model_type': 'ms_cnn_lstm_v2',
         'override': {
             'architecture': {
@@ -96,17 +169,19 @@ MODELS = {
                 'per_window_norm': False,
             },
             'physics_constraints': {
-                'enabled': True,
+                **_PI_COMMON,
                 'base_loss_weight': 1.0,
-                'monotonic_weight': 0.3,
-                'boundary_weight': 0.0,
-                'smoothness_weight': 0.0,
-                'monotonic_tolerance': 0.005,
-                'min_cycle': 300,
             },
         },
     },
 }
+
+# 运行顺序：从弱到强
+MODEL_ORDER = [
+    'B1_lstm', 'B2_gru',
+    'Eneg1_no_physics', 'E0_baseline', 'E2_mc_dropout',
+    'A1_ms_no_physics', 'Exp09c_ms_pi',
+]
 
 
 # ================================================================
@@ -355,9 +430,9 @@ def final_comparison(all_results):
 
     for severity in SEVERITIES:
         print(f"\n  --- Severity: {severity} ---")
-        print(f"  {'Model':<20} {'Ratio':>6} {'AUC(combined)':>14} {'DetRate@5%':>12}")
+        print(f"  {'Model':<38} {'Ratio':>6} {'AUC(combined)':>18} {'DetRate@5%':>12}")
 
-        for model_key in ['E0_baseline', 'Exp09c_ms_pi']:
+        for model_key in MODEL_ORDER:
             for ratio in SUPERVISION_RATIOS:
                 runs = groups[model_key][ratio]
                 aucs = []
@@ -369,7 +444,8 @@ def final_comparison(all_results):
                         det_rates.append(s['det_rate_mean'])
 
                 if aucs:
-                    print(f"  {model_key:<20} r={ratio:.1f}  "
+                    label = MODELS[model_key]['label']
+                    print(f"  {label:<38} r={ratio:.1f}  "
                           f"{np.mean(aucs):.3f}+/-{np.std(aucs):.3f}  "
                           f"{np.mean(det_rates)*100:.1f}%")
 
@@ -395,7 +471,7 @@ def main():
     all_results = []
     run_count = 0
 
-    for model_key in ['E0_baseline', 'Exp09c_ms_pi']:
+    for model_key in MODEL_ORDER:
         for ratio in SUPERVISION_RATIOS:
             for seed in SEEDS:
                 run_count += 1
