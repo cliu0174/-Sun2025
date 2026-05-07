@@ -100,7 +100,7 @@ def mask_soh_sequence(soh, ratio, rng):
 class PositionalEncoding(nn.Module):
     """标准正弦位置编码"""
 
-    def __init__(self, d_model, max_len=2000):
+    def __init__(self, d_model, max_len=5000):
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -126,7 +126,7 @@ class SOHReconstructionTransformer(nn.Module):
     """
 
     def __init__(self, d_model=64, nhead=4, num_layers=3, dim_feedforward=128,
-                 dropout=0.1, max_len=2000):
+                 dropout=0.1, max_len=5000):
         super().__init__()
 
         # 输入嵌入：SOH 值(1) + 已知标记(1) → d_model
