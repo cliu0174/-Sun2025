@@ -2,12 +2,12 @@
 论文预测曲线绘图 —— 需在服务器运行（需要 GPU 训练）
 
 功能：
-  1. 跑 E0 (PI-CNN-LSTM) 和 Exp09c (PI-MS-CNN-LSTM)，各 1 次
-  2. 保存逐电池预测值到 .npz
-  3. 生成 Fig7（预测曲线对比）和 Fig8（散点图）
+  1. 训练 7 个模型（LSTM / GRU / CNN-LSTM 无物理 / E0 / E2+MC / A1 无物理 / Exp09c）
+  2. 保存逐电池预测值到 .npz（支持断点续跑）
+  3. 生成 Fig7（多模型预测曲线对比）和 Fig8（多模型散点图）
 
-配置：r=0.3, seed=929（最优配置）
-耗时估计：每组 ~5 分钟，共 ~10 分钟
+配置：r=0.3, seed=929（Exp09c 最优场景）
+耗时估计：每组 ~5 分钟，共 ~35 分钟（缓存命中则跳过）
 
 用法：
   python scripts/run_and_plot_predictions.py                # 完整运行
@@ -19,9 +19,8 @@ import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgba
+from collections import OrderedDict
 
-# 添加项目根目录到 sys.path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
@@ -31,6 +30,8 @@ plt.rcParams.update({
     'figure.dpi': 300,
     'savefig.dpi': 300,
     'savefig.bbox': 'tight',
+    'axes.grid': True,
+    'grid.alpha': 0.3,
 })
 
 CACHE_DIR = os.path.join(ROOT, 'figures', 'pred_cache')
@@ -44,31 +45,82 @@ SEED = 929
 RATIO = 0.3
 DEVICE = 'cuda'
 
-CONFIGS = {
-    'E0': {
+_PI = {
+    'enabled': True,
+    'monotonic_weight': 0.3,
+    'boundary_weight': 0.0,
+    'smoothness_weight': 0.0,
+    'monotonic_tolerance': 0.005,
+    'min_cycle': 300,
+}
+_NO_PI = {
+    'enabled': False,
+    'monotonic_weight': 0.0,
+    'boundary_weight': 0.0,
+    'smoothness_weight': 0.0,
+}
+
+# 7 个模型，从弱到强排列
+CONFIGS = OrderedDict([
+    ('B1_LSTM', {
+        'model_type': 'lstm',
+        'override': {'physics_constraints': _NO_PI},
+        'label': 'LSTM',
+        'color': '#BDBDBD',
+        'linestyle': ':',
+    }),
+    ('B2_GRU', {
+        'model_type': 'gru',
+        'override': {'physics_constraints': _NO_PI},
+        'label': 'GRU',
+        'color': '#9E9E9E',
+        'linestyle': ':',
+    }),
+    ('Eneg1', {
         'model_type': 'cnn_lstm',
-        'override': None,
-        'label': 'E0 (PI-CNN-LSTM)',
-    },
-    'Exp09c': {
+        'override': {'physics_constraints': _NO_PI},
+        'label': 'CNN-LSTM (no physics)',
+        'color': '#FF9800',
+        'linestyle': '--',
+    }),
+    ('E0', {
+        'model_type': 'cnn_lstm',
+        'override': {'physics_constraints': {**_PI}},
+        'label': 'PI-CNN-LSTM (E0)',
+        'color': '#2196F3',
+        'linestyle': '--',
+    }),
+    ('E2_MC', {
+        'model_type': 'cnn_lstm_mc',
+        'override': {
+            'physics_constraints': {**_PI},
+            'model': {'mc_dropout': {'enabled': True, 'rate': 0.1}},
+        },
+        'label': 'PI-CNN-LSTM+MC (E2)',
+        'color': '#F44336',
+        'linestyle': '--',
+    }),
+    ('A1', {
         'model_type': 'ms_cnn_lstm_v2',
         'override': {
-            'training': {
-                'use_physics': True,
-                'physics_loss': {
-                    'monotonic_weight': 0.3,
-                    'boundary_weight': 0.0,
-                    'tolerance': 0.005,
-                    'min_cycle': 300,
-                },
-            },
-            'model': {
-                'mc_dropout': {'enabled': False},
-            },
+            'architecture': {'use_multiscale': True, 'per_window_norm': False},
+            'physics_constraints': _NO_PI,
         },
-        'label': 'Exp09c (PI-MS-CNN-LSTM)',
-    },
-}
+        'label': 'MS-CNN-LSTM (A1)',
+        'color': '#FF7043',
+        'linestyle': '-.',
+    }),
+    ('Exp09c', {
+        'model_type': 'ms_cnn_lstm_v2',
+        'override': {
+            'architecture': {'use_multiscale': True, 'per_window_norm': False},
+            'physics_constraints': {**_PI, 'base_loss_weight': 1.0},
+        },
+        'label': 'PI-MS-CNN-LSTM [Ours]',
+        'color': '#4CAF50',
+        'linestyle': '-',
+    }),
+])
 
 
 # ============================================================
@@ -79,7 +131,7 @@ def run_and_cache(exp_id, config):
     cache_file = os.path.join(CACHE_DIR, f'{exp_id}_r{RATIO}_s{SEED}.npz')
 
     if os.path.exists(cache_file):
-        print(f'  [CACHE HIT] {cache_file}')
+        print(f'  [CACHE HIT] {exp_id}')
         return np.load(cache_file, allow_pickle=True)
 
     from train_cross_battery import train_cross_battery_model
@@ -103,86 +155,96 @@ def run_and_cache(exp_id, config):
     np.savez(cache_file,
              predictions=preds,
              targets=targets,
-             battery_ids=battery_ids)
+             battery_ids=battery_ids,
+             mae=results['test_mae'],
+             r2=results['test_r2'])
 
     print(f'  [SAVED] {cache_file}')
-    print(f'          MAE={results["test_mae"]:.4f}%, R2={results["test_r2"]:.4f}')
+    print(f'          MAE={results["test_mae"]*100:.4f}%, R2={results["test_r2"]:.4f}')
     return np.load(cache_file, allow_pickle=True)
 
 
 # ============================================================
-# Fig 7: 预测曲线对比（逐电池）
+# Fig 7: 多模型预测曲线对比（选 1 块代表性电池）
 # ============================================================
-def plot_fig7(data_e0, data_exp09c):
-    """选 3 块代表性电池展示预测 vs 真值曲线"""
+def plot_fig7(all_data):
+    """在 1 块电池上展示所有模型的预测 vs 真值"""
 
-    bids_e0 = data_e0['battery_ids']
-    preds_e0 = data_e0['predictions']
-    targets_e0 = data_e0['targets']
+    # 用 Exp09c 的数据找一块 Exp09c 改善最大的电池
+    ref_key = 'Exp09c'
+    base_key = 'E0'
 
-    bids_exp09c = data_exp09c['battery_ids']
-    preds_exp09c = data_exp09c['predictions']
-    targets_exp09c = data_exp09c['targets']
+    bids_ref = all_data[ref_key]['battery_ids']
+    preds_ref = all_data[ref_key]['predictions']
+    targets_ref = all_data[ref_key]['targets']
+    bids_base = all_data[base_key]['battery_ids']
+    preds_base = all_data[base_key]['predictions']
+    targets_base = all_data[base_key]['targets']
 
-    # 获取所有测试电池
-    unique_batteries = sorted(set(bids_e0))
+    unique_batteries = sorted(set(bids_ref))
 
-    # 计算每块电池的 MAE 差值（Exp09c - E0），选 3 块代表性电池
-    battery_info = []
+    # 找改善最大的电池
+    best_bid, best_improve = None, -999
     for bid in unique_batteries:
-        mask_e0 = bids_e0 == bid
-        mask_exp09c = bids_exp09c == bid
-        if mask_e0.sum() > 0 and mask_exp09c.sum() > 0:
-            mae_e0 = np.mean(np.abs(preds_e0[mask_e0] - targets_e0[mask_e0]))
-            mae_exp09c = np.mean(np.abs(preds_exp09c[mask_exp09c] - targets_exp09c[mask_exp09c]))
-            n_samples = mask_e0.sum()
-            battery_info.append({
-                'bid': bid,
-                'mae_e0': mae_e0,
-                'mae_exp09c': mae_exp09c,
-                'improvement': (mae_e0 - mae_exp09c) / mae_e0 * 100,
-                'n_samples': n_samples,
-            })
+        m_ref = bids_ref == bid
+        m_base = bids_base == bid
+        if m_ref.sum() > 20 and m_base.sum() > 20:
+            mae_ref = np.mean(np.abs(preds_ref[m_ref] - targets_ref[m_ref]))
+            mae_base = np.mean(np.abs(preds_base[m_base] - targets_base[m_base]))
+            improve = (mae_base - mae_ref) / mae_base * 100
+            if improve > best_improve:
+                best_improve = improve
+                best_bid = bid
 
-    battery_info.sort(key=lambda x: x['improvement'], reverse=True)
+    # 画图：2 块电池（最大改善 + 中位）
+    battery_maes = []
+    for bid in unique_batteries:
+        m_ref = bids_ref == bid
+        m_base = bids_base == bid
+        if m_ref.sum() > 20 and m_base.sum() > 20:
+            mae_base = np.mean(np.abs(preds_base[m_base] - targets_base[m_base]))
+            mae_ref = np.mean(np.abs(preds_ref[m_ref] - targets_ref[m_ref]))
+            battery_maes.append((bid, (mae_base - mae_ref) / mae_base * 100))
 
-    # 选 3 块：最大改善、中位改善、最小改善（或退化）
-    n = len(battery_info)
-    selected = [
-        battery_info[0],            # 最大改善
-        battery_info[n // 2],       # 中位
-        battery_info[-1],           # 最小改善/退化
-    ]
+    battery_maes.sort(key=lambda x: x[1], reverse=True)
+    selected_bids = [battery_maes[0][0], battery_maes[len(battery_maes)//2][0]]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
 
-    for ax_idx, info in enumerate(selected):
+    for ax_idx, sel_bid in enumerate(selected_bids):
         ax = axes[ax_idx]
-        bid = info['bid']
 
-        mask_e0 = bids_e0 == bid
-        mask_exp09c = bids_exp09c == bid
+        # 真值（用 Exp09c 的 targets，所有模型相同）
+        mask = bids_ref == sel_bid
+        true_soh = targets_ref[mask]
+        cycles = np.arange(len(true_soh))
+        ax.plot(cycles, true_soh, 'k-', linewidth=2.0, label='True SOH', zorder=10)
 
-        t_e0 = targets_e0[mask_e0]
-        p_e0 = preds_e0[mask_e0]
-        t_exp09c = targets_exp09c[mask_exp09c]
-        p_exp09c = preds_exp09c[mask_exp09c]
+        # 各模型预测
+        for exp_id, cfg in CONFIGS.items():
+            data = all_data[exp_id]
+            m = data['battery_ids'] == sel_bid
+            if m.sum() == 0:
+                continue
+            p = data['predictions'][m]
+            mae_val = np.mean(np.abs(p - true_soh[:len(p)])) * 100
 
-        cycles = np.arange(len(t_e0))
+            lw = 2.0 if exp_id == 'Exp09c' else 1.0
+            alpha = 1.0 if exp_id == 'Exp09c' else 0.7
+            zorder = 8 if exp_id == 'Exp09c' else 3
 
-        ax.plot(cycles, t_e0, 'k-', linewidth=1.5, label='True SOH', alpha=0.8)
-        ax.plot(cycles, p_e0, '--', color='#2196F3', linewidth=1.2,
-               label=f'E0 (MAE={info["mae_e0"]*100:.3f}%)')
-        ax.plot(cycles[:len(p_exp09c)], p_exp09c, '--', color='#4CAF50', linewidth=1.2,
-               label=f'Exp09c (MAE={info["mae_exp09c"]*100:.3f}%)')
+            ax.plot(cycles[:len(p)], p,
+                   color=cfg['color'], linestyle=cfg['linestyle'],
+                   linewidth=lw, alpha=alpha, zorder=zorder,
+                   label=f'{cfg["label"]} ({mae_val:.3f}%)')
 
         ax.set_xlabel('Cycle Window')
-        ax.set_title(f'Battery {bid}\n(Improvement: {info["improvement"]:+.1f}%)',
-                    fontsize=10)
-        ax.legend(fontsize=7, loc='lower left')
+        ax.set_title(f'Battery {sel_bid}', fontsize=11, fontweight='bold')
+        ax.legend(fontsize=6.5, loc='lower left', ncol=1, framealpha=0.9)
 
     axes[0].set_ylabel('SOH')
-    plt.suptitle(f'Prediction Curves: E0 vs Exp09c (r={RATIO}, seed={SEED})', fontsize=12)
+    plt.suptitle(f'Prediction Curves: 7 Models Comparison (r={RATIO}, seed={SEED})',
+                fontsize=13)
     plt.tight_layout()
 
     path = os.path.join(OUTPUT_DIR, 'fig7_prediction_curves.png')
@@ -193,50 +255,51 @@ def plot_fig7(data_e0, data_exp09c):
 
 
 # ============================================================
-# Fig 8: 散点图（pred vs true）
+# Fig 8: 多模型散点图（pred vs true）
 # ============================================================
-def plot_fig8(data_e0, data_exp09c):
-    """pred vs true 散点图，E0 vs Exp09c 并排"""
+def plot_fig8(all_data):
+    """7 个模型的 pred vs true 散点图"""
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
+    n_models = len(CONFIGS)
+    fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+    axes_flat = axes.flatten()
 
-    datasets = [
-        ('E0 (PI-CNN-LSTM)', data_e0, '#2196F3'),
-        ('Exp09c (PI-MS-CNN-LSTM)', data_exp09c, '#4CAF50'),
-    ]
-
-    for ax_idx, (label, data, color) in enumerate(datasets):
-        ax = axes[ax_idx]
+    for ax_idx, (exp_id, cfg) in enumerate(CONFIGS.items()):
+        ax = axes_flat[ax_idx]
+        data = all_data[exp_id]
 
         preds = data['predictions']
         targets = data['targets']
-
         mae = np.mean(np.abs(preds - targets)) * 100
         r2 = 1 - np.sum((preds - targets)**2) / np.sum((targets - np.mean(targets))**2)
 
-        ax.scatter(targets, preds, s=3, alpha=0.3, c=color, edgecolors='none')
+        ax.scatter(targets, preds, s=2, alpha=0.25, c=cfg['color'], edgecolors='none')
 
-        # 对角线
         lims = [min(targets.min(), preds.min()) - 0.02,
                 max(targets.max(), preds.max()) + 0.02]
-        ax.plot(lims, lims, 'k--', linewidth=1, alpha=0.5, label='Ideal (y=x)')
+        ax.plot(lims, lims, 'k--', linewidth=0.8, alpha=0.4)
 
-        # 指标文字
-        ax.text(0.05, 0.92, f'MAE = {mae:.4f}%\nR$^2$ = {r2:.4f}',
-               transform=ax.transAxes, fontsize=9,
-               verticalalignment='top',
+        ax.text(0.05, 0.92, f'MAE={mae:.4f}%\nR$^2$={r2:.4f}',
+               transform=ax.transAxes, fontsize=8, verticalalignment='top',
                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
-        ax.set_xlabel('True SOH')
-        ax.set_ylabel('Predicted SOH')
-        ax.set_title(label, fontweight='bold')
+        title = cfg['label']
+        if exp_id == 'Exp09c':
+            title += ' *'
+        ax.set_title(title, fontsize=9, fontweight='bold' if exp_id == 'Exp09c' else 'normal')
         ax.set_xlim(lims)
         ax.set_ylim(lims)
         ax.set_aspect('equal')
-        ax.legend(fontsize=8, loc='lower right')
-        ax.grid(True, alpha=0.3)
 
-    plt.suptitle(f'Prediction Scatter Plot (r={RATIO}, seed={SEED})', fontsize=12)
+        if ax_idx % 4 == 0:
+            ax.set_ylabel('Predicted SOH')
+        if ax_idx >= 4:
+            ax.set_xlabel('True SOH')
+
+    # 隐藏第 8 个空白子图
+    axes_flat[-1].axis('off')
+
+    plt.suptitle(f'Prediction Scatter: 7 Models (r={RATIO}, seed={SEED})', fontsize=13)
     plt.tight_layout()
 
     path = os.path.join(OUTPUT_DIR, 'fig8_scatter_plot.png')
@@ -244,6 +307,54 @@ def plot_fig8(data_e0, data_exp09c):
     plt.savefig(path.replace('.png', '.pdf'))
     plt.close()
     print(f'  [OK] Fig 8 saved: {path}')
+
+
+# ============================================================
+# Fig 9: MAE 横向柱状图（一目了然的排名）
+# ============================================================
+def plot_fig9(all_data):
+    """7 个模型在 r=0.3 的 MAE 排名柱状图"""
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    model_maes = []
+    for exp_id, cfg in CONFIGS.items():
+        data = all_data[exp_id]
+        mae = np.mean(np.abs(data['predictions'] - data['targets'])) * 100
+        model_maes.append((exp_id, cfg['label'], mae, cfg['color']))
+
+    # 按 MAE 从大到小排序（最好的在最下面）
+    model_maes.sort(key=lambda x: x[2], reverse=True)
+
+    names = [m[1] for m in model_maes]
+    values = [m[2] for m in model_maes]
+    colors = [m[3] for m in model_maes]
+
+    bars = ax.barh(range(len(model_maes)), values, color=colors,
+                   edgecolor='white', linewidth=0.8, height=0.6)
+
+    # Exp09c 高亮边框
+    for i, m in enumerate(model_maes):
+        if m[0] == 'Exp09c':
+            bars[i].set_edgecolor('#1B5E20')
+            bars[i].set_linewidth(2.5)
+
+    for i, (bar, val) in enumerate(zip(bars, values)):
+        ax.text(val + 0.003, bar.get_y() + bar.get_height()/2,
+               f'{val:.4f}%', va='center', fontsize=9,
+               fontweight='bold' if model_maes[i][0] == 'Exp09c' else 'normal')
+
+    ax.set_yticks(range(len(model_maes)))
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlabel('MAE (%)')
+    ax.set_title(f'Model Ranking at r={RATIO} (seed={SEED})', fontsize=12, fontweight='bold')
+    ax.invert_yaxis()
+
+    plt.tight_layout()
+    path = os.path.join(OUTPUT_DIR, 'fig9_model_ranking.png')
+    plt.savefig(path)
+    plt.savefig(path.replace('.png', '.pdf'))
+    plt.close()
+    print(f'  [OK] Fig 9 saved: {path}')
 
 
 # ============================================================
@@ -256,32 +367,37 @@ def main():
     args = parser.parse_args()
 
     print('=' * 60)
-    print('Paper Prediction Figures (Fig 7 & Fig 8)')
+    print('Paper Prediction Figures (7 Models)')
     print(f'Config: ratio={RATIO}, seed={SEED}')
+    print(f'Models: {list(CONFIGS.keys())}')
     print('=' * 60)
 
+    all_data = {}
+
     if args.plot_only:
-        # 从缓存加载
-        cache_e0 = os.path.join(CACHE_DIR, f'E0_r{RATIO}_s{SEED}.npz')
-        cache_exp09c = os.path.join(CACHE_DIR, f'Exp09c_r{RATIO}_s{SEED}.npz')
-
-        if not os.path.exists(cache_e0) or not os.path.exists(cache_exp09c):
-            print('ERROR: Cache files not found. Run without --plot-only first.')
+        missing = []
+        for exp_id in CONFIGS:
+            cache_file = os.path.join(CACHE_DIR, f'{exp_id}_r{RATIO}_s{SEED}.npz')
+            if os.path.exists(cache_file):
+                all_data[exp_id] = np.load(cache_file, allow_pickle=True)
+            else:
+                missing.append(exp_id)
+        if missing:
+            print(f'ERROR: Cache missing for: {missing}')
+            print('Run without --plot-only first.')
             sys.exit(1)
-
-        data_e0 = np.load(cache_e0, allow_pickle=True)
-        data_exp09c = np.load(cache_exp09c, allow_pickle=True)
     else:
-        # 训练并缓存
-        data_e0 = run_and_cache('E0', CONFIGS['E0'])
-        data_exp09c = run_and_cache('Exp09c', CONFIGS['Exp09c'])
+        for i, (exp_id, cfg) in enumerate(CONFIGS.items()):
+            print(f'\n[{i+1}/{len(CONFIGS)}] {cfg["label"]}')
+            all_data[exp_id] = run_and_cache(exp_id, cfg)
 
     print('\nGenerating figures...')
-    plot_fig7(data_e0, data_exp09c)
-    plot_fig8(data_e0, data_exp09c)
+    plot_fig7(all_data)
+    plot_fig8(all_data)
+    plot_fig9(all_data)
 
     print('\n' + '=' * 60)
-    print(f'All done. Figures in: {OUTPUT_DIR}')
+    print(f'Done. 3 figures saved to: {OUTPUT_DIR}')
 
 
 if __name__ == '__main__':
