@@ -1,432 +1,334 @@
-# PI-CNNLSTM 模块化改进提优计划
+# PI-MS-CNN-LSTM 项目进展与计划
 
-> **项目**: 基于物理一致性约束的电池 SOH 估计（PI-CNNLSTM）
-> **数据集**: HUST 77 块电池，14 维特征
-> **基线**: **baseline-v2.2**（CNN-LSTM + 软单调约束 + 边界约束）
-> **创建日期**: 2026-04-17
-> **最后更新**: 2026-04-29（M6 验证完成，Full Stack 最终确定）
-> **状态**: ✅ M6 验证关闭 | ✅ Full Stack = M2+M4 确定 | ⏳ Exp-07/08 待服务器运行
-> **用途**: 硕士论文第四章 / 潜在期刊投稿
+> **项目**: 基于多尺度物理信息 CNN-LSTM 的电池 SOH 估计  
+> **数据集**: HUST 77 块电池，14 维特征（实际使用 Top-6）  
+> **创建日期**: 2026-04-17  
+> **最后更新**: 2026-05-20  
+> **用途**: 硕士论文第四章 / 潜在期刊投稿  
 
 ---
 
-## 0. 背景摘要（给未来的自己/Claude）
+## 0. 快速状态一览
 
-本项目是一个电池健康状态（SOH）估计任务，核心场景是**部分生命周期监督**（Partial Lifecycle Supervision）——即每块电池只有一部分循环有 SOH 标签，模型需要在监督稀疏的条件下泛化到全生命周期。
-
-### ✅ 当前代码实现状态总览（2026-04-18）
-
-| Stage | 内容 | 代码 | 实验 |
-|-------|------|------|------|
-| Stage 0 | 基线锁定（部分监督 + 物理约束） | ✅ | ⏳ 待服务器 |
-| Stage 1 | M1 注意力 + M2 MC Dropout + M7 置信区间 | ✅ | ⏳ 待服务器 |
-| Stage 2 | M4 速率连续性 + M5 自适应损失权重 | ✅ | ⏳ 待服务器 |
-| Stage 3 | M6 不确定性伪标签 | ✅ | ⏳ 待服务器 |
-| Stage 4 | 全模块集成 Exp-07 Full Stack | ✅ | ⏳ 待服务器 |
-| Stage 5 | M8 特征缺失鲁棒性 Exp-08 | ✅ | ⏳ 待服务器 |
-
-### 最终定稿的核心叙事（论文故事线）
+### 最终方案（已定稿）
 
 ```
-论文主故事（2026-04-29 定稿）：
+最终模型：PI-MS-CNN-LSTM（Exp09c）
+  架构：多尺度并行 CNN（kernel=3/7/15）+ LSTM
+  约束：软单调性（monotonic_weight=0.3, tolerance=0.005, min_cycle=300）
+  无：注意力(M1)、MC Dropout(M2)、速率连续性(M4)、自适应权重(M5)、伪标签(M6)
 
-在电池 SOH 估计的"部分生命周期监督"场景下，我们：
-1. 通过 MC Dropout（M2）量化预测不确定性，为 BMS 决策提供置信区间
-2. 通过速率连续性约束（M4）精化物理先验，提升预测平滑性
-3. 通过置信区间评估（M7）报告 PICP/MPIW/Spearman 指标
-
-核心卖点图：
-  "监督稀疏度 vs 模型误差"——物理约束在稀疏监督下的正则化价值
-  "置信区间质量"——MC Dropout 不确定性估计的校准性
+核心叙事："架构是主菜，约束是调料"
+  - 多尺度 CNN 是主要贡献（r=0.5 MAE↓10.81%）
+  - 软单调约束在 r=0.3 提供 +3.1% 正则化增益
+  - 全场最优：Exp09c r=0.3 → MAE=1.0336%，R²=0.9398
 ```
 
-> ⚠️ **已淘汰模块（不进 Full Stack）**
-> - M1 循环级注意力：低标签率下有害（过拟合稀疏标签），❌ 放弃
-> - M5 自适应损失权重：log_var 学歪，monotonic 权重趋零，❌ 放弃
-> - M6 伪标签：r=0.3/0.5 不稳定（seed 敏感），r=1.0 有效（+3.09%），⚠️ 仅消融表报告
+### 实验状态
 
-### 推荐的最终模块组合（定稿）
+| 实验 | 状态 | 结论速览 |
+|------|------|---------|
+| 单模块消融（E0~E7） | ✅ 完成 | E2(M2) r=1.0 最好，E7 r=0.3 严重退化 |
+| 架构消融 MVP（A0~A3） | ✅ 完成 | A1 多尺度全面优于 Eneg1，A2 LayerNorm 失败 |
+| **Exp-09 PI-MS-CNN-LSTM** | ✅ 完成 | Exp09c 为最终方案，r=0.3 全场最优 |
+| Exp-10 不确定性量化（M7） | ✅ 完成 | PICP=0.54~0.62，降级为辅助指标 |
+| Exp-11 鲁棒性验证（M8） | ✅ 完成 | Exp09c 绝对 MAE 全场更低，特征缺失更鲁棒 |
+| **Exp-12 异常检测** | ❌ 未运行 | 脚本就绪，无结果 |
+| Transformer 重建验证 | ❓ 状态不明 | 脚本存在，无结果文档 |
 
-```
-核心架构：CNN-LSTM（无注意力，M1 已淘汰）
-损失函数：软单调 + 边界 + 速率连续性约束（M4）
-评估：MC Dropout 置信区间（M2+M7）+ 特征缺失鲁棒性（M8）
+### 论文第四章状态
 
-不含：M1（有害）、M5（已放弃）、M6（低监督率不稳定）
-M6 结论：作为 limitation 报告——仅在 r=1.0 有效，r≤0.5 失效，
-         根因为低监督下模型质量不足以产生可靠伪标签
-```
-
----
-
-## 1. 基线协议（baseline-v2.2）
-
-### 1.1 数据划分
-- **比例**：60 / 20 / 20（训练 / 验证 / 测试）
-- **划分单位**：按电池划分（不是按循环），确保测试集电池完全未见
-- **种子**：42（固定）
-- **数量**：77 块电池 → 46 / 15 / 15（整数截断）
-- **实现位置**：`train_cross_battery.py::split_batteries()`
-
-### 1.2 模型结构
-- **主干**：CNN-LSTM（`models/cnn_lstm.py`）
-- **CNN**：channels=[256, 128], kernel_size=7
-- **LSTM**：hidden=64, num_layers=2
-- **FC**：[64]
-- **Dropout**：0.4
-- **窗口大小**：40
-- **特征选择**：Top-6 by correlation（from 14 维）
-
-### 1.3 物理约束（baseline-v2.2 必须启用）
-- `physics_constraints.enabled: true`
-- `monotonic_weight: 0.1`（软单调）
-- `boundary_weight: 0.05`（边界约束）
-- `smoothness_weight: 0.0`（M4 禁用，baseline 不含）
-- `monotonic_tolerance: 0.01`
-- `temporal_decay`：启用，exp 衰减，alpha=0.2
-
-### 1.4 部分监督协议
-- **实现方式**：**Label Masking**（不是 Sample Dropping！）
-  - 保留所有 (x, y) 样本，为每个样本增加 `is_labeled` 布尔标志
-  - 按电池随机选择 N% 的循环标记为 `is_labeled=True`
-  - MSE（监督 loss）：只对 `is_labeled=True` 样本计算
-  - 物理约束（mono/bound/smooth）：对**所有样本**计算
-- **监督比例矩阵**：`[1.0, 0.7, 0.5, 0.3]`
-- **随机性**：按 (battery_id, seed) 确定 mask 种子，可复现
-
-### 1.5 训练配置
-- **epochs**: 200，**batch_size**: 256，**optimizer**: Adam
-- **lr_scheduler**: WarmupCosineDecay（warmup 20 epoch, base_lr=0.005）
-- **early_stopping**: patience=20
-
-### 1.6 评估指标
-| 指标 | 含义 |
-|------|------|
-| MAE | 平均绝对误差（主指标）|
-| RMSE | 均方根误差 |
-| MAPE | 平均百分比误差 |
-| R² | 决定系数 |
-| PICP | 预测区间覆盖概率（M2+M7 专属）|
-| MPIW | 预测区间平均宽度（M2+M7 专属）|
-
----
-
-## 2. 模块化设计原则
-
-- **可插拔**：每个改进点独立封装为一个模块，通过配置 flag 控制启用
-- **可组合**：模块间通过清晰接口通信，支持任意组合消融
-- **可复现**：每次实验固定 seed，保留完整配置快照
-- **可比较**：统一训练脚本 + `config_override` 参数支持超参扫描
-
----
-
-## 3. 模块清单
-
-### 3.1 模块总览表
-
-| ID | 模块 | 实际文件位置 | 类型 | Full Stack | 状态 |
-|----|------|------------|------|-----------|------|
-| M1 | 循环级注意力 | `models/modules/attention.py` | 架构 | ❌ 已淘汰 | 代码保留，不启用 |
-| M2 | MC Dropout 包装 | `models/modules/mc_dropout.py` | 架构 | ✅ 保留 | ✅ 有效 |
-| M3 | 个体归一化 | — | 架构 | — | ⬜ 未实现 |
-| M4 | 速率连续性约束 | `models/physics_loss.py::smoothness_loss()` | 损失 | ✅ 保留 | ✅ 有效 |
-| M5 | 自适应损失权重 | `models/adaptive_loss.py` | 损失 | ❌ 已放弃 | 代码保留，不启用 |
-| M6 | 不确定性伪标签 | `training/pseudo_labeling.py` | 训练 | ❌ 不进 Full Stack | ⚠️ 仅 r=1.0 有效 |
-| M7 | 置信区间评估 | `evaluation/uncertainty_eval.py` | 评估 | ✅ 保留 | ✅ 依赖 M2 |
-| M8 | 特征缺失鲁棒性 | `evaluation/robustness_eval.py` | 评估 | ✅ 保留 | ✅ 评估用 |
-
-> **优先级说明**：P0 必做，P1 强烈建议，P2 时间充裕再做
-
-### 3.2 各模块实现细节
-
-#### M1：循环级注意力（Cycle-level Attention）✅
-- **位置**：LSTM 输出之后、FC 头之前（`models/cnn_lstm.py` 第 75-80 行）
-- **实现**：4 头 Multi-Head Self-Attention + Residual + LayerNorm + Global Average Pool
-- **开关**：`configs/models/cnn_lstm_attention_config.json` 中 `attention.enabled: true`
-- **论文说辞**：
-  > "电池退化过程中存在信息不对称性——近期循环与历史特定退化节点对当前健康状态的贡献不尽相同。本文在 CNN-LSTM 的时序表征层引入循环级注意力机制，使模型能够自适应地聚焦退化敏感的历史区间。"
-
-#### M2：MC Dropout 包装（Monte Carlo Dropout）✅
-- **位置**：FC 头中的 Dropout 层（`models/cnn_lstm.py` 第 83-85 行）
-- **实现**：`MCDropout(nn.Dropout)` 继承，强制 `training=True`
-- **推理接口**：`mc_predict(model, x, n_samples=50) → (mean, std)`
-- **开关**：`configs/models/cnn_lstm_mc_config.json` 中 `mc_dropout.enabled: true`
-- **论文说辞**：
-  > "在部分生命周期监督条件下，模型对未观测退化阶段的估计本质上包含不可约减的认知不确定性。本文通过测试时保留 Dropout 进行多次随机前向传播，构建 SOH 预测的置信区间。"
-
-#### M3：个体归一化（暂缓）⬜
-- **目的**：消除电池个体间绝对幅值差异，聚焦退化模式形状
-- **实现**：`nn.InstanceNorm1d`，位于 CNN 输入前
-
-#### M4：速率连续性约束（Rate Smoothness）✅
-- **位置**：`models/physics_loss.py::PhysicsConstrainedLoss.smoothness_loss()`
-- **公式**：`L_smooth = Σ (Δ²SOH)²`（同一电池内的二阶差分平方和）
-- **开关**：配置中 `physics_constraints.smoothness_weight > 0`
-- **超参扫描**：`run_exp03_rate_smoothness.py` 扫描 `{0.01, 0.05, 0.1, 0.2}`
-- **论文说辞**：
-  > "传统软单调性约束仅要求 SOH 序列全局非上升，但在局部窗口内允许预测值突变。本文进一步引入退化速率连续性约束：对相邻循环的 SOH 差分序列施加平滑正则，使预测曲线更符合电池物理退化规律。"
-
-#### M5：自适应损失权重（Uncertainty-Weighted Multi-task）✅
-- **位置**：`models/adaptive_loss.py::AdaptivePhysicsLoss`
-- **公式**：`L = Σ_i [ exp(-log_σᵢ) · Lᵢ + log_σᵢ ]`，4 个 `log_σᵢ` 可学习
-- **损失项**：`[base_MSE, monotonic, boundary, smoothness]`
-- **集成方式**：`log_vars` 自动加入 optimizer param_group
-- **开关**：配置中 `physics_constraints.adaptive_weight.enabled: true`
-- **注意**：启用 M5 时原固定权重仍在，但被 `forward_components()` 绕过（不参与加权求和）
-- **论文说辞**：
-  > "本文采用基于不确定性的多任务加权框架，以可学习参数 log σᵢ 自适应调整各损失项权重，消除人工调参负担，并为各项物理约束的贡献提供可解释的不确定性估计。"
-
-#### M6：不确定性引导伪标签（Uncertainty-Guided Pseudo-Labeling）⚠️ 已验证边界条件
-- **位置**：`training/pseudo_labeling.py::PseudoLabelManager`
-- **依赖**：M2（MCDropout 层，推理时保持激活）
-- **训练流程**：
-  1. **Warmup**（前 `warmup_epochs=30` 轮）：仅用真实标签训练，正常流程
-  2. **每 K=5 epoch 刷新伪标签**：
-     - MC Dropout 对所有无标签样本推理，得 `(μ, σ)`
-     - 按 σ 升序，取最低 30% 为伪标签（上限 50% 无标签样本数）
-     - 伪标签权重 `= 1/(σ² + ε)`
-  3. **附加训练轮次**：独立 DataLoader，对伪标签样本做加权 MSE
-- **防漂移机制**：每次刷新完全重置（不累积历史伪标签）
-- **开关**：配置中 `pseudo_labeling.enabled: true`
-- **最终结论（2026-04-29 验证完成）**：
-  - r=1.0：+3.09%（有效，消融表保留）
-  - r=0.5：−19.81%（无效，best_epoch=10，早停在 warmup 后立即触发）
-  - r=0.3：3 seeds 中仅 1/3 有效（+4.55%），均值 −14.83%，不稳定
-  - **根因**：低监督率下模型质量不足 → 伪标签质量差（pseudo_mae_all_unlabeled 震荡于 0.7%~2.2%）→ 自我强化负偏差
-  - **处置**：不进入 Full Stack；作为消融项在论文中报告适用边界
-- **论文说辞（改为 limitation 表述）**：
-  > "实验表明，M6 在全监督场景（r=1.0）下可有效提升预测精度（+3.09%），但在低监督率（r≤0.5）下因初始模型质量不足导致伪标签质量不可靠，反而引发性能退化。这揭示了不确定性引导伪标签在部分生命周期监督场景下的适用边界：当真实标签足够支撑模型建立可靠的不确定性估计时，该策略方能奏效。"
-
-#### M7：置信区间评估 ✅
-- **位置**：`evaluation/uncertainty_eval.py`
-- **依赖**：M2
-- **指标**：
-  - PICP（Prediction Interval Coverage Probability）：95% CI 覆盖比例，理论值 ≈ 0.95
-  - MPIW（Mean Prediction Interval Width）：区间平均宽度，越小越好
-  - Spearman(|error|, std)：误差与不确定性的正相关性
-
-#### M8：特征缺失鲁棒性评估 ✅
-- **位置**：`evaluation/robustness_eval.py::evaluate_robustness()`
-- **测试场景**：
-  - Scene A：随机特征置零，n_mask ∈ {1, 2, 3}
-  - Scene B：高斯噪声，σ ∈ {0.01, 0.05, 0.10}
-  - Scene C：系统性漂移，drift ∈ {+0.05, +0.10, +0.20}
-- **对比**：Baseline vs Full Stack 的 `delta_MAE` 和 `rel_degradation`
-- **实验脚本**：`experiments/run_exp08_robustness.py`（ratio=0.5 × 5 seeds × 2 models = 10 次）
-- **论文说辞**：
-  > "实际部署中传感器故障不可避免。本文在三类扰动场景下评估所提方法的鲁棒性：随机特征屏蔽模拟传感器完全失效，高斯噪声模拟测量误差，常量偏置漂移模拟长期标定偏差。Full Stack 方法借助物理约束和伪标签扩展，在所有场景下均表现出比 Baseline 更小的性能衰减，体现了物理一致性的正则化效果。"
-
----
-
-## 4. 分阶段实施路线图
-
-### Stage 0：基线锁定 ✅ 代码完成
-- [x] 部分监督机制（`generate_supervision_mask()` + `is_labeled` + masked MSE）
-- [x] 物理约束启用（`boundary_weight=0.05`）
-- [x] 烟雾测试通过（ratio=1.0 MAE≈1.70%，ratio=0.5 MAE≈1.75%，5 epochs）
-- [ ] **⏳ 正式 20 次实验**：`python run_baseline_v22.py`（服务器）
-- [ ] 固化 `experiments/baseline_v2.2/metrics.json`
-
-### Stage 1：架构增强 ✅ 代码完成
-- [x] **Exp-01**：M1 循环级注意力 → `experiments/run_exp01_attention.py`
-- [x] **Exp-02**：M2 MC Dropout + M7 → `experiments/run_exp02_mc_dropout.py`
-- [ ] **⏳ 运行 Exp-01, Exp-02**（服务器，各 5 runs）
-
-### Stage 2：损失函数精化 ✅ 代码完成
-- [x] **Exp-03**：M4 速率连续性（4 weights × 5 seeds）→ `experiments/run_exp03_rate_smoothness.py`
-- [x] **Exp-04**：M5 自适应权重（5 seeds）→ `experiments/run_exp04_adaptive_weight.py`
-- [x] **Exp-05**：M4+M5 联合（4 ratios × 5 seeds）→ `experiments/run_exp05_combined_loss.py`
-- [ ] **⏳ 运行 Exp-03/04/05**（服务器）
-
-### Stage 3：训练策略升级 ✅ 验证完成（结论：M6 不进 Full Stack）
-- [x] **Exp-06**：M2 + M6 消融（4 ratios × 5 seeds）→ `experiments/run_exp06_pseudo_label.py`
-- [x] **M6 多轮验证**（4 Rounds，2026-04-28~29）→ `experiments/run_m6_verify.py` / `run_m6_multiseed.py` / `run_m6_r05_probe.py`
-- **结论**：M6 仅在 r=1.0 有效，r≤0.5 不稳定，**不进 Full Stack**
-- [ ] **⏳ 运行 Exp-06**（服务器，作为消融对比，仅记录 r=1.0 数字）
-
-### Stage 4：全模块集成 ✅ 配置已更新
-- [x] **Exp-07**：Full Stack（**M2+M4**，不含 M1/M5/M6）→ `experiments/run_exp07_full_stack.py`
-  - Full Stack 配置：CNN-LSTM + M2（MC Dropout）+ M4（速率连续性）+ M7（置信区间）
-  - 4 ratios × 5 seeds = 20 次
-  - **待更新**：`run_exp07_full_stack.py` 和对应 config 需去掉 M1/M5/M6
-- [ ] **⏳ 更新 Exp-07 配置**（移除 M1/M5/M6）
-- [ ] **⏳ 运行 Exp-07**（服务器，论文主表最后一行）
-
-### Stage 5：鲁棒性验证 ✅ 代码完成
-- [x] **Exp-08**：M8 特征缺失鲁棒性 → `experiments/run_exp08_robustness.py`
-  - `evaluation/robustness_eval.py`：三类扰动场景，evaluate_robustness()
-  - Scene A（特征置零）/ Scene B（高斯噪声）/ Scene C（系统漂移）各 3 强度
-  - 对比 Baseline vs Full Stack，ratio=0.5 × 5 seeds = 10 次训练
-- [ ] **⏳ 运行 Exp-08**（服务器）
-
-### 分析与写作
-- [ ] 消融表（填入各实验结果）
-- [ ] 监督比例 vs MAE 折线图（多方法对比）
-- [ ] 注意力权重可视化（M1）
-- [ ] 伪标签筛选过程可视化（M6）
-- [ ] 论文第四章撰写
-
----
-
-## 5. 实验脚本索引
-
-| 脚本路径 | 实验 | 运行次数 | 状态 |
-|---------|------|---------|------|
-| `run_baseline_v22.py` | Stage 0 基线 | 5×4=20 | ⏳ |
-| `experiments/run_exp01_attention.py` | M1 注意力 | 5 | ⏳ |
-| `experiments/run_exp02_mc_dropout.py` | M2 MC Dropout | 5 | ⏳ |
-| `experiments/run_exp03_rate_smoothness.py` | M4 超参扫描 | 4×5=20 | ⏳ |
-| `experiments/run_exp04_adaptive_weight.py` | M5 自适应 | 5 | ⏳ |
-| `experiments/run_exp05_combined_loss.py` | M4+M5 | 4×5=20 | ⏳ |
-| `experiments/run_exp06_pseudo_label.py` | M6 伪标签 | 4×5=20 | ⏳ |
-| `experiments/run_exp07_full_stack.py` | 全组合（Full Stack） | 4×5=20 | ⏳ |
-| `experiments/run_exp08_robustness.py` | M8 鲁棒性（2模型×5seeds） | 10 | ⏳ |
-
-**服务器一键启动顺序建议**（按依赖关系排序）：
-```bash
-python run_baseline_v22.py                         # Stage 0，先跑，其他实验依赖这个数字
-python experiments/run_exp01_attention.py &
-python experiments/run_exp02_mc_dropout.py &       # Stage 1，两个可并行
-python experiments/run_exp03_rate_smoothness.py    # Stage 2
-python experiments/run_exp04_adaptive_weight.py
-python experiments/run_exp05_combined_loss.py
-python experiments/run_exp06_pseudo_label.py       # Stage 3，最重要
-python experiments/run_exp07_full_stack.py         # Stage 4，论文最终方法
-python experiments/run_exp08_robustness.py         # Stage 5，鲁棒性对比
-```
-
----
-
-## 6. 消融矩阵（最终论文表格模板）
-
-每个实验在 4 个监督比例下都要跑（ratio ∈ [1.0, 0.7, 0.5, 0.3]）：
-
-| 实验 | M2 | M4 | M6 | MAE@100% | MAE@50% | MAE@30% | PICP | 备注 |
-|------|----|----|----|---------|---------|---------|------|------|
-| baseline-v2.2 | | | | — | — | — | — | 参照 |
-| Exp-01（M1）| | | | | | | | ❌ M1 低标签有害，仅记录 |
-| Exp-02（M2）| ✓ | | | | | | ✓ | ✅ r=1.0 最佳 |
-| Exp-03（M4）| | ✓ | | | | | | ✅ 物理一致性故事 |
-| Exp-04（M5）| | | | | | | | ❌ M5 已放弃，仅记录 |
-| Exp-06（M6）| ✓ | | ✓ | | | | ✓ | ⚠️ 仅 r=1.0 有效 |
-| **Exp-07 Full Stack** | ✓ | ✓ | | | | | ✓ | **论文主方法** |
-
-每格填入 5 次运行的 `mean ± std`（百分比）。
-
-**核心论文图**：监督比例 vs MAE 曲线（Baseline / M2 / M4 / Full Stack 四线对比）
-
----
-
-## 7. 工程约定
-
-### 7.1 实验记录（每次实验必存）
-- `result.json` — 测试集指标（MAE/RMSE/MAPE/R²）
-- `metrics.json` — 多次运行汇总（mean ± std）
-- `error.json` — 失败时的错误信息（断点续跑用）
-
-### 7.2 config_override 用法（超参扫描）
-```python
-# 无需创建新 config 文件，直接传入覆盖字典
-train_cross_battery_model(
-    model_type='cnn_lstm',
-    config_override={'physics_constraints': {'smoothness_weight': 0.1}},
-)
-```
-
-### 7.3 避坑清单
-- [ ] M5 启用时，`forward_components()` 绕过固定权重，检查梯度是否正常
-- [ ] M6 启用时，必须用含 MCDropout 层的模型（`cnn_lstm_mc` 或 `cnn_lstm_pseudo_label`）
-- [ ] M6 在 `supervision_ratio=1.0` 时自动禁用（无无标签样本），不报错
-- [ ] 所有实验共用同一份数据划分（`split_batteries` 种子固定为 42）
-- [ ] 部分监督 mask 一旦确定，5 次重复运行使用**相同** mask，模型初始化种子不同
-
----
-
-## 8. 风险预案
-
-| 风险 | 表现 | 应对 |
+| 章节 | 状态 | 备注 |
 |------|------|------|
-| M6 伪标签漂移 | 训练后期误差反弹 | 已实现：每 K epoch 完全重置伪标签 |
-| M5 权重塌缩 | 某个 σᵢ → 0 | 已实现：`l2_reg=0.01` 对 log_vars 正则 |
-| M1 注意力过拟合 | 训练好但测试退化 | Attention Dropout + 减少 num_heads |
-| 多模块组合冲突 | Exp-07 不如 Exp-06 | 回退两两组合消融找冲突源 |
-| 物理约束在全监督下不提升 | baseline ratio=1.0 ≈ Exp-01/03/04 | 说明物理约束主要在稀疏监督下有价值，也是论文卖点 |
-| MC 推理速度慢 | M6 伪标签更新耗时 | `inference_batch_size=512` 已优化；n_mc_samples 可降至 30 |
+| 4.1 引言 | ✅ 完成 | 已重定位为多尺度架构为核 |
+| 4.2 数据准备 | ✅ 完成 | 含部分监督设定描述 |
+| 4.3 MS-PI-CNNLSTM 架构 | ✅ 完成 | 多尺度 CNN + LSTM + 软单调全部写完 |
+| 4.4 实验与消融 | ✅ 主体完成 | 2×3 矩阵数据已填入，4.4.3~4.4.5 均有内容 |
+| 4.5 本章小结 | ✅ 完成 | — |
+| **图表** | ⚠️ 未生成 | 多处 `[图/表X-X]` 占位符 |
+| 参考文献 | ⚠️ 不完整 | 需补充多尺度卷积相关文献 |
+
+文件位置：`第四章_修改版.md`（389 行）
 
 ---
 
-## 9. 下一步行动
+## 1. 已完成实验摘要
 
-**当前优先级（2026-04-29，M6 验证完成，Full Stack 确定）**：
+> 完整数据见 `docs/experiment_results_summary.md`；此处只记关键结论。
 
-1. **🔧 更新 Exp-07 Full Stack 配置**（本地，优先）：
-   - `experiments/run_exp07_full_stack.py`：去掉 M1/M5/M6，保留 M2+M4+M7
-   - 对应 config 文件同步更新
+### 1.1 单模块消融主结果（MAE%，Δ% vs E0）
 
-2. **⏳ 服务器实验排队**（按顺序）：
-   ```bash
-   python run_baseline_v22.py                    # Stage 0 基准
-   python experiments/run_exp02_mc_dropout.py    # M2（重点）
-   python experiments/run_exp03_rate_smoothness.py # M4（重点）
-   python experiments/run_exp06_pseudo_label.py  # M6 消融（仅看 r=1.0）
-   python experiments/run_exp07_full_stack.py    # Full Stack 主表
-   python experiments/run_exp08_robustness.py    # 鲁棒性对比
-   # Exp-01/04/05 可选跑，仅供消融完整性
-   ```
+| 组 | 模块 | r=1.0 | r=0.7 | r=0.5 | r=0.3 |
+|---|------|:---:|:---:|:---:|:---:|
+| E0 | Baseline（CNN-LSTM + 软单调） | 1.1710% | 1.1473% | 1.1426% | 1.0696% |
+| E1 | +M1 注意力 | +5.44% | −0.31% | +4.58% | **−8.69%** ❌ |
+| E2 | +M2 MC Dropout | **+10.01%** ✅ | −2.73% | −0.64% | −18.33% ❌ |
+| E3 | +M4 速率连续性 | +1.71% | −4.21% | −0.66% | −6.81% |
+| E4 | +M5 自适应权重 | −0.09% | −0.33% | −0.40% | −5.81% |
+| E5 | +M2+M6 伪标签 | +8.26% ✅ | +3.50% ✅ | −0.53% | −5.39% |
+| E7 | Full Stack（M2+M4） | +0.66% | −2.66% | **+4.74%** ✅ | **−15.40%** ❌ |
 
-3. **论文写作**（实验结果出来后）：
-   - 填充消融表（Table 4.x）：Baseline / M2 / M4 / Full Stack（M2+M4）
-   - 绘制监督比例 vs MAE 折线图（Figure 4.x）
-   - 绘制置信区间质量图（Figure 4.y，PICP/MPIW）
-   - M6 limitation 段落（边界条件分析）
-   - 第四章撰写
+> 正值 = 优于 E0 基线
 
----
+### 1.2 架构消融 MVP（MAE%，Δ% vs Eneg1 无物理基线）
 
-## 10. 参考文献线索（9 篇 PDF 位于 `paper/` 目录）
+| 组 | 描述 | r=1.0 | r=0.5 | r=0.3 |
+|---|------|:---:|:---:|:---:|
+| A0/Eneg1 | 原 CNN-LSTM（无物理） | 1.0659% | 1.1257% | 1.1358% |
+| **A1** | **多尺度 CNN（核心贡献）** | −1.42% | **+10.81%** ✅✅ | **+6.09%** ✅ |
+| A2 | Per-Window LayerNorm | −22.32% ❌ | −9.37% ❌ | −2.39% |
+| A3 | MS + LayerNorm 联合 | −6.09% | +4.17% | +2.15% |
 
-- `1-s2.0-S0360544225028579-main.pdf` — 论文 5：TS-PINN 同方差不确定性权重（M5 来源）
-- `1-s2.0-S0951832025006325-main.pdf` — 论文 4：Bayesian PINN / MC Dropout（M2 来源）
-- `s41598-026-37850-y.pdf` — 论文 8：部分可观测场景（M8 来源）
-- 详细笔记：`paper/paper1_text.txt`, `paper2_text.txt`, `paper3_text.txt`, `chapter4_content.txt`
+> A1 vs E0（有物理，正值=A1更好）：r=1.0 +7.69%，r=0.5 +12.12%
 
----
+### 1.3 Exp-09 PI-MS-CNN-LSTM 对比矩阵（MAE%）
 
-## 11. 变更日志
+|  | 无物理 | 仅软单调（PI） | M2+M4 Full Stack |
+|--|:---:|:---:|:---:|
+| **CNN-LSTM** | Eneg1: 1.07~1.14% | E0: 1.07~1.17% | E7: 1.09~1.23% |
+| **MS-CNN-LSTM** | A1: 1.00~1.08% | **Exp09c: 1.03~1.14%** ★ | Exp09a: 1.07~1.13% |
 
-### 2026-04-29（M6 验证完成，Full Stack 最终确定）
-- ✅ **M6 验证彻底关闭**：经 Round 1~4（4 轮共 25+ 次运行）+ 多 seed 验证 + r=0.5 探针，结论：
-  - r=0.3：3/3 seed 中仅 1 有效，均值 Δ=−14.83%，不稳定
-  - r=0.5：Δ=−19.81%，best_epoch=10（early stopping 在 warmup 后即触发）
-  - r=1.0：Δ=+3.09%（有效，消融表保留）
-  - 根因：低监督率下初始模型质量不足，伪标签质量在各更新轮次间震荡（0.7%~2.2%）
-- ✅ **Full Stack 最终确定**：M2（MC Dropout）+ M4（速率连续性），不含 M1/M5/M6
-- ✅ **已淘汰模块确认**：M1（低标签率有害）、M5（log_var 学歪）、M6（低监督不稳定）
-- 🔧 **待办**：更新 Exp-07 配置文件，去掉 M1/M5/M6
+★ 最终方案（Exp09c r=0.3 = **1.0336%**，全场最优）
 
+**关键发现**：
+- 同等约束下，多尺度架构全面优于单路 +2.7%~+6.3%（Exp09c vs E0）
+- 物理约束在 r=0.3 为多尺度架构提供 +3.1% 正则化增益
+- M2+M4 在多尺度+低监督下有害（r=0.3 MAE 退化 −8.5%~−10.2%）
 
+### 1.4 Exp-10 不确定性量化（M7）
 
-### 2026-04-18（Stage 4-5 代码完成）
-- ✅ Stage 4：新建 `configs/models/cnn_lstm_full_stack_config.json`（全模块 M1+M2+M4+M5+M6 启用）；新建 `experiments/run_exp07_full_stack.py`（4 ratios × 5 seeds，含 M7 PICP/MPIW 输出）；更新 `models/model_factory.py`
-- ✅ Stage 5：新建 `evaluation/robustness_eval.py`（M8，三类扰动 × 各 3 强度，evaluate_robustness / print_robustness_report）；新建 `experiments/run_exp08_robustness.py`（Baseline vs Full Stack × 5 seeds）；更新 `evaluation/__init__.py`
-- 修复 `evaluation/uncertainty_eval.py`：报告新增 `picp_95`、`mpiw_95`、`spearman` 别名，保持 `picp`/`mpiw`/`spearman_corr` 向后兼容
-- 实验脚本索引补全（Exp-07/08 标注为 ⏳ 待服务器）
+- **PICP=0.54~0.62**（理想值 0.95），区间严重偏窄
+- Spearman ≈ 0（r≤0.5），不确定性估计在低监督下无信息量
+- 加入 M2 后 3/4 ratio MAE 退化 −4.7%~−9.6%
+- **结论：M7 降级为消融表辅助指标列，不独立成章**
 
-### 2026-04-18（Stage 1-3 代码完成）
-- ✅ Stage 1：实现 M1（`models/modules/attention.py` + `CycleAttention`）、M2（`models/modules/mc_dropout.py` + `MCDropout`/`mc_predict`）、M7（`evaluation/uncertainty_eval.py`）
-- ✅ Stage 2：实现 M4（`PhysicsConstrainedLoss.smoothness_loss()` 启用 + 超参配置）、M5（`models/adaptive_loss.py::AdaptivePhysicsLoss`）、`forward_components()` 新接口、`config_override` 深度合并
-- ✅ Stage 3：实现 M6（`training/pseudo_labeling.py::PseudoLabelManager`），集成进主训练循环
-- 新增实验脚本：Exp-01 ～ Exp-06（共 6 个，总计最多 95 次运行）
-- 新增 configs：`cnn_lstm_attention`, `cnn_lstm_mc`, `cnn_lstm_rate_smoothness`, `cnn_lstm_adaptive_weight`, `cnn_lstm_pseudo_label`
-- 更新模块总览表，补充实际文件路径和实现状态
+### 1.5 Exp-11 鲁棒性验证（M8，E0 vs Exp09c）
 
-### 2026-04-17（Stage 0 启动前对齐）
-- 基线改名：V6 → **baseline-v2.2**
-- 数据划分：80/20 → **60/20/20**
-- 确认部分监督实现方式：**Label Masking**（不是 Sample Dropping）
-- Stage 0 从 0.5 天拆分为 6 个子步骤、2 天
-- 新增"监督比例维度"到消融矩阵
+| 扰动类型 | Exp09c 绝对 MAE | Exp09c 灵敏度 | 总体判断 |
+|---------|:---:|:---:|:---:|
+| Scene A 特征缺失（n=1/2/3） | ✅ 全面更低 | ✅ n=3 更鲁棒 | Exp09c 胜 |
+| Scene B 高斯噪声（σ=0.01~0.10） | ✅ 全面更低 | ≈ 持平（差距<0.02%） | 持平 |
+| Scene C 传感器漂移（drift=0.05~0.20） | ✅ 全面更低 | ⚠️ 略高（差距<0.05%） | 绝对值胜，灵敏度持平 |
+
+### 1.6 M6 专项验证（已关闭）
+
+| 场景 | MAE Δ% vs E0 | 结论 |
+|------|:---:|------|
+| r=1.0（消融主线 E5） | **+8.26%** ✅ | 有效（实为 M2 集成效果） |
+| r=0.7（消融主线 E5） | **+3.50%** ✅ | 有效 |
+| r=0.5 | −0.53% | 基本持平 |
+| r=0.3（3 seeds 均值） | **−14.83%** ❌ | 极不稳定，正式放弃 |
+
+**根因**：低监督率下标签不足→伪标签质量差（MAE 震荡 0.7%~2.2%）→early stopping 在 warmup 后立即触发（best_epoch=10）→退化
 
 ---
 
-**文档维护者**：liuchang2262@gmail.com
+## 2. 最终方案确认
+
+### 2.1 各模块最终状态
+
+| 模块 | 结论 | 进最终方案 | 核心依据 |
+|------|------|:---:|---------|
+| **A1 多尺度 CNN** | ✅ **核心贡献** | **是** | r=0.5 +10.81%；2×3 矩阵架构维度 > 约束维度 |
+| M1 循环级注意力 | ❌ 淘汰 | 否 | r=0.3 MAE −8.69%，部分监督场景退化 |
+| M2 MC Dropout | ⚠️ 场景受限 | 消融报告 | r=1.0 +10.01%，多尺度+低监督下有害 |
+| M4 速率连续性 | ⚠️ 场景受限 | 消融报告 | 与 M2 类似，低监督引入额外退化 |
+| **软单调约束** | ✅ r=0.3 有效 | **条件性** | r=0.3 全场最优（+3.1%），r=1.0/0.5 拖累精度 |
+| M5 自适应权重 | ❌ 淘汰 | 否 | 全面中性（−0.09%~−5.81%） |
+| M6 伪标签（+M2） | ❌ 淘汰 | 否 | r≥0.7 有效，r≤0.5 不稳定 |
+| A2 LayerNorm | ❌ 淘汰 | 否 | r=1.0 退化 −22.32%，破坏跨窗口趋势信息 |
+| M7 置信区间评估 | ⚠️ 降级 | 辅助指标 | PICP=0.54~0.62，Spearman≈0（r≤0.5） |
+| M8 鲁棒性评估 | ✅ 保留 | **是** | Exp-11 三类扰动，Exp09c 全面更低 |
+
+### 2.2 各 ratio 最优方案
+
+| 场景 | 最优方案 | MAE% | R² |
+|------|---------|:---:|:---:|
+| r=1.0 | A1: MS-CNN-LSTM（无物理） | **1.0810%** | 0.9166 |
+| r=0.7 | Exp09c: PI-MS-CNN-LSTM（软单调） | **1.0745%** | 0.9297 |
+| r=0.5 | A1: MS-CNN-LSTM（无物理） | **1.0040%** | 0.9418 |
+| r=0.3 | Exp09c: PI-MS-CNN-LSTM（软单调） | **1.0336%** | 0.9398 |
+
+---
+
+## 3. 待完成事项（Next Actions）
+
+### P0 — 生成论文图表（最优先）
+
+论文 `第四章_修改版.md` 中有以下占位符需要生成实际图：
+
+| 图表编号 | 内容 | 数据来源 |
+|---------|------|---------|
+| 图4-1 | 77 块电池容量衰减轨迹 | HUST 数据集 |
+| 图4-2 | 特征与容量退化相关性矩阵热力图 | 特征工程 |
+| 图4-3 | 部分生命周期监督示意图（训练覆盖区间） | 示意图 |
+| 图4-4 | MS-PI-CNNLSTM 整体框架图 | 架构图（重绘） |
+| 图4-5 | 早期容量回升现象示意 | HUST 数据 |
+| 图4-6/7 | 多尺度 CNN 分支特征示意 | 示意图 |
+| **图4-X** | **2×3 消融矩阵 MAE% 热力图** ★ | experiment_results_summary |
+| **图4-X** | **不同监督比例下各模型 MAE 折线图** ★ | experiment_results_summary |
+| 图4-8/9 | 未见电池 SOH 预测轨迹对比 | 模型推理结果 |
+| 图4-12/13 | 预测误差演化曲线对比 | 模型推理结果 |
+
+★ 最关键，建议优先生成。
+
+### P1 — 运行 Exp-12（视需要决定是否纳入论文）
+
+```bash
+# 服务器运行
+python experiments/run_exp12_anomaly_detection.py
+
+# 对比模型：B1_lstm / B2_gru / Eneg1 / E0 / E2_mc / A1_ms_nophys / Exp09c
+# 扰动：mild(0.2) / moderate(0.4) / severe(0.7)
+# 评估：ROC-AUC + Detection Rate
+```
+
+**决策点**：Exp-12 用于验证"物理约束副产物（违规率）可用于异常检测"，可作为论文的扩展实验或期刊投稿附加价值。如时间有限可推后。
+
+### P2 — 确认 Transformer 重建验证状态
+
+- 脚本：`experiments/verify_transformer_reconstruction.py`
+- 功能：用 Transformer 从部分已知 SOH 重建完整退化曲线，与线性插值对比
+- **建议**：与主线（PI-MS-CNN-LSTM）关联不强，优先级低，可视情况跳过
+
+### P3 — 补全参考文献
+
+- 需补充多尺度卷积在时序分析领域的文献（语音识别/工业故障检测）
+- 建议在论文投稿前完成，目前章节末有占位符标注
+
+### P4 — 更新 CLAUDE.md
+
+`CLAUDE.md` 仍停留在 2026-04-18 的旧状态，需要更新"当前状态"和"最终方案"两节。
+
+---
+
+## 4. 论文写作计划
+
+### 4.1 写作状态与优先级
+
+```
+已完成（文字框架）：4.1 → 4.2 → 4.3 → 4.4 → 4.5
+当前阻塞点：图表未生成（无法定稿）
+```
+
+### 4.2 图表生成优先级
+
+优先生成以下两张核心图（可直接用 matplotlib）：
+
+**图 A：2×3 消融矩阵热力图**
+- x 轴：约束类型（无物理 / 仅软单调 / M2+M4 Full Stack）
+- y 轴：架构（CNN-LSTM / MS-CNN-LSTM）
+- 单元格：MAE% 值 + 颜色映射（低值绿色）
+- 数据：直接来自 `experiment_results_summary.md` § 4.5
+
+**图 B：监督比例 vs MAE 折线图**
+- x 轴：ratio（1.0 / 0.7 / 0.5 / 0.3）
+- y 轴：MAE%
+- 四条线：Eneg1 / E0 / A1 / Exp09c
+- 数据：同上
+
+### 4.3 写作关键数据点（填表用）
+
+| 数据点 | 数值 | 用途 |
+|-------|------|------|
+| Exp09c r=0.3 MAE / R² | 1.0336% / 0.9398 | 全场最优，重点展示 |
+| A1 r=0.5 MAE | 1.0040% | 架构贡献最大数据点 |
+| Exp09c vs E0，全 ratio 改善幅度 | +2.7%~+6.3% | 架构改进普适性 |
+| 物理约束 r=0.3 正则化增益 | +3.1% | 约束场景性价值 |
+| E7 r=0.3 退化 | −15.4% | "更多模块≠更好"论据 |
+| Exp-11 Scene A n=3 ΔMAE | Exp09c 低 0.24% | 鲁棒性优势 |
+
+### 4.4 论文三大核心论点（写作主线）
+
+1. **多尺度 CNN 是主要贡献**：2×3 矩阵架构维度改善 > 约束维度
+2. **物理约束的作用是场景性的**：r=0.3 有效（+3.1%），r≥0.5 反而拖累精度
+3. **简洁优于复杂**：Full Stack E7 r=0.3 退化 −15.4%，Exp09c（仅软单调）取得全场最优
+
+---
+
+## 5. 基线协议（参考，不变）
+
+### 5.1 数据划分（baseline-v2.2）
+- **比例**：60 / 20 / 20（训练 / 验证 / 测试），按电池划分
+- **种子**：42（固定）；77 块 → 46 / 16 / 15
+
+### 5.2 模型参数
+
+**原 CNN-LSTM（E0 基线）**：
+- CNN：channels=[256, 128], kernel=7；LSTM：hidden=64, layers=2
+- 物理约束：`monotonic_weight=0.3, tolerance=0.005, boundary_weight=0, min_cycle=300`
+
+**多尺度 CNN（A1/Exp09c）**：
+- 三路并行：Conv(kernel=3) + Conv(kernel=7) + Conv(kernel=15)，各 [64, 64] 通道
+- 融合：1×1 卷积 → 128 维；后接同 E0 的 LSTM 结构
+
+### 5.3 训练配置
+- epochs=200，batch_size=1024，optimizer=Adam
+- WarmupCosineDecay（warmup=20, base_lr=0.005），early_stopping patience=20
+
+### 5.4 部分监督协议
+- **Label Masking**（不是 Sample Dropping）：所有样本保留，仅 mask 标签
+- MSE 只对 `is_labeled=True` 样本计算；物理约束对**所有样本**计算
+- 监督比例矩阵：`[1.0, 0.7, 0.5, 0.3]`，seeds=`[929, 2262, 7]`，n=3
+
+---
+
+## 6. 工程约定
+
+### 6.1 关键代码入口
+
+| 文件 | 功能 |
+|------|------|
+| `train_cross_battery.py` | 主训练脚本 |
+| `models/cnn_lstm.py` | CNN-LSTM + 多尺度 CNN 架构 |
+| `models/physics_loss.py` | 物理约束损失（软单调 + 速率连续性） |
+| `data_loaders/data_loader_hust.py` | 数据加载（含 `is_labeled` 字段） |
+| `experiments/run_exp09_ms_full_stack.py` | Exp-09 最终方案脚本 |
+| `experiments/run_ablation_single_module.py` | 单模块消融 |
+| `experiments/run_exp_arch_mvp.py` | 架构消融（A0~A3） |
+| `experiments/run_exp11_robustness.py` | 鲁棒性评估 |
+| `experiments/run_exp12_anomaly_detection.py` | 异常检测（待运行） |
+
+### 6.2 避坑清单
+- 消融脚本通过 `config_override` 覆盖参数，直接读 config 文件会用旧参数
+- `cnn_lstm_config.json` 仍是旧参数（channels=[256,128], kernel=7），多尺度版本通过代码覆盖
+- M6 启用时必须用含 MCDropout 层的模型，否则推理时无随机性
+- 所有实验共用同一份数据划分（`split_batteries` 种子固定为 42）
+
+---
+
+## 7. 变更日志
+
+### 2026-05-20（重构为"进展+计划"文档）
+- 文档从"改进计划"重构为"项目进展与计划"，以最新状态为核，历史计划降为参考
+- **最终方案更新**：从旧 Full Stack（M2+M4）更新为 PI-MS-CNN-LSTM（Exp09c）
+- **核心叙事更新**：从"物理约束+不确定性"更新为"多尺度架构为主、物理约束为辅"
+- 补充 Exp-09/10/11 完整结论摘要
+- 补充论文第四章写作状态与图表清单
+- 整理当前待办事项（P0~P4）
+
+### 2026-04-29（M6 验证完成，旧 Full Stack 确定）
+- M6 验证彻底关闭：r=0.3 均值 Δ=−14.83%，r=0.5 Δ=−19.81%，r=1.0 有效（+3.09%）
+- 旧 Full Stack = M2+M4（此后 Exp-09 改进为 PI-MS-CNN-LSTM）
+- M1/M5/M6 确认不进最终方案
+
+### 2026-04-23（物理约束机制发现）
+- 确认物理约束是 Label Masking 真正生效的底层条件
+- physics_OFF 下 ratio=0.5 与 ratio=1.0 训练完全等价
+- 物理约束对无标签样本提供唯一梯度信号（结构性弱监督）
+
+### 2026-04-18（Stage 1-5 代码全部完成）
+- M1/M2/M4/M5/M6/M7/M8 代码实现完毕
+- 实验脚本 Exp-01~08 全部就绪
+- 基线协议锁定为 baseline-v2.2
+
+### 2026-04-17（项目启动对齐）
+- 基线从 V6 更名为 baseline-v2.2
+- 数据划分从 80/20 改为 60/20/20
+- 确认 Label Masking 而非 Sample Dropping
+
+---
+
+**文档维护者**：liuchang2262@gmail.com  
+**完整实验数据**：`docs/experiment_results_summary.md`  
+**论文草稿**：`第四章_修改版.md`
