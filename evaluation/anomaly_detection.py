@@ -330,7 +330,8 @@ def inject_self_imbalance_drift(
     场景 A3 — 簇内不均衡加剧（Self-future Gradual Drift）
 
     fault_cycle 后渐进混入同一电池更后期的特征（alpha 线性增长），
-    无需跨电池供体。
+    无需跨电池供体。当 future_idx 超出 T-1 时，用末期斜率外推一个
+    虚拟未来特征，避免末端 gap 缩小到 0。
 
     返回：corrupted_features（长度与原序列相同）
     """
@@ -342,14 +343,23 @@ def inject_self_imbalance_drift(
     max_alpha  = alpha_map.get(severity, 0.40)
     max_offset = int(offset_map.get(severity, 0.18) * T)
 
+    # 末期 30 个 cycle 的平均特征斜率（用于外推超出 T-1 的未来）
+    tail_n = min(30, T - 1)
+    end_slope = (features[-1] - features[-1 - tail_n]) / tail_n   # (F,)
+
     corrupted = features.copy()
     duration = max(1, T - 1 - t0)
 
     for t in range(t0, T):
         progress   = (t - t0) / duration
         alpha_t    = max_alpha * progress
-        future_idx = min(T - 1, t + int(max_offset * progress))
-        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+        raw_idx    = t + int(max_offset * progress)
+        if raw_idx <= T - 1:
+            future_feat = features[raw_idx]
+        else:
+            # 末期斜率外推：保证 gap 不缩小
+            future_feat = features[-1] + (raw_idx - (T - 1)) * end_slope
+        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * future_feat
 
     return corrupted
 
@@ -405,6 +415,7 @@ def inject_self_resistance_rise(
 
     fault_cycle 后以二次增长的速度漂移到同一电池更后期特征，
     无需供体，模拟内阻逐渐增大导致斜率缓慢变陡。
+    超出 T-1 时同样用末期斜率外推，避免末端 gap 缩小。
 
     返回：corrupted_features（长度与原序列相同）
     """
@@ -416,14 +427,21 @@ def inject_self_resistance_rise(
     max_alpha  = alpha_map.get(severity, 0.35)
     offset     = int(offset_map.get(severity, 0.15) * T)
 
+    tail_n = min(30, T - 1)
+    end_slope = (features[-1] - features[-1 - tail_n]) / tail_n
+
     corrupted = features.copy()
     duration = max(1, T - t0)
 
     for t in range(t0, T):
         progress   = (t - t0) / duration
         alpha_t    = max_alpha * (progress ** 2)          # 二次增长
-        future_idx = min(T - 1, t + offset)
-        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+        raw_idx    = t + offset
+        if raw_idx <= T - 1:
+            future_feat = features[raw_idx]
+        else:
+            future_feat = features[-1] + (raw_idx - (T - 1)) * end_slope
+        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * future_feat
 
     return corrupted
 
