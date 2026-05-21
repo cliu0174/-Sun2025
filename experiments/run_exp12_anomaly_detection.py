@@ -25,7 +25,7 @@ Exp-12：基于物理约束的电芯异常检测
 
 验证配置：
     seeds     = [929, 2262, 7]
-    ratios    = [0.5, 0.3]
+    ratios    = [1.0, 0.5, 0.3]
     severities = ['mild', 'moderate', 'severe']
 
 结果目录：experiments/exp12_anomaly_detection/
@@ -56,7 +56,7 @@ from evaluation.anomaly_detection import (
 # 全局配置
 # ================================================================
 SEEDS              = [929, 2262, 7]
-SUPERVISION_RATIOS = [0.5, 0.3]
+SUPERVISION_RATIOS = [1.0, 0.5, 0.3]
 SEVERITIES         = ['mild', 'moderate', 'severe']
 DEVICE             = 'cuda' if torch.cuda.is_available() else 'cpu'
 OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'exp12_anomaly_detection')
