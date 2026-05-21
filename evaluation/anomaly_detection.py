@@ -288,8 +288,10 @@ def inject_self_jump_drop(
         if targets[s] <= target_soh:
             s0 = s
             break
-    if s0 is None:  # fallback 到比例位置
-        s0 = min(int(fallback_map.get(severity, 0.68) * T), T - 1)
+    if s0 is None:  # fallback 到比例位置（保证 s0 > t0 且 <= T-1）
+        default_s0 = int(fallback_map.get(severity, 0.68) * T)
+        s0 = max(t0 + 1, default_s0)
+        s0 = min(s0, T - 1)
 
     corrupted = np.concatenate([features[:t0], features[s0:]], axis=0)
     return corrupted, t0
@@ -394,8 +396,10 @@ def inject_self_lithium_plating(
         if targets[s] <= target_soh:
             s0 = s
             break
-    if s0 is None:
-        s0 = min(int(fallback_map.get(severity, 0.65) * T), T - 1)
+    if s0 is None:  # fallback 到比例位置（保证 s0 > t0 且 <= T-1）
+        default_s0 = int(fallback_map.get(severity, 0.65) * T)
+        s0 = max(t0 + 1, default_s0)
+        s0 = min(s0, T - 1)
 
     tail_idx = np.arange(s0, T, step)
     if len(tail_idx) == 0:
