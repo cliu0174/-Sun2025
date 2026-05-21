@@ -28,6 +28,29 @@ from typing import Dict, List, Tuple, Optional
 # 1. 异常注入：跨电芯特征替换
 # ============================================================
 
+def _donor_terminal_sequence(donor_features: np.ndarray, n_cycles: int) -> np.ndarray:
+    """
+    从供体电芯取末期连续特征序列，长度为 n_cycles。
+    始终从供体末期（最后 20%）往前取，避免误用供体健康早期数据。
+
+    原始 bug：供体索引用"从末尾倒数映射"，当供体寿命 < 剩余故障周期时
+    会 clamp 到供体起始（健康早期），导致注入的是正常特征而非异常特征。
+    """
+    T_donor = len(donor_features)
+    # 取供体末期 20% 的起点，确保拿到退化特征
+    terminal_start = max(0, int(T_donor * 0.80))
+    terminal = donor_features[terminal_start:]   # 末期特征段，至少 20%
+
+    # 如果末期段足够长，直接取最后 n_cycles；否则循环填充
+    if len(terminal) >= n_cycles:
+        return terminal[-n_cycles:]
+    else:
+        # 不足时从末期段循环复制
+        repeats = (n_cycles // len(terminal)) + 1
+        tiled = np.tile(terminal, (repeats, 1))
+        return tiled[-n_cycles:]
+
+
 def inject_cell_failure(
     normal_features: np.ndarray,
     donor_features: np.ndarray,
@@ -36,38 +59,28 @@ def inject_cell_failure(
     alpha: Optional[float] = None,
 ) -> np.ndarray:
     """
-    模拟电池簇中单电芯突发失效：从 fault_cycle 开始，
-    将正常电芯的特征与失效供体电芯的末期特征混合。
+    场景 1 — 单电芯突发加速老化（原始场景）
 
-    Args:
-        normal_features: (T, F) 正常电芯的完整特征序列
-        donor_features:  (T', F) 供体电芯（失效源）的特征序列
-        fault_cycle:     故障注入时刻（窗口级索引）
-        severity:        'mild' / 'moderate' / 'severe'
-        alpha:           直接指定混合比例（覆盖 severity）
-
-    Returns:
-        corrupted: (T, F) 注入故障后的特征序列
+    从 fault_cycle 开始，将正常电芯的特征与供体末期特征混合。
+    混合比 alpha 固定，模拟突发性失效。
     """
     severity_map = {
-        'mild':     0.2,   # 5 芯簇中 1 芯轻度退化
-        'moderate': 0.4,   # 3 芯簇中 1 芯严重退化
-        'severe':   0.7,   # 失效电芯主导测量
+        'mild':     0.2,
+        'moderate': 0.4,
+        'severe':   0.7,
     }
-
     if alpha is None:
         alpha = severity_map[severity]
 
     corrupted = normal_features.copy()
     T = len(normal_features)
-    T_donor = len(donor_features)
+    n_fault = T - fault_cycle
 
-    # 从供体电芯取末期特征（最后一段）
-    for t in range(fault_cycle, T):
-        # 供体索引：从末期倒数映射
-        donor_idx = min(T_donor - 1 - (T - 1 - t), T_donor - 1)
-        donor_idx = max(0, donor_idx)
-        corrupted[t] = (1 - alpha) * normal_features[t] + alpha * donor_features[donor_idx]
+    # 始终取供体末期特征（修复：不再从头映射）
+    donor_seq = _donor_terminal_sequence(donor_features, n_fault)
+
+    for i, t in enumerate(range(fault_cycle, T)):
+        corrupted[t] = (1 - alpha) * normal_features[t] + alpha * donor_seq[i]
 
     return corrupted
 
@@ -152,15 +165,15 @@ def inject_imbalance_escalation(
     max_alpha = severity_map.get(severity, 0.40)
 
     T = len(normal_features)
-    T_donor = len(donor_features)
+    n_fault = T - fault_cycle
     corrupted = normal_features.copy()
 
-    duration = max(1, T - 1 - fault_cycle)
-    for t in range(fault_cycle, T):
-        alpha_t = max_alpha * (t - fault_cycle) / duration   # 线性增长
-        donor_idx = min(T_donor - 1 - (T - 1 - t), T_donor - 1)
-        donor_idx = max(0, donor_idx)
-        corrupted[t] = (1 - alpha_t) * normal_features[t] + alpha_t * donor_features[donor_idx]
+    donor_seq = _donor_terminal_sequence(donor_features, n_fault)
+    duration = max(1, n_fault - 1)
+
+    for i, t in enumerate(range(fault_cycle, T)):
+        alpha_t = max_alpha * i / duration        # 线性增长
+        corrupted[t] = (1 - alpha_t) * normal_features[t] + alpha_t * donor_seq[i]
 
     return corrupted
 
@@ -189,14 +202,14 @@ def inject_lithium_plating(
     step_alpha, post_alpha = severity_map.get(severity, (0.45, 0.30))
 
     T = len(normal_features)
-    T_donor = len(donor_features)
+    n_fault = T - fault_cycle
     corrupted = normal_features.copy()
 
-    for t in range(fault_cycle, T):
-        donor_idx = min(T_donor - 1 - (T - 1 - t), T_donor - 1)
-        donor_idx = max(0, donor_idx)
-        alpha = step_alpha if t == fault_cycle else post_alpha
-        corrupted[t] = (1 - alpha) * normal_features[t] + alpha * donor_features[donor_idx]
+    donor_seq = _donor_terminal_sequence(donor_features, n_fault)
+
+    for i, t in enumerate(range(fault_cycle, T)):
+        alpha = step_alpha if i == 0 else post_alpha   # 第一步大跳，后续持续混合
+        corrupted[t] = (1 - alpha) * normal_features[t] + alpha * donor_seq[i]
 
     return corrupted
 
