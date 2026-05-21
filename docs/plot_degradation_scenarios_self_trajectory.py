@@ -83,19 +83,19 @@ ax.set_title(titles[1], fontsize=10, fontweight='bold')
 style_axis(ax)
 ax.legend(fontsize=7, loc='lower left')
 
-# Panel 2: knee point by sampling the tail with a larger step.
+# Panel 2: knee point - 按真实长度画，不再插值（修复：之前的 interp_to_length 导致末端反而比正常高）
 ax = axes[2]
 knee = int(N * 0.50)
 sample_step = 3
 tail_idx = np.arange(knee, N, sample_step)
-soh_knee_raw = np.concatenate([soh_normal[:knee], soh_normal[tail_idx]])
-soh_knee = interp_to_length(soh_knee_raw, N)
-ax.plot(cycles, soh_normal, color=c_normal, lw=2, ls='--', alpha=0.45, label='Normal')
-ax.plot(cycles, soh_knee, color=c_fault, lw=2, label='Knee-point')
+soh_knee = np.concatenate([soh_normal[:knee], soh_normal[tail_idx]])   # 直接拼接，长度变短
+x_knee = np.arange(len(soh_knee))
+ax.plot(cycles, soh_normal, color=c_normal, lw=2, ls='--', alpha=0.45, label='Normal (orig)')
+ax.plot(x_knee, soh_knee,   color=c_fault,  lw=2, label=f'Knee-point (step={sample_step})')
 ax.axvline(knee, color=c_onset, ls=':', lw=1.5)
-ax.annotate('Tail sampled every 3 cycles\npost-knee acceleration',
-            xy=(knee + 55, soh_knee[knee + 55]),
-            xytext=(knee - 115, soh_knee[knee + 55] - 0.11),
+ax.annotate(f'Tail step={sample_step}\nslope x{sample_step} steeper',
+            xy=(knee + 30, soh_knee[knee + 30]),
+            xytext=(knee - 120, soh_knee[knee + 30] - 0.08),
             arrowprops=dict(arrowstyle='->', color=c_onset), fontsize=8, color=c_onset)
 ax.set_title(titles[2], fontsize=10, fontweight='bold')
 style_axis(ax, ylim=(0.35, 1.05))
@@ -125,25 +125,26 @@ ax.set_title(titles[3], fontsize=10, fontweight='bold')
 style_axis(ax, ylabel=True)
 ax.legend(fontsize=7, loc='lower left')
 
-# Panel 4: lithium plating as a sudden jump followed by accelerated tail sampling.
+# Panel 4: lithium plating - 同样按真实长度画，不再插值
 ax = axes[4]
 plate_at = int(N * 0.45)
 plate_s0 = int(N * 0.60)
 plate_step = 2
 plate_idx = np.arange(plate_s0, N, plate_step)
-soh_plate_raw = np.concatenate([soh_normal[:plate_at], soh_normal[plate_idx]])
-soh_plate = interp_to_length(soh_plate_raw, N)
-ax.plot(cycles, soh_normal, color=c_normal, lw=2, ls='--', alpha=0.45, label='Normal')
-ax.plot(cycles, soh_plate, color=c_fault, lw=2, label='Li plating')
+soh_plate = np.concatenate([soh_normal[:plate_at], soh_normal[plate_idx]])   # 直接拼接，变短
+x_plate = np.arange(len(soh_plate))
+ax.plot(cycles, soh_normal, color=c_normal, lw=2, ls='--', alpha=0.45, label='Normal (orig)')
+ax.plot(x_plate, soh_plate, color=c_fault,  lw=2, label=f'Li plating (step={plate_step})')
 ax.axvline(plate_at, color=c_onset, ls=':', lw=1.5)
-ax.annotate('Step to later self state\nthen sampled tail',
+ax.annotate('Step drop + skip sampling\n(accelerated decay)',
             xy=(plate_at, soh_plate[plate_at]),
-            xytext=(plate_at + 45, soh_plate[plate_at] + 0.09),
+            xytext=(plate_at + 50, soh_plate[plate_at] + 0.12),
             arrowprops=dict(arrowstyle='->', color=c_onset), fontsize=8, color=c_onset)
-ax.annotate('', xy=(plate_at + 10, soh_plate[plate_at]),
-            xytext=(plate_at + 10, soh_normal[plate_at]),
-            arrowprops=dict(arrowstyle='<->', color='gray', lw=1.2))
-ax.text(plate_at + 16, (soh_normal[plate_at] + soh_plate[plate_at]) / 2,
+# 台阶箭头
+ax.annotate('', xy=(plate_at + 2, soh_plate[plate_at]),
+            xytext=(plate_at - 2, soh_normal[plate_at]),
+            arrowprops=dict(arrowstyle='->', color=c_fault, lw=1.5))
+ax.text(plate_at + 8, (soh_normal[plate_at] + soh_plate[plate_at]) / 2,
         'step', fontsize=8, color='gray')
 ax.set_title(titles[4], fontsize=10, fontweight='bold')
 style_axis(ax, ylim=(0.35, 1.05))
