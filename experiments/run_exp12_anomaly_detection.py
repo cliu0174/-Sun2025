@@ -5,18 +5,23 @@ Exp-12：基于物理约束的电芯异常检测
 目标：验证已训练的 PI-MS-CNN-LSTM 模型能否通过物理约束违反信号
       检测电池簇中不同类型的退化异常（零额外训练成本）。
 
-退化场景（5 种）：
-    sudden_aging    — 单电芯突发加速老化（跨电芯特征替换）       ← 原始场景
-    knee_point      — 容量拐点突破（自身末期特征，无需供体）
-    imbalance       — 簇内不均衡加剧（alpha 线性增长的渐进漂移）
-    li_plating      — 析锂台阶突降（阶跃 + 持续混合）
-    resistance_rise — 内阻渐进增长（特征向末期二次漂移，无需供体）
+注入模式（默认 self_trajectory，2026-05-21 起替代 legacy）：
+    self_trajectory — 用同电池后期轨迹重排，避免跨电池特征落入训练分布内
 
-对比模型（7 个）：
-    B1_lstm / B2_gru / Eneg1 / E0 / E2_mc / A1_ms_nophys / Exp09c★
+退化场景（5 种，对应 inject_self_* 函数）：
+    sudden_aging    → A1 self_jump_drop       同电池后期跳接突降
+    knee_point      → A2 self_knee_sampling   tail 跳采样模拟拐点加速
+    imbalance       → A3 self_imbalance_drift 渐进线性混入未来状态
+    li_plating      → A4 self_lithium_plating 台阶 + 加速跳采样
+    resistance_rise → A5 self_resistance_rise 二次增长漂移到未来
 
-检测信号（4 维）：
-    input_zscore / mono_violation / rate_anomaly / combined
+对比模型（4 个，2×2 矩阵）：
+    Eneg1 (no-phys, single-scale)   /  E0 (PI, single-scale)
+    A1    (no-phys, multi-scale)    /  Exp09c (PI, multi-scale) ★
+
+检测信号（6 维）：
+    input_zscore / rate_anomaly / drop_anomaly /
+    trajectory_deviation / mono_violation / combined
 
 验证配置：
     seeds     = [929, 2262, 7]
@@ -58,6 +63,13 @@ OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'exp12_anomaly_dete
 WINDOW_SIZE        = 40
 N_DONORS           = 5
 FAULT_POSITION     = 0.5   # 故障注入位置（生命周期的 50%）
+INJECTION_MODE     = 'self_trajectory'   # 'legacy' / 'self_trajectory'
+
+# 全部检测信号（含新增的 drop_anomaly / trajectory_deviation）
+ALL_SIGNAL_KEYS = [
+    'input_zscore', 'mono_violation', 'rate_anomaly',
+    'drop_anomaly', 'trajectory_deviation', 'combined',
+]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -278,7 +290,8 @@ def run_single(model_key, seed, ratio):
         # 4. 逐电池 × 逐场景 × 逐严重度 做异常检测
         all_detection_results = []
 
-        for test_bid in test_batteries:
+        n_test = len(test_batteries)
+        for bid_idx, test_bid in enumerate(test_batteries):
             test_info = battery_data.get(test_bid)
             if test_info is None or len(test_info['features']) < WINDOW_SIZE + 10:
                 continue
@@ -287,10 +300,22 @@ def run_single(model_key, seed, ratio):
             T_raw       = len(normal_feat)
             fault_cycle = int(T_raw * FAULT_POSITION)
 
+            print(f"  [DET] battery {bid_idx+1}/{n_test}  id={test_bid}  "
+                  f"T={T_raw}  fault@{fault_cycle}")
+
+            # self_trajectory 模式不需要供体；legacy 模式按场景配置
+            if INJECTION_MODE == 'self_trajectory':
+                # 所有场景共用 None 供体，A1/A4 通过 targets 传递自身 SOH
+                scenario_targets = test_info['targets']
+            else:
+                scenario_targets = None
+
             for scenario_key, scenario_cfg in SCENARIOS.items():
-                needs_donor = scenario_cfg['needs_donor']
-                # 需要供体的场景遍历所有供体；不需要的只跑一次（donor_id=None）
-                donor_iter = donor_ids if needs_donor else [None]
+                if INJECTION_MODE == 'self_trajectory':
+                    donor_iter = [None]    # 无需供体
+                else:
+                    needs_donor = scenario_cfg['needs_donor']
+                    donor_iter = donor_ids if needs_donor else [None]
 
                 for donor_id in donor_iter:
                     donor_feat = battery_data[donor_id]['features'] if donor_id is not None else None
@@ -305,6 +330,8 @@ def run_single(model_key, seed, ratio):
                             fault_cycle=fault_cycle,
                             severity=severity,
                             scenario=scenario_key,
+                            injection_mode=INJECTION_MODE,
+                            targets=scenario_targets,
                             window_size=WINDOW_SIZE,
                             device=DEVICE,
                         )
@@ -373,7 +400,10 @@ def aggregate_detection_results(results_list):
                 continue
 
             summary[scenario_key][severity] = {}
-            for score_key in ['input_zscore', 'mono_violation', 'rate_anomaly', 'combined']:
+            for score_key in ALL_SIGNAL_KEYS:
+                # 兼容旧 result.json（缺少新增信号 key 时跳过）
+                if score_key not in filtered[0].get('metrics', {}):
+                    continue
                 aucs      = [r['metrics'][score_key]['auc']
                              for r in filtered if not np.isnan(r['metrics'][score_key]['auc'])]
                 det_rates = [r['metrics'][score_key]['det_rate_fpr5']
@@ -394,12 +424,20 @@ def aggregate_detection_results(results_list):
 
 
 def print_detection_summary(run_id, summary):
-    print(f"\n  {'='*70}")
+    """打印每个场景 × 严重度下，6 个信号的 AUC（紧凑表格）"""
+    print(f"\n  {'='*90}")
     print(f"  [RESULT] {run_id}")
-    header = f"  {'Scenario':<18} {'Sev':<10} {'Signal':<16} {'AUC':>8} {'Det@5%':>8} {'Delay':>7}"
-    print(f"  {'─'*70}")
+    sig_short = {
+        'input_zscore':'in_z', 'mono_violation':'mono', 'rate_anomaly':'rate',
+        'drop_anomaly':'drop', 'trajectory_deviation':'traj', 'combined':'comb',
+    }
+    header = f"  {'Scenario':<18} {'Sev':<8}"
+    for k in ALL_SIGNAL_KEYS:
+        header += f" {sig_short[k]:>6}"
+    header += "  verdict"
+    print(f"  {'─'*90}")
     print(header)
-    print(f"  {'─'*70}")
+    print(f"  {'─'*90}")
 
     for scenario_key in SCENARIO_ORDER:
         if scenario_key not in summary:
@@ -407,13 +445,21 @@ def print_detection_summary(run_id, summary):
         for severity in SEVERITIES:
             if severity not in summary[scenario_key]:
                 continue
-            for score_key in ['combined']:   # 只打 combined，简洁
-                s = summary[scenario_key][severity][score_key]
-                print(f"  {scenario_key:<18} {severity:<10} {score_key:<16} "
-                      f"{s['auc_mean']:.3f}±{s['auc_std']:.3f}  "
-                      f"{s['det_rate_mean']*100:>5.1f}%  "
-                      f"{s['delay_mean']:>6.1f}")
-    print(f"  {'='*70}")
+            row = f"  {scenario_key:<18} {severity:<8}"
+            comb_auc = float('nan')
+            for k in ALL_SIGNAL_KEYS:
+                if k not in summary[scenario_key][severity]:
+                    row += f" {'-':>6}"; continue
+                s = summary[scenario_key][severity][k]
+                row += f" {s['auc_mean']:>6.3f}"
+                if k == 'combined':
+                    comb_auc = s['auc_mean']
+            if   comb_auc > 0.70: v = 'GOOD'
+            elif comb_auc > 0.58: v = 'WEAK'
+            else:                 v = 'FAIL'
+            row += f"  {v}"
+            print(row)
+    print(f"  {'='*90}")
 
 
 # ================================================================
@@ -470,14 +516,15 @@ def final_comparison(all_results):
 # ================================================================
 def main():
     print("Exp-12: Cell Anomaly Detection via Physics Constraints")
-    print(f"Device:     {DEVICE}")
-    print(f"Seeds:      {SEEDS}")
-    print(f"Ratios:     {SUPERVISION_RATIOS}")
-    print(f"Severities: {SEVERITIES}")
-    print(f"Scenarios:  {SCENARIO_ORDER}")
-    print(f"Donors:     {N_DONORS}")
-    print(f"Fault pos:  {FAULT_POSITION*100:.0f}% lifecycle")
-    print(f"Output:     {OUTPUT_DIR}")
+    print(f"Device:         {DEVICE}")
+    print(f"Injection mode: {INJECTION_MODE}")
+    print(f"Seeds:          {SEEDS}")
+    print(f"Ratios:         {SUPERVISION_RATIOS}")
+    print(f"Severities:     {SEVERITIES}")
+    print(f"Scenarios:      {SCENARIO_ORDER}")
+    print(f"Donors:         {N_DONORS} (only used if injection_mode=legacy)")
+    print(f"Fault pos:      {FAULT_POSITION*100:.0f}% lifecycle")
+    print(f"Output:         {OUTPUT_DIR}")
 
     total_runs = len(MODELS) * len(SUPERVISION_RATIOS) * len(SEEDS)
     print(f"\nTotal training runs: {total_runs}  "
