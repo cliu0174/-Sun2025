@@ -251,6 +251,184 @@ def inject_resistance_rise(
 
 
 # ============================================================
+# 1c. 同电池自身轨迹重构注入函数（self-trajectory 模式）
+#
+# 核心原理：模型在训练时学到了 feature(t) → SOH(t) 的映射。
+# 当我们把同一块电池后期的特征提前拼接到 fault_cycle 处，
+# 模型会"看到未来"并预测出对应的低 SOH，从而产生 SOH 骤降信号。
+# 这比跨电池供体混合更可靠：同一电池的个体特性保持一致。
+# ============================================================
+
+def inject_self_jump_drop(
+    features: np.ndarray,
+    targets: np.ndarray,
+    fault_cycle: int,
+    severity: str = 'moderate',
+) -> Tuple[np.ndarray, int]:
+    """
+    场景 A1 — SOH 骤降（Single-cell Sudden Drop）
+
+    在 fault_cycle 处，将后续序列替换为同电池更后期的特征，
+    模拟突发不可逆损伤后直接跳到更老状态。
+
+    返回：(corrupted_features, fault_start)
+    注意：返回序列长度 = fault_cycle + (T - s0)，短于原序列。
+    """
+    soh_drop_map = {'mild': 0.03, 'moderate': 0.05, 'severe': 0.08}
+    fallback_map  = {'mild': 0.60, 'moderate': 0.68, 'severe': 0.75}
+
+    T = len(features)
+    t0 = fault_cycle
+    soh_drop = soh_drop_map.get(severity, 0.05)
+    target_soh = targets[t0] - soh_drop
+
+    # 按 SOH 落差找 s0
+    s0 = None
+    for s in range(t0 + 1, T):
+        if targets[s] <= target_soh:
+            s0 = s
+            break
+    if s0 is None:  # fallback 到比例位置
+        s0 = min(int(fallback_map.get(severity, 0.68) * T), T - 1)
+
+    corrupted = np.concatenate([features[:t0], features[s0:]], axis=0)
+    return corrupted, t0
+
+
+def inject_self_knee_sampling(
+    features: np.ndarray,
+    fault_cycle: int,
+    severity: str = 'moderate',
+) -> Tuple[np.ndarray, int]:
+    """
+    场景 A2 — 容量拐点（Capacity Knee-point via Skip Sampling）
+
+    fault_cycle 后对同一电池轨迹做跳采样，每步跨越多个真实循环，
+    使单位 pseudo-cycle 内 SOH 下降更快，模拟退化速率突增。
+
+    返回：(corrupted_features, fault_start)
+    """
+    step_map = {'mild': 2, 'moderate': 3, 'severe': 4}
+    step = step_map.get(severity, 3)
+
+    T = len(features)
+    t0 = fault_cycle
+    tail_idx = np.arange(t0, T, step)
+    if len(tail_idx) == 0:
+        tail_idx = np.array([T - 1])
+
+    corrupted = np.concatenate([features[:t0], features[tail_idx]], axis=0)
+    return corrupted, t0
+
+
+def inject_self_imbalance_drift(
+    features: np.ndarray,
+    fault_cycle: int,
+    severity: str = 'moderate',
+) -> np.ndarray:
+    """
+    场景 A3 — 簇内不均衡加剧（Self-future Gradual Drift）
+
+    fault_cycle 后渐进混入同一电池更后期的特征（alpha 线性增长），
+    无需跨电池供体。
+
+    返回：corrupted_features（长度与原序列相同）
+    """
+    alpha_map  = {'mild': 0.25, 'moderate': 0.40, 'severe': 0.55}
+    offset_map = {'mild': 0.10, 'moderate': 0.18, 'severe': 0.25}
+
+    T = len(features)
+    t0 = fault_cycle
+    max_alpha  = alpha_map.get(severity, 0.40)
+    max_offset = int(offset_map.get(severity, 0.18) * T)
+
+    corrupted = features.copy()
+    duration = max(1, T - 1 - t0)
+
+    for t in range(t0, T):
+        progress   = (t - t0) / duration
+        alpha_t    = max_alpha * progress
+        future_idx = min(T - 1, t + int(max_offset * progress))
+        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+
+    return corrupted
+
+
+def inject_self_lithium_plating(
+    features: np.ndarray,
+    targets: np.ndarray,
+    fault_cycle: int,
+    severity: str = 'moderate',
+) -> Tuple[np.ndarray, int]:
+    """
+    场景 A4 — 析锂台阶突降（Self Lithium Plating）
+
+    在 fault_cycle 处跳跃到同电池更后期状态（台阶），
+    之后继续跳采样加速衰减，形成"台阶 + 加速"双重特征。
+
+    返回：(corrupted_features, fault_start)
+    """
+    # 台阶落差比 sudden_drop 小（析锂引起的台阶通常较小）
+    soh_drop_map  = {'mild': 0.02, 'moderate': 0.035, 'severe': 0.055}
+    fallback_map  = {'mild': 0.58, 'moderate': 0.65, 'severe': 0.72}
+    step_map      = {'mild': 2, 'moderate': 2, 'severe': 3}
+
+    T = len(features)
+    t0 = fault_cycle
+    soh_drop = soh_drop_map.get(severity, 0.035)
+    target_soh = targets[t0] - soh_drop
+    step = step_map.get(severity, 2)
+
+    s0 = None
+    for s in range(t0 + 1, T):
+        if targets[s] <= target_soh:
+            s0 = s
+            break
+    if s0 is None:
+        s0 = min(int(fallback_map.get(severity, 0.65) * T), T - 1)
+
+    tail_idx = np.arange(s0, T, step)
+    if len(tail_idx) == 0:
+        tail_idx = np.array([T - 1])
+
+    corrupted = np.concatenate([features[:t0], features[tail_idx]], axis=0)
+    return corrupted, t0
+
+
+def inject_self_resistance_rise(
+    features: np.ndarray,
+    fault_cycle: int,
+    severity: str = 'moderate',
+) -> np.ndarray:
+    """
+    场景 A5 — 内阻渐进增长（Self Quadratic Future Drift）
+
+    fault_cycle 后以二次增长的速度漂移到同一电池更后期特征，
+    无需供体，模拟内阻逐渐增大导致斜率缓慢变陡。
+
+    返回：corrupted_features（长度与原序列相同）
+    """
+    alpha_map  = {'mild': 0.20, 'moderate': 0.35, 'severe': 0.55}
+    offset_map = {'mild': 0.08, 'moderate': 0.15, 'severe': 0.22}
+
+    T = len(features)
+    t0 = fault_cycle
+    max_alpha  = alpha_map.get(severity, 0.35)
+    offset     = int(offset_map.get(severity, 0.15) * T)
+
+    corrupted = features.copy()
+    duration = max(1, T - t0)
+
+    for t in range(t0, T):
+        progress   = (t - t0) / duration
+        alpha_t    = max_alpha * (progress ** 2)          # 二次增长
+        future_idx = min(T - 1, t + offset)
+        corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+
+    return corrupted
+
+
+# ============================================================
 # 2. 异常评分
 # ============================================================
 
@@ -295,17 +473,41 @@ def compute_anomaly_scores(
         mono_violation[1:] = np.maximum(soh_diff, 0)  # 上升量
 
     # ── 分数 3：速率突变 ──
-    # 退化速率的局部异常度
     rate_anomaly = np.zeros(T)
     if T > 2:
-        soh_rate = np.diff(predictions)  # (T-1,)
+        soh_rate = np.diff(predictions)
         for t in range(window_size, T - 1):
             local_rates = soh_rate[max(0, t - window_size):t]
             if len(local_rates) > 1 and np.std(local_rates) > 1e-8:
                 rate_anomaly[t + 1] = abs(soh_rate[t] - np.mean(local_rates)) / np.std(local_rates)
 
+    # ── 分数 4：SOH 骤降（drop_anomaly）──
+    # 检测 SOH 下跌速率的突然加大（与 mono_violation 互补：后者检测上升，此处检测异常下跌）
+    drop_anomaly = np.zeros(T)
+    if T > 2:
+        soh_rate = np.diff(predictions)              # 负值=下跌
+        drop_rate = np.maximum(-soh_rate, 0)         # 只保留下跌量（正值）
+        for t in range(window_size, T - 1):
+            local_drops = drop_rate[max(0, t - window_size):t]
+            if len(local_drops) > 1 and np.std(local_drops) > 1e-8:
+                drop_anomaly[t + 1] = max(
+                    0.0,
+                    (drop_rate[t] - np.mean(local_drops)) / np.std(local_drops)
+                )
+
+    # ── 分数 5：轨迹偏差（trajectory_deviation）──
+    # 用最近 window_size 步预测做线性外推，比较实际值与预期值的偏差
+    trajectory_deviation = np.zeros(T)
+    if T > window_size + 1:
+        for t in range(window_size, T):
+            x = np.arange(window_size, dtype=float)
+            y = predictions[t - window_size:t]
+            if np.std(y) > 1e-8:
+                slope, intercept = np.polyfit(x, y, 1)
+                expected = intercept + slope * window_size
+                trajectory_deviation[t] = abs(predictions[t] - expected)
+
     # ── 综合分数 ──
-    # 标准化后取最大值
     def _safe_normalize(x):
         xmin, xmax = x.min(), x.max()
         if xmax - xmin < 1e-10:
@@ -314,15 +516,19 @@ def compute_anomaly_scores(
 
     combined = np.maximum.reduce([
         _safe_normalize(input_zscore),
-        _safe_normalize(mono_violation),   # 与其他信号等权（异常主要表现为下跌而非上升）
+        _safe_normalize(mono_violation),
         _safe_normalize(rate_anomaly),
+        _safe_normalize(drop_anomaly),
+        _safe_normalize(trajectory_deviation),
     ])
 
     return {
-        'input_zscore':   input_zscore,
-        'mono_violation': mono_violation,
-        'rate_anomaly':   rate_anomaly,
-        'combined':       combined,
+        'input_zscore':          input_zscore,
+        'mono_violation':        mono_violation,
+        'rate_anomaly':          rate_anomaly,
+        'drop_anomaly':          drop_anomaly,
+        'trajectory_deviation':  trajectory_deviation,
+        'combined':              combined,
     }
 
 
@@ -409,6 +615,8 @@ def run_anomaly_detection_for_battery(
     fault_cycle: int,
     severity: str,
     scenario: str = 'sudden_aging',
+    injection_mode: str = 'legacy',
+    targets: Optional[np.ndarray] = None,
     window_size: int = 40,
     device: str = 'cuda',
 ) -> Dict:
@@ -418,36 +626,73 @@ def run_anomaly_detection_for_battery(
     Args:
         model:           训练好的模型
         normal_features: (T_raw, F) 正常电芯原始特征（已标准化）
-        donor_features:  (T_donor, F) 供体电芯特征；knee_point / resistance_rise 场景传 None
+        donor_features:  (T_donor, F) 供体电芯特征；self_trajectory 模式不需要
         feature_mean:    (F,) 训练集特征均值
         feature_std:     (F,) 训练集特征标准差
         fault_cycle:     故障注入时刻（原始 cycle 索引）
         severity:        严重程度（'mild' / 'moderate' / 'severe'）
         scenario:        退化场景（见模块文档）
+        injection_mode:  'legacy'（跨电池供体混合）或 'self_trajectory'（同电池轨迹重构）
+        targets:         (T_raw,) 该电池的真实 SOH 序列（self_trajectory A1/A4 需要）
         window_size:     模型窗口大小
         device:          计算设备
 
     Returns:
-        result: 包含评分和评估指标的字典
+        result: 包含评分、评估指标和诊断量的字典
     """
-    # 1. 根据 scenario 选择注入函数
-    if scenario == 'sudden_aging':
-        corrupted_features = inject_cell_failure(
-            normal_features, donor_features, fault_cycle, severity)
-    elif scenario == 'knee_point':
-        corrupted_features = inject_knee_point(
-            normal_features, fault_cycle, severity)
-    elif scenario == 'imbalance':
-        corrupted_features = inject_imbalance_escalation(
-            normal_features, donor_features, fault_cycle, severity)
-    elif scenario == 'li_plating':
-        corrupted_features = inject_lithium_plating(
-            normal_features, donor_features, fault_cycle, severity)
-    elif scenario == 'resistance_rise':
-        corrupted_features = inject_resistance_rise(
-            normal_features, fault_cycle, severity)
-    else:
-        raise ValueError(f"Unknown scenario: {scenario!r}")
+    # 1. 根据 injection_mode + scenario 选择注入函数
+    # self_trajectory 场景映射
+    _SELF_MAP = {
+        'sudden_aging':    'self_jump_drop',
+        'knee_point':      'self_knee_sampling',
+        'imbalance':       'self_imbalance_drift',
+        'li_plating':      'self_lithium_plating',
+        'resistance_rise': 'self_resistance_rise',
+    }
+
+    actual_fault_cycle = fault_cycle   # 可能因截断而移动
+
+    if injection_mode == 'self_trajectory':
+        sc = _SELF_MAP.get(scenario, scenario)
+        if sc == 'self_jump_drop':
+            if targets is None:
+                return {'error': 'self_jump_drop requires targets'}
+            corrupted_features, actual_fault_cycle = inject_self_jump_drop(
+                normal_features, targets, fault_cycle, severity)
+        elif sc == 'self_knee_sampling':
+            corrupted_features, actual_fault_cycle = inject_self_knee_sampling(
+                normal_features, fault_cycle, severity)
+        elif sc == 'self_imbalance_drift':
+            corrupted_features = inject_self_imbalance_drift(
+                normal_features, fault_cycle, severity)
+        elif sc == 'self_lithium_plating':
+            if targets is None:
+                return {'error': 'self_lithium_plating requires targets'}
+            corrupted_features, actual_fault_cycle = inject_self_lithium_plating(
+                normal_features, targets, fault_cycle, severity)
+        elif sc == 'self_resistance_rise':
+            corrupted_features = inject_self_resistance_rise(
+                normal_features, fault_cycle, severity)
+        else:
+            return {'error': f'Unknown self_trajectory scenario: {sc!r}'}
+    else:  # legacy 模式（保持原有逻辑）
+        if scenario == 'sudden_aging':
+            corrupted_features = inject_cell_failure(
+                normal_features, donor_features, fault_cycle, severity)
+        elif scenario == 'knee_point':
+            corrupted_features = inject_knee_point(
+                normal_features, fault_cycle, severity)
+        elif scenario == 'imbalance':
+            corrupted_features = inject_imbalance_escalation(
+                normal_features, donor_features, fault_cycle, severity)
+        elif scenario == 'li_plating':
+            corrupted_features = inject_lithium_plating(
+                normal_features, donor_features, fault_cycle, severity)
+        elif scenario == 'resistance_rise':
+            corrupted_features = inject_resistance_rise(
+                normal_features, fault_cycle, severity)
+        else:
+            raise ValueError(f"Unknown scenario: {scenario!r}")
 
     # 2. 窗口化并推理
     def _predict_sequence(features_seq):
@@ -488,11 +733,16 @@ def run_anomaly_detection_for_battery(
     feat_aligned = normal_features[window_size - 1:window_size - 1 + T_out]
     feat_fault_aligned = corrupted_features[window_size - 1:window_size - 1 + T_out]
 
-    # fault_cycle 映射到输出序列索引
-    fault_start_out = max(0, fault_cycle - window_size + 1)
-    fault_start_out = min(fault_start_out, T_out - 1)
+    # fault_cycle 映射到输出序列索引（用 actual_fault_cycle 适配截断场景）
+    fault_start_out = max(0, actual_fault_cycle - window_size + 1)
+    T_fault_out = len(preds_fault)
+    fault_start_out = min(fault_start_out, T_fault_out - 1)
 
     # 3. 计算异常分数
+    T_clean_out = len(preds_clean)
+    feat_aligned       = normal_features[window_size - 1:window_size - 1 + T_clean_out]
+    feat_fault_aligned = corrupted_features[window_size - 1:window_size - 1 + T_fault_out]
+
     scores_clean = compute_anomaly_scores(
         preds_clean, feat_aligned, feature_mean, feature_std
     )
@@ -500,9 +750,13 @@ def run_anomaly_detection_for_battery(
         preds_fault, feat_fault_aligned, feature_mean, feature_std
     )
 
-    # 4. 评估检测性能（各分数维度 + 综合）
+    # 4. 评估检测性能（全部信号）
+    all_signal_keys = [
+        'input_zscore', 'mono_violation', 'rate_anomaly',
+        'drop_anomaly', 'trajectory_deviation', 'combined',
+    ]
     metrics = {}
-    for score_key in ['input_zscore', 'mono_violation', 'rate_anomaly', 'combined']:
+    for score_key in all_signal_keys:
         det = evaluate_detection(
             scores_clean[score_key],
             scores_fault[score_key],
@@ -510,14 +764,42 @@ def run_anomaly_detection_for_battery(
         )
         metrics[score_key] = det
 
+    # 5. 诊断量（帮助调试注入是否有效）
+    pred_drop_at_fault = float(
+        preds_clean[fault_start_out] - preds_fault[fault_start_out]
+    ) if fault_start_out < min(T_clean_out, T_fault_out) else float('nan')
+
+    after = min(T_clean_out, T_fault_out) - fault_start_out
+    if after > 0:
+        mean_pred_gap = float(np.mean(
+            preds_clean[fault_start_out:fault_start_out + after] -
+            preds_fault[fault_start_out:fault_start_out + after]
+        ))
+    else:
+        mean_pred_gap = float('nan')
+
+    feat_l1 = float(np.abs(
+        feat_fault_aligned[fault_start_out:] - feat_aligned[fault_start_out:
+            fault_start_out + len(feat_fault_aligned) - fault_start_out]
+    ).mean()) if fault_start_out < T_fault_out else float('nan')
+
+    diagnostics = {
+        'pred_drop_at_fault':     pred_drop_at_fault,
+        'mean_pred_gap_after':    mean_pred_gap,
+        'feature_l1_after_fault': feat_l1,
+        'corrupted_seq_len':      len(corrupted_features),
+        'clean_seq_len':          len(normal_features),
+    }
+
     return {
-        'fault_cycle':    fault_cycle,
+        'fault_cycle':     actual_fault_cycle,
         'fault_start_out': fault_start_out,
-        'severity':       severity,
-        'T_output':       T_out,
-        'metrics':        metrics,
-        'preds_clean':    preds_clean,
-        'preds_fault':    preds_fault,
-        'scores_clean':   {k: v.tolist() for k, v in scores_clean.items()},
-        'scores_fault':   {k: v.tolist() for k, v in scores_fault.items()},
+        'severity':        severity,
+        'T_output':        T_fault_out,
+        'metrics':         metrics,
+        'diagnostics':     diagnostics,
+        'preds_clean':     preds_clean,
+        'preds_fault':     preds_fault,
+        'scores_clean':    {k: v.tolist() for k, v in scores_clean.items()},
+        'scores_fault':    {k: v.tolist() for k, v in scores_fault.items()},
     }

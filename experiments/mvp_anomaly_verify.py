@@ -1,16 +1,20 @@
 """
-MVP 快速验证：Exp-12 bug 修复后异常检测是否可行
-================================================
+MVP 快速验证：Exp-12 异常检测（支持 legacy / self_trajectory 两种注入模式）
+===========================================================================
 
-核心思路：
-  - 不重新训练，直接加载 exp12_anomaly_detection/ 下已有的
-    model.pth + data_cache.pkl（之前跑 Exp-12 时自动保存的）
-  - 只跑 3 个场景 × severe × 前 8 块测试电池 × 2 个供体
-  - 全程推理，约 2~5 分钟出结论
+不重新训练，直接加载 exp12_anomaly_detection/ 下已有的
+model.pth + data_cache.pkl（之前跑 Exp-12 时自动保存的）。
 
 用法：
-  python experiments/mvp_anomaly_verify.py
-  python experiments/mvp_anomaly_verify.py --ckpt_dir experiments/exp12_anomaly_detection/E0_baseline/ratio0p5/seed929
+  # self_trajectory 模式（新方案，推荐先跑）
+  python experiments/mvp_anomaly_verify.py --injection_mode self_trajectory
+
+  # legacy 模式（旧方案，供对比）
+  python experiments/mvp_anomaly_verify.py --injection_mode legacy
+
+  # 指定具体 checkpoint 目录
+  python experiments/mvp_anomaly_verify.py --injection_mode self_trajectory \\
+      --ckpt_dir experiments/exp12_anomaly_detection/E0_baseline/ratio0p5/seed929
 """
 
 import os, sys, pickle, argparse
@@ -28,10 +32,15 @@ DEVICE      = 'cuda' if torch.cuda.is_available() else 'cpu'
 WINDOW_SIZE = 40
 EXP12_DIR   = os.path.join(os.path.dirname(__file__), 'exp12_anomaly_detection')
 
+# 全部信号（含新增的 drop_anomaly / trajectory_deviation）
+ALL_SIGNALS = [
+    'input_zscore', 'rate_anomaly', 'drop_anomaly',
+    'trajectory_deviation', 'mono_violation', 'combined',
+]
+
 
 # ─── 找可用的 checkpoint 目录 ────────────────────────────────────────
 def find_cached_run(hint_dir=None):
-    """找到含 model.pth + data_cache.pkl 的目录"""
     if hint_dir and os.path.isfile(os.path.join(hint_dir, 'model.pth')):
         return hint_dir
     for root, _, files in os.walk(EXP12_DIR):
@@ -54,30 +63,37 @@ def build_battery_data(data_dict):
     return battery_data
 
 
-# ─── 主验证逻辑 ──────────────────────────────────────────────────────
+# ─── 主逻辑 ─────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt_dir', default=None, help='指定 checkpoint 目录')
-    parser.add_argument('--n_test',   type=int, default=8,  help='使用几块测试电池（默认8）')
-    parser.add_argument('--n_donors', type=int, default=2,  help='使用几个供体（默认2）')
-    parser.add_argument('--severity', default='severe',     help='mild/moderate/severe')
+    parser.add_argument('--ckpt_dir',       default=None,
+                        help='指定 checkpoint 目录（可选）')
+    parser.add_argument('--injection_mode', default='self_trajectory',
+                        choices=['legacy', 'self_trajectory'],
+                        help='注入模式：self_trajectory（新）或 legacy（旧）')
+    parser.add_argument('--n_test',   type=int, default=8,
+                        help='使用几块测试电池（默认8）')
+    parser.add_argument('--n_donors', type=int, default=2,
+                        help='legacy 模式下使用几个供体（默认2）')
+    parser.add_argument('--severity', default='severe',
+                        choices=['mild', 'moderate', 'severe'])
     args = parser.parse_args()
 
     # 1. 加载 checkpoint
     run_dir = find_cached_run(args.ckpt_dir)
     if run_dir is None:
         print("ERROR: 未找到缓存 checkpoint。")
-        print(f"  请确认服务器 Exp-12 已运行过至少一轮（{EXP12_DIR}/*/model.pth）")
+        print(f"  请先运行一次 Exp-12 训练（{EXP12_DIR}/*/model.pth）")
         sys.exit(1)
 
     print(f"\n{'='*65}")
-    print(f"MVP 异常检测快速验证（bug 修复后）")
+    print(f"MVP 异常检测快速验证")
     print(f"{'='*65}")
-    print(f"Checkpoint : {run_dir}")
-    print(f"Device     : {DEVICE}")
-    print(f"Severity   : {args.severity}")
-    print(f"Test bats  : {args.n_test}")
-    print(f"Donors     : {args.n_donors}")
+    print(f"Checkpoint    : {run_dir}")
+    print(f"Device        : {DEVICE}")
+    print(f"Injection mode: {args.injection_mode}")
+    print(f"Severity      : {args.severity}")
+    print(f"Test batteries: {args.n_test}")
 
     wrapper = UnifiedModelWrapper.load_checkpoint(
         os.path.join(run_dir, 'model.pth'), device=DEVICE)
@@ -87,38 +103,57 @@ def main():
         cache = pickle.load(f)
     data_dict = cache['data_dict']
     results   = cache['results']
-    print(f"Model MAE  : {results['test_mae']*100:.4f}%   R² : {results['test_r2']:.4f}")
+    print(f"Model MAE     : {results['test_mae']*100:.4f}%   R2: {results['test_r2']:.4f}")
 
     # 2. 重建数据
     battery_data = build_battery_data(data_dict)
     feat_mean    = data_dict['train_features'].mean(axis=0)
     feat_std     = data_dict['train_features'].std(axis=0)
 
-    # 3. 选供体
-    tb_targets  = {bid: data_dict['train_targets'][data_dict['train_battery_ids'] == bid]
-                   for bid in data_dict['train_batteries']}
-    tb_features = {bid: data_dict['train_features'][data_dict['train_battery_ids'] == bid]
-                   for bid in data_dict['train_batteries']}
-    donor_ids = select_donor_batteries(tb_features, tb_targets, n_donors=args.n_donors)
-    print(f"Donors     : {donor_ids}\n")
+    # 3. 供体（legacy 模式需要）
+    if args.injection_mode == 'legacy':
+        tb_tgts  = {b: data_dict['train_targets'][data_dict['train_battery_ids']==b]
+                    for b in data_dict['train_batteries']}
+        tb_feats = {b: data_dict['train_features'][data_dict['train_battery_ids']==b]
+                    for b in data_dict['train_batteries']}
+        donor_ids = select_donor_batteries(tb_feats, tb_tgts, n_donors=args.n_donors)
+        print(f"Donors        : {donor_ids}")
+    else:
+        donor_ids = [None]
+
+    print()
 
     # 4. 测试场景
     scenarios = [
-        ('sudden_aging',    True,  '① 突发老化    [预期：易检测]'),
-        ('knee_point',      False, '② 容量拐点    [预期：易检测]'),
-        ('imbalance',       True,  '③ 不均衡加剧  [预期：中等]'),
-        ('li_plating',      True,  '④ 析锂台阶    [预期：易检测]'),
-        ('resistance_rise', False, '⑤ 内阻增长    [预期：难检测]'),
+        ('sudden_aging',    True,  'sudden_aging    [预期：易检测]'),
+        ('knee_point',      False, 'knee_point      [预期：易检测]'),
+        ('imbalance',       True,  'imbalance       [预期：中等]'),
+        ('li_plating',      True,  'li_plating      [预期：易检测]'),
+        ('resistance_rise', False, 'resistance_rise [预期：难检测]'),
     ]
 
-    print(f"{'场景':<14} {'AUC':>7} {'Det@5%':>9} {'Delay':>8}  判断")
-    print("-" * 55)
+    # 表头：逐信号 AUC
+    sig_width = 7
+    header = f"{'场景':<20}"
+    for s in ALL_SIGNALS:
+        header += f" {s[:sig_width]:>{sig_width}}"
+    header += "  verdict"
+    print(header)
+    print('-' * (20 + len(ALL_SIGNALS) * (sig_width + 1) + 12))
 
     test_batteries = data_dict['test_batteries'][:args.n_test]
 
+    # 诊断汇总（打印在表格后）
+    diag_rows = []
+
     for scenario_key, needs_donor, desc in scenarios:
-        donor_iter = donor_ids if needs_donor else [None]
-        all_metrics = []
+        if args.injection_mode == 'legacy':
+            donor_iter = donor_ids if needs_donor else [None]
+        else:
+            donor_iter = [None]   # self_trajectory 不需要供体
+
+        all_metrics   = []
+        all_diags     = []
 
         for test_bid in test_batteries:
             info = battery_data.get(test_bid)
@@ -126,10 +161,12 @@ def main():
                 continue
 
             normal_feat = info['features']
+            targets     = info['targets']
             fault_cycle = int(len(normal_feat) * 0.5)
 
             for donor_id in donor_iter:
-                donor_feat = battery_data[donor_id]['features'] if donor_id else None
+                donor_feat = (battery_data[donor_id]['features']
+                              if donor_id is not None else None)
 
                 det = run_anomaly_detection_for_battery(
                     model=wrapper,
@@ -140,35 +177,60 @@ def main():
                     fault_cycle=fault_cycle,
                     severity=args.severity,
                     scenario=scenario_key,
+                    injection_mode=args.injection_mode,
+                    targets=targets,
                     window_size=WINDOW_SIZE,
                     device=DEVICE,
                 )
                 if 'error' not in det:
                     all_metrics.append(det['metrics'])
+                    all_diags.append(det.get('diagnostics', {}))
 
         if not all_metrics:
-            print(f"{scenario_key:<14}  {'N/A':>7}")
+            print(f"{scenario_key:<20}  N/A")
             continue
 
-        for signal in ['combined']:
-            aucs  = [m[signal]['auc']           for m in all_metrics if not np.isnan(m[signal]['auc'])]
-            dets  = [m[signal]['det_rate_fpr5'] for m in all_metrics if not np.isnan(m[signal]['det_rate_fpr5'])]
-            dlys  = [m[signal]['det_delay']     for m in all_metrics if m[signal]['det_delay'] >= 0]
+        # 每个信号的平均 AUC
+        row = f"{scenario_key:<20}"
+        aucs = {}
+        for sig in ALL_SIGNALS:
+            vals = [m[sig]['auc'] for m in all_metrics
+                    if sig in m and not np.isnan(m[sig]['auc'])]
+            auc = np.mean(vals) if vals else float('nan')
+            aucs[sig] = auc
+            row += f" {auc:>{sig_width}.3f}"
 
-            auc   = np.mean(aucs)  if aucs else float('nan')
-            det   = np.mean(dets) * 100 if dets else float('nan')
-            delay = np.mean(dlys)  if dlys else float('nan')
+        combined_auc = aucs.get('combined', float('nan'))
+        if   combined_auc > 0.70: verdict = 'GOOD'
+        elif combined_auc > 0.58: verdict = 'WEAK'
+        else:                     verdict = 'FAIL'
+        row += f"  {verdict}"
+        print(row)
 
-            if auc > 0.70:   verdict = '✅ 有效'
-            elif auc > 0.58: verdict = '⚠️  弱效'
-            else:             verdict = '❌ 无效'
+        # 收集诊断量
+        drops  = [d.get('pred_drop_at_fault', float('nan')) for d in all_diags]
+        gaps   = [d.get('mean_pred_gap_after', float('nan')) for d in all_diags]
+        l1s    = [d.get('feature_l1_after_fault', float('nan')) for d in all_diags]
+        diag_rows.append((scenario_key,
+                          np.nanmean(drops), np.nanmean(gaps), np.nanmean(l1s)))
 
-            print(f"{scenario_key:<14} {auc:>7.3f} {det:>8.1f}%  {delay:>7.1f}  {verdict}  {desc}")
+    print('-' * (20 + len(ALL_SIGNALS) * (sig_width + 1) + 12))
+    print("判断: AUC > 0.70 GOOD | 0.58~0.70 WEAK | < 0.58 FAIL")
 
-    print("-" * 55)
-    print("判断标准: AUC > 0.70 有效 | 0.58~0.70 弱效 | < 0.58 无效")
-    print("\n如果突发场景（①②④）AUC > 0.65，说明 bug 修复有效，可重跑完整 Exp-12。")
-    print("如果仍然 ≈ 0.5，需要进一步排查特征是否真的在故障后发生变化。\n")
+    # 诊断信息
+    print(f"\n{'='*65}")
+    print("诊断量（验证注入是否有效）")
+    print(f"{'场景':<20} {'pred_drop@fault':>16} {'mean_gap_after':>16} {'feat_L1_after':>14}")
+    print('-'*70)
+    for sc, drop, gap, l1 in diag_rows:
+        drop_s = f"{drop:+.4f}" if not np.isnan(drop) else "  N/A"
+        gap_s  = f"{gap:+.4f}"  if not np.isnan(gap)  else "  N/A"
+        l1_s   = f"{l1:.4f}"    if not np.isnan(l1)   else "  N/A"
+        print(f"{sc:<20} {drop_s:>16} {gap_s:>16} {l1_s:>14}")
+    print()
+    print("pred_drop_at_fault : 故障点模型预测 clean-fault 差值（正值=故障预测更低，好）")
+    print("mean_gap_after     : 故障后 clean 与 fault 预测均值差（正=fault 预测更低，好）")
+    print("feat_L1_after      : 故障后特征 L1 变化均值（越大=注入越有效）")
 
 
 if __name__ == '__main__':
