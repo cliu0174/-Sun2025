@@ -459,7 +459,7 @@ def compute_anomaly_scores(
     features: np.ndarray,
     feature_history_mean: np.ndarray,
     feature_history_std: np.ndarray,
-    window_size: int = 5,
+    window_size: int = 20,
 ) -> Dict[str, np.ndarray]:
     """
     计算三维异常分数（逐窗口）。
@@ -536,6 +536,7 @@ def compute_anomaly_scores(
             return np.zeros_like(x)
         return (x - xmin) / (xmax - xmin)
 
+    # 原始 combined：max(全部 5 信号) —— 易被 input_zscore 噪声拖累
     combined = np.maximum.reduce([
         _safe_normalize(input_zscore),
         _safe_normalize(mono_violation),
@@ -544,12 +545,24 @@ def compute_anomaly_scores(
         _safe_normalize(trajectory_deviation),
     ])
 
+    # 新增 combined_traj：直接用 trajectory_deviation（最强单信号）
+    combined_traj = _safe_normalize(trajectory_deviation)
+
+    # 新增 combined_weighted：以 traj 为主、in_z 为辅的加权
+    # traj 权重 0.7（主信号），in_z 权重 0.3（特征级辅助），其他 0
+    combined_weighted = (
+        0.7 * _safe_normalize(trajectory_deviation) +
+        0.3 * _safe_normalize(input_zscore)
+    )
+
     return {
         'input_zscore':          input_zscore,
         'mono_violation':        mono_violation,
         'rate_anomaly':          rate_anomaly,
         'drop_anomaly':          drop_anomaly,
         'trajectory_deviation':  trajectory_deviation,
+        'combined_traj':         combined_traj,
+        'combined_weighted':     combined_weighted,
         'combined':              combined,
     }
 
@@ -775,7 +788,8 @@ def run_anomaly_detection_for_battery(
     # 4. 评估检测性能（全部信号）
     all_signal_keys = [
         'input_zscore', 'mono_violation', 'rate_anomaly',
-        'drop_anomaly', 'trajectory_deviation', 'combined',
+        'drop_anomaly', 'trajectory_deviation',
+        'combined', 'combined_traj', 'combined_weighted',
     ]
     metrics = {}
     for score_key in all_signal_keys:

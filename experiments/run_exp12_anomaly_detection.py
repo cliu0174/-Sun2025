@@ -65,10 +65,11 @@ N_DONORS           = 5
 FAULT_POSITION     = 0.5   # 故障注入位置（生命周期的 50%）
 INJECTION_MODE     = 'self_trajectory'   # 'legacy' / 'self_trajectory'
 
-# 全部检测信号（含新增的 drop_anomaly / trajectory_deviation）
+# 全部检测信号（含新增的 drop_anomaly / trajectory_deviation 和 2 个 combined 变体）
 ALL_SIGNAL_KEYS = [
     'input_zscore', 'mono_violation', 'rate_anomaly',
-    'drop_anomaly', 'trajectory_deviation', 'combined',
+    'drop_anomaly', 'trajectory_deviation',
+    'combined', 'combined_traj', 'combined_weighted',
 ]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -200,14 +201,24 @@ def extract_per_battery_data(data_dict):
 # 训练结果缓存：model.pth + data_cache.pkl 保存在 run_dir 下，
 # 下次运行时直接加载，跳过训练（仅重跑异常检测推理部分）。
 # ================================================================
-def run_single(model_key, seed, ratio):
+def run_single(model_key, seed, ratio, rescore=False):
+    """
+    rescore=False（默认）：result.json 已存在则跳过整个流程
+    rescore=True：result.json 即使存在也强制删除并用缓存的 model/data 重跑推理部分
+                  （不重新训练模型，只重新计算异常分数和 AUC）
+    """
     cfg          = MODELS[model_key]
     ratio_tag    = f"{ratio:.1f}".replace('.', 'p')
     run_id       = f"{model_key}_ratio{ratio_tag}_seed{seed}"
     run_dir      = os.path.join(OUTPUT_DIR, model_key, f"ratio{ratio_tag}", f"seed{seed}")
     result_fp    = os.path.join(run_dir, 'result.json')
-    ckpt_fp      = os.path.join(run_dir, 'model.pth')        # ← 模型权重缓存
-    datacache_fp = os.path.join(run_dir, 'data_cache.pkl')   # ← 数据统计量缓存
+    ckpt_fp      = os.path.join(run_dir, 'model.pth')
+    datacache_fp = os.path.join(run_dir, 'data_cache.pkl')
+
+    # rescore 模式：强制删除已有 result.json，但保留 model.pth 和 data_cache.pkl
+    if rescore and os.path.exists(result_fp):
+        os.remove(result_fp)
+        print(f"  [RESCORE] deleted old {result_fp}")
 
     # 完整结果已存在 → 全部跳过
     if os.path.exists(result_fp):
@@ -424,20 +435,22 @@ def aggregate_detection_results(results_list):
 
 
 def print_detection_summary(run_id, summary):
-    """打印每个场景 × 严重度下，6 个信号的 AUC（紧凑表格）"""
-    print(f"\n  {'='*90}")
+    """打印每个场景 × 严重度下，8 个信号的 AUC（紧凑表格）"""
+    width = 110   # 8 signals × ~8 chars + scenario + severity + verdict
+    print(f"\n  {'='*width}")
     print(f"  [RESULT] {run_id}")
     sig_short = {
         'input_zscore':'in_z', 'mono_violation':'mono', 'rate_anomaly':'rate',
-        'drop_anomaly':'drop', 'trajectory_deviation':'traj', 'combined':'comb',
+        'drop_anomaly':'drop', 'trajectory_deviation':'traj',
+        'combined':'cmb', 'combined_traj':'cmbT', 'combined_weighted':'cmbW',
     }
     header = f"  {'Scenario':<18} {'Sev':<8}"
     for k in ALL_SIGNAL_KEYS:
         header += f" {sig_short[k]:>6}"
     header += "  verdict"
-    print(f"  {'─'*90}")
+    print(f"  {'─'*width}")
     print(header)
-    print(f"  {'─'*90}")
+    print(f"  {'─'*width}")
 
     for scenario_key in SCENARIO_ORDER:
         if scenario_key not in summary:
@@ -459,15 +472,17 @@ def print_detection_summary(run_id, summary):
             else:                 v = 'FAIL'
             row += f"  {v}"
             print(row)
-    print(f"  {'='*90}")
+    print(f"  {'='*width}")
 
 
 # ================================================================
 # 全局汇总：跨 seeds/ratios，对比 5 场景 × 7 模型
 # ================================================================
-def final_comparison(all_results):
+def final_comparison(all_results, signal_for_compare='combined_traj'):
+    """跨模型/ratio 汇总。signal_for_compare 决定用哪个信号做排行。
+    可选：combined_traj（推荐）/ combined_weighted / combined / trajectory_deviation"""
     print("\n" + "=" * 75)
-    print("Exp-12 Final Comparison  (combined score, mean over seeds)")
+    print(f"Exp-12 Final Comparison  (signal={signal_for_compare}, mean over seeds)")
     print("=" * 75)
 
     # {model_key: {ratio: [records]}}
@@ -497,7 +512,7 @@ def final_comparison(all_results):
                         s = (r.get('summary', {})
                                .get(scenario_key, {})
                                .get(sev, {})
-                               .get('combined', {}))
+                               .get(signal_for_compare, {}))
                         if s and not np.isnan(s.get('auc_mean', float('nan'))):
                             aucs.append(s['auc_mean'])
                             det_rates.append(s['det_rate_mean'])
@@ -515,9 +530,16 @@ def final_comparison(all_results):
 # Main
 # ================================================================
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--rescore', action='store_true',
+                        help='只重跑异常检测推理（不重新训练模型），用于换 combined 定义/window_size 后快速重算 AUC')
+    args = parser.parse_args()
+
     print("Exp-12: Cell Anomaly Detection via Physics Constraints")
     print(f"Device:         {DEVICE}")
     print(f"Injection mode: {INJECTION_MODE}")
+    print(f"Mode:           {'RESCORE (skip training)' if args.rescore else 'FULL (train + detect)'}")
     print(f"Seeds:          {SEEDS}")
     print(f"Ratios:         {SUPERVISION_RATIOS}")
     print(f"Severities:     {SEVERITIES}")
@@ -538,10 +560,12 @@ def main():
             for seed in SEEDS:
                 run_count += 1
                 print(f"\n[{run_count}/{total_runs}]")
-                result = run_single(model_key, seed, ratio)
+                result = run_single(model_key, seed, ratio, rescore=args.rescore)
                 all_results.append(result)
 
-    final_comparison(all_results)
+    # 对比三种 combined 定义，方便决策
+    for sig in ['combined_traj', 'combined_weighted', 'combined']:
+        final_comparison(all_results, signal_for_compare=sig)
 
     # 保存全局汇总
     summary_fp   = os.path.join(OUTPUT_DIR, 'final_summary.json')
