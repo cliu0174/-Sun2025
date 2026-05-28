@@ -217,12 +217,34 @@ def plot_error(data, bid, tag='Unseen'):
 # Main
 # ════════════════════════════════════════════════════════════════
 
+def best_battery(data):
+    """返回 PI-MSCL 相对 CNN-LSTM MAE 改善最大的电池 ID。"""
+    batteries = available_batteries(data)
+    best_bid, best_imp = batteries[0], -999.0
+    for bid in batteries:
+        maes = {}
+        for exp_id in MODELS:
+            d    = data[exp_id]
+            mask = d['battery_ids'] == bid
+            if mask.sum() < 10:
+                break
+            maes[exp_id] = np.mean(np.abs(
+                d['predictions'][mask] - d['targets'][mask]
+            ))
+        else:
+            imp = (maes['cnn_lstm'] - maes['pi_ms_cnn_lstm']) / maes['cnn_lstm'] * 100
+            if imp > best_imp:
+                best_imp, best_bid = imp, bid
+    print(f'自动选取电池：{best_bid}（PI-MSCL 改善 {best_imp:+.2f}%）')
+    return best_bid
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Plot SOH trajectory: CNN-LSTM vs PI-MSCL')
-    parser.add_argument('--battery', default='3-3',
+    parser.add_argument('--battery', default=None,
                         metavar='BID',
-                        help='电池 ID（默认：3-3）')
+                        help='电池 ID，不指定则自动选改善最大的电池')
     parser.add_argument('--tag', default='Unseen',
                         help='括号内标注文字（默认：Unseen）')
     parser.add_argument('--list', action='store_true',
@@ -239,14 +261,18 @@ def main():
             print(f'  {b}')
         return
 
-    bid = args.battery
     available = set(available_batteries(data))
-    if bid not in available:
-        print(f'ERROR: 电池 "{bid}" 不在缓存中。')
-        print('可用电池：')
-        for b in sorted(available):
-            print(f'  {b}')
-        sys.exit(1)
+
+    if args.battery is None:
+        bid = best_battery(data)
+    else:
+        bid = args.battery
+        if bid not in available:
+            print(f'ERROR: 电池 "{bid}" 不在缓存中。')
+            print('可用电池：')
+            for b in sorted(available):
+                print(f'  {b}')
+            sys.exit(1)
 
     print(f'\n绘制电池：{bid}  tag={args.tag}')
     plot_soh  (data, bid, tag=args.tag)
