@@ -550,8 +550,7 @@ def print_table49(all_det_results, save_csv=True):
 
     print('\n' + '='*92)
     print('表4-9  不同退化场景下的异常检测率')
-    print('       信号：trajectory_deviation  |  N连击 N={:d}  |  阈值 μ+{:.0f}σ'.format(
-        N_HIT, THRESHOLD_K))
+    print('       信号：trajectory_deviation  |  Delay = FPR@5% 阈值下首次超过窗口数')
     print('='*92)
     print(f"{'场景':<22} {'严重程度':<9} "
           f"{'---- CNN-LSTM ----':^28}  {'---- PI-MSCL -----':^28}")
@@ -578,14 +577,10 @@ def print_table49(all_det_results, save_csv=True):
                     aucs.append(m.get('auc', float('nan')))
                     dets.append(m.get('det_rate_fpr5', float('nan')))
 
-                    # N连击延迟
-                    clean_traj = np.array(res['scores_clean'][SIGNAL])
-                    fault_traj = np.array(res['scores_fault'][SIGNAL])
-                    fault_start = res.get('fault_start_out', 0)
-                    thr = compute_threshold(clean_traj)
-                    alarm = detect_first_alarm_n_hit(fault_traj, thr, N_HIT)
-                    if alarm >= 0:
-                        nhit_delays.append(max(0, alarm - fault_start))
+                    # ROC-based Delay（FPR=5% 阈值下首次超过的窗口数）
+                    d = m.get('det_delay', -1)
+                    if d >= 0:
+                        nhit_delays.append(d)
 
                 auc_m  = np.nanmean(aucs)      if aucs        else float('nan')
                 det_m  = np.nanmean(dets)      if dets        else float('nan')
@@ -607,8 +602,8 @@ def print_table49(all_det_results, save_csv=True):
         with open(csv_path, 'w', newline='', encoding='utf-8-sig') as f:
             w = csv.writer(f)
             w.writerow(['场景', '严重程度',
-                        'CNN-LSTM AUC', 'CNN-LSTM Det@FPR5%', 'CNN-LSTM N-Hit Delay',
-                        'PI-MSCL AUC',  'PI-MSCL Det@FPR5%',  'PI-MSCL N-Hit Delay'])
+                        'CNN-LSTM AUC', 'CNN-LSTM Det@FPR5%', 'CNN-LSTM Delay',
+                        'PI-MSCL AUC',  'PI-MSCL Det@FPR5%',  'PI-MSCL Delay'])
             for r in rows:
                 def _fmt(v): return f'{v:.4f}' if not np.isnan(v) else 'N/D'
                 def _fmt1(v): return f'{v:.1f}' if not np.isnan(v) else 'N/D'
