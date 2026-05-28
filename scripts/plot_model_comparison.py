@@ -37,7 +37,7 @@ os.makedirs(CACHE_DIR,  exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ── 全局配置 ──────────────────────────────────────────────────────
-SEED   = 929
+SEED   = 42
 RATIO  = 1.0          # 全监督
 DEVICE = 'cuda'
 
