@@ -34,6 +34,13 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 SEED  = 42
 RATIO = 1.0
 
+# full cache 文件名（plot_model_comparison.py 训练后生成，包含全部77块电池）
+def _full_cache_path(exp_id):
+    return os.path.join(CACHE_DIR, f'fig46_full_{exp_id}_r{RATIO}_s{SEED}.npz')
+
+def _test_cache_path(exp_id):
+    return os.path.join(CACHE_DIR, f'fig46_{exp_id}_r{RATIO}_s{SEED}.npz')
+
 MODELS = {
     'cnn_lstm': {
         'label' : 'CNN-LSTM',
@@ -73,18 +80,31 @@ plt.rcParams.update({
 # ════════════════════════════════════════════════════════════════
 
 def load_cache():
+    """
+    优先加载 full cache（包含全部电池），回退到 test-only cache。
+    full cache 由 plot_model_comparison.py 在训练后自动生成。
+    """
     data = {}
     missing = []
     for exp_id in MODELS:
-        fpath = os.path.join(CACHE_DIR, f'fig46_{exp_id}_r{RATIO}_s{SEED}.npz')
-        if os.path.exists(fpath):
+        ffpath = _full_cache_path(exp_id)
+        fpath  = _test_cache_path(exp_id)
+
+        if os.path.exists(ffpath):
+            data[exp_id] = dict(np.load(ffpath, allow_pickle=True))
+            print(f'  [FULL CACHE] {exp_id}')
+        elif os.path.exists(fpath):
             data[exp_id] = dict(np.load(fpath, allow_pickle=True))
-            if data[exp_id]['battery_ids'] is not None:
-                data[exp_id]['battery_ids'] = np.array(
-                    [str(b) for b in data[exp_id]['battery_ids']]
-                )
+            print(f'  [TEST CACHE] {exp_id}  '
+                  f'（仅含测试集电池，如需选训练集电池请先重新运行 plot_model_comparison.py）')
         else:
             missing.append(fpath)
+
+        if exp_id in data and data[exp_id]['battery_ids'] is not None:
+            data[exp_id]['battery_ids'] = np.array(
+                [str(b) for b in data[exp_id]['battery_ids']]
+            )
+
     if missing:
         print('ERROR: 以下缓存文件不存在，请先运行 plot_model_comparison.py：')
         for p in missing:
@@ -98,9 +118,11 @@ def load_cache():
 # ════════════════════════════════════════════════════════════════
 
 def available_batteries(data):
-    ref_ids = set(data['cnn_lstm']['battery_ids'])
+    """返回至少在一个模型缓存中出现的所有电池（union）。"""
+    ref_ids = set()
     for exp_id in MODELS:
-        ref_ids &= set(data[exp_id]['battery_ids'])
+        if exp_id in data and data[exp_id].get('battery_ids') is not None:
+            ref_ids |= set(data[exp_id]['battery_ids'])
     return sorted(ref_ids)
 
 

@@ -117,12 +117,93 @@ MODELS = OrderedDict([
 def cache_path(exp_id: str) -> str:
     return os.path.join(CACHE_DIR, f'fig46_{exp_id}_r{RATIO}_s{SEED}.npz')
 
+def full_cache_path(exp_id: str) -> str:
+    return os.path.join(CACHE_DIR, f'fig46_full_{exp_id}_r{RATIO}_s{SEED}.npz')
+
+
+def _save_full_cache(wrapper, data_dict, ffpath):
+    """对全部电池（train+val+test）跑推理，保存到 full cache。"""
+    import torch
+    from train_cross_battery import create_dataloaders
+
+    # 确定 window_size（与 train_cross_battery_model 内逻辑保持一致）
+    config = wrapper.config
+    mtype  = wrapper.model_type
+    needs_window = any(k in mtype for k in ['lstm', 'gru', 'cnn'])
+    window_size  = config.get('data', {}).get('window_size', 10) if needs_window else 1
+
+    # 合并所有电池到 "test" 位置
+    all_feat = np.concatenate([data_dict['train_features'],
+                                data_dict['val_features'],
+                                data_dict['test_features']])
+    all_tgt  = np.concatenate([data_dict['train_targets'],
+                                data_dict['val_targets'],
+                                data_dict['test_targets']])
+    all_bids = np.concatenate([data_dict['train_battery_ids'],
+                                data_dict['val_battery_ids'],
+                                data_dict['test_battery_ids']])
+    all_batteries = sorted(set(all_bids.tolist()))
+
+    pseudo = dict(data_dict)
+    pseudo['test_features']        = all_feat
+    pseudo['test_targets']         = all_tgt
+    pseudo['test_battery_ids']     = all_bids
+    pseudo['test_supervision_mask']= np.ones(len(all_tgt), dtype=bool)
+    pseudo['test_batteries']       = all_batteries
+
+    # use_physics=True → 按电池逐窗口，batch 为 dict，含 battery_id
+    _, _, all_loader, _ = create_dataloaders(
+        pseudo,
+        batch_size  = 512,
+        window_size = window_size,
+        use_physics = (window_size > 1),   # 只有窗口模式才启用，确保 battery_id
+    )
+
+    model  = wrapper.model
+    device = wrapper.device
+    model.eval()
+
+    all_preds, all_tgts_out, all_bid_list = [], [], []
+
+    with torch.no_grad():
+        for batch in all_loader:
+            if isinstance(batch, dict):
+                features    = batch['window'].to(device)
+                tgts        = batch['target_soh'].cpu().numpy()
+                bids_batch  = list(batch['battery_id'])
+            else:
+                features, tgts = batch
+                features = features.to(device)
+                tgts     = tgts.cpu().numpy()
+                bids_batch = None
+
+            preds = model(features).cpu().numpy().squeeze()
+            tgts  = tgts.squeeze()
+            if preds.ndim == 0: preds = preds.reshape(1)
+            if tgts.ndim  == 0: tgts  = tgts.reshape(1)
+
+            all_preds.extend(preds.tolist())
+            all_tgts_out.extend(tgts.tolist())
+            if bids_batch:
+                all_bid_list.extend(bids_batch)
+
+    np.savez(ffpath,
+             predictions = np.array(all_preds,    dtype=np.float32),
+             targets     = np.array(all_tgts_out, dtype=np.float32),
+             battery_ids = np.array(all_bid_list, dtype=object))
+    print(f'  [FULL CACHE] {len(all_batteries)} 块电池 → {ffpath}')
+
 
 def train_and_cache(exp_id: str, cfg: dict) -> dict:
     """训练模型并将预测结果缓存到 .npz，已有缓存则直接读取。"""
-    fpath = cache_path(exp_id)
+    fpath  = cache_path(exp_id)
+    ffpath = full_cache_path(exp_id)
+
     if os.path.exists(fpath):
         print(f'  [CACHE HIT] {exp_id}')
+        # 如果 full cache 也存在就跳过，否则补跑（需要重新训练，提示用户）
+        if not os.path.exists(ffpath) and not cfg['is_xgb']:
+            print(f'  [INFO] full cache 不存在，重新训练以生成（删除 {fpath} 可强制重跑）')
         return dict(np.load(fpath, allow_pickle=True))
 
     print(f'\n  [TRAIN] {exp_id}: {cfg["label"]}  (seed={SEED}, r={RATIO})')
@@ -137,9 +218,10 @@ def train_and_cache(exp_id: str, cfg: dict) -> dict:
             device      = 'cpu',
             seed        = SEED,
         )
+        wrapper, data_dict = None, None
     else:
         from train_cross_battery import train_cross_battery_model
-        _, result, _ = train_cross_battery_model(
+        wrapper, result, data_dict = train_cross_battery_model(
             model_type       = cfg['model_type'],
             device           = DEVICE,
             seed             = SEED,
@@ -160,6 +242,10 @@ def train_and_cache(exp_id: str, cfg: dict) -> dict:
              rmse        = result['test_rmse'],
              mae         = result['test_mae'],
              r2          = result['test_r2'])
+
+    # 全量缓存（非 XGBoost）
+    if wrapper is not None and data_dict is not None:
+        _save_full_cache(wrapper, data_dict, ffpath)
 
     print(f'  [DONE]  MAE={result["test_mae"]*100:.4f}%  '
           f'RMSE={result["test_rmse"]*100:.4f}%  R²={result["test_r2"]:.4f}')
