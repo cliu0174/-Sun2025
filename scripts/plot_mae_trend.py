@@ -52,11 +52,34 @@ DATA = {
 # ── 绘图 ─────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(7, 4.5))
 
-x = np.array(RATIOS)
+def push_apart(positions, min_gap=0.022, iterations=200):
+    """将一组 y 坐标迭代推开，确保相邻间距 >= min_gap，同时保持相对顺序。"""
+    pos = sorted(range(len(positions)), key=lambda i: positions[i])
+    arr = [positions[p] for p in pos]
+    for _ in range(iterations):
+        moved = False
+        for i in range(len(arr) - 1):
+            gap = arr[i + 1] - arr[i]
+            if gap < min_gap:
+                mid = (arr[i] + arr[i + 1]) / 2
+                arr[i]     = mid - min_gap / 2
+                arr[i + 1] = mid + min_gap / 2
+                moved = True
+        if not moved:
+            break
+    result = [0.0] * len(positions)
+    for sorted_i, orig_i in enumerate(pos):
+        result[orig_i] = arr[sorted_i]
+    return result
 
+
+x = np.array(RATIOS)
+names  = list(DATA.keys())
+colors = [DATA[n]['color'] for n in names]
+
+# 先画折线
 for name, cfg in DATA.items():
-    y = cfg['mae']
-    ax.plot(x, y,
+    ax.plot(x, cfg['mae'],
             color     = cfg['color'],
             marker    = cfg['marker'],
             linestyle = cfg['ls'],
@@ -65,14 +88,27 @@ for name, cfg in DATA.items():
             zorder    = cfg['zorder'],
             label     = name)
 
-    # 数值标注（PI-MSCL 标在上方，其余标在下方，避免重叠）
-    for xi, yi in zip(x, y):
-        offset = 0.010 if name == 'PI-MSCL' else -0.016
-        va     = 'bottom' if name == 'PI-MSCL' else 'top'
-        ax.text(xi, yi + offset, f'{yi:.3f}',
+# 逐 x 位置智能放置标签
+for xi_idx, xi in enumerate(x):
+    y_data = [DATA[n]['mae'][xi_idx] for n in names]
+
+    # 初始偏移：奇偶交替上/下
+    order   = sorted(range(len(y_data)), key=lambda i: y_data[i])
+    offsets = [0.0] * len(names)
+    for rank, orig_i in enumerate(order):
+        offsets[orig_i] = +0.011 if rank % 2 == 1 else -0.011
+
+    raw_label_y = [y_data[i] + offsets[i] for i in range(len(names))]
+    adj_label_y = push_apart(raw_label_y, min_gap=0.022)
+
+    for i, name in enumerate(names):
+        yi       = y_data[i]
+        label_y  = adj_label_y[i]
+        va       = 'bottom' if label_y >= yi else 'top'
+        ax.text(xi, label_y, f'{yi:.3f}',
                 ha='center', va=va,
                 fontsize=7.5,
-                color=cfg['color'],
+                color=DATA[name]['color'],
                 fontweight='bold' if name == 'PI-MSCL' else 'normal')
 
 # ── 坐标轴设置 ────────────────────────────────────────────────────
