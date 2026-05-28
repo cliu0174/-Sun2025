@@ -312,6 +312,8 @@ def plot_fig47(all_data: dict):
 # ════════════════════════════════════════════════════════════════════
 
 def main():
+    global DEVICE   # 必须在函数内首次引用 DEVICE 之前声明
+
     parser = argparse.ArgumentParser(description='Generate Fig4-6 & Fig4-7')
     parser.add_argument('--plot-only', action='store_true',
                         help='Skip training, load from cache only')
@@ -319,8 +321,6 @@ def main():
                         help='Compute device (default: cuda)')
     args = parser.parse_args()
 
-    # 允许命令行覆盖设备
-    global DEVICE
     DEVICE = args.device
 
     print('=' * 60)
