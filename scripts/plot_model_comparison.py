@@ -102,7 +102,7 @@ MODELS = OrderedDict([
             'architecture'       : {'use_multiscale': True, 'per_window_norm': False},
             'physics_constraints': _PI_CONFIG,
         },
-        'label'      : 'PI-MS-CNN-LSTM',
+        'label'      : 'PI-MSCL',
         'color'      : '#F4831F',   # orange (替换原灰色)
         'marker'     : 'D',
         'is_xgb'     : False,
