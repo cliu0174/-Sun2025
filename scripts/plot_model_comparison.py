@@ -199,12 +199,15 @@ def train_and_cache(exp_id: str, cfg: dict) -> dict:
     fpath  = cache_path(exp_id)
     ffpath = full_cache_path(exp_id)
 
-    if os.path.exists(fpath):
+    # XGBoost 无 full cache，只需 test cache 存在即可跳过
+    # 深度学习模型：test cache 和 full cache 都存在才跳过
+    both_exist = os.path.exists(fpath) and (cfg['is_xgb'] or os.path.exists(ffpath))
+    if both_exist:
         print(f'  [CACHE HIT] {exp_id}')
-        # 如果 full cache 也存在就跳过，否则补跑（需要重新训练，提示用户）
-        if not os.path.exists(ffpath) and not cfg['is_xgb']:
-            print(f'  [INFO] full cache 不存在，重新训练以生成（删除 {fpath} 可强制重跑）')
         return dict(np.load(fpath, allow_pickle=True))
+
+    if os.path.exists(fpath) and not cfg['is_xgb']:
+        print(f'  [RETRAIN] {exp_id}: full cache 缺失，重新训练以生成全量缓存...')
 
     print(f'\n  [TRAIN] {exp_id}: {cfg["label"]}  (seed={SEED}, r={RATIO})')
 
