@@ -542,71 +542,69 @@ def plot_fig412(all_det_results, crt_data,
 
 def print_table49(all_det_results, save_csv=True):
     """
-    表4-9：3 场景（突发老化/容量拐点/析锂）× 中度严重程度，
+    表4-9：5 场景 × 3 严重程度，
     AUC / Det@FPR5% / Delay（ROC 框架），4 块 CRT 电池取平均。
-    精简版：去除渐进型场景（簇内不均衡、内阻增长）。
     """
-    SIGNAL    = 'trajectory_deviation'
-    TABLE_SCS = ['sudden_aging', 'knee_point', 'li_plating']
-    SEV       = 'moderate'
+    SIGNAL = 'trajectory_deviation'
 
-    print('\n' + '='*80)
-    print('表4-9  不同退化场景下的异常检测性能对比（中度严重程度）')
+    print('\n' + '='*92)
+    print('表4-9  不同退化场景下的异常检测率')
     print('       信号：trajectory_deviation  |  Delay = FPR@5% 阈值下首次超过窗口数')
-    print('='*80)
-    print(f"{'退化场景':<22} "
-          f"{'CNN-LSTM':^27}  {'PI-MSCL':^27}")
-    print(f"{'':^22} "
-          f"{'AUC':>5} {'Det@FPR5%':>10} {'Delay':>6}  "
-          f"{'AUC':>5} {'Det@FPR5%':>10} {'Delay':>6}")
-    print('-'*80)
+    print('='*92)
+    print(f"{'场景':<22} {'严重程度':<9} "
+          f"{'---- CNN-LSTM ----':^28}  {'---- PI-MSCL -----':^28}")
+    print(f"{'':^31} "
+          f"{'AUC':>5} {'Det@5%':>7} {'Delay':>6}  "
+          f"{'AUC':>5} {'Det@5%':>7} {'Delay':>6}")
+    print('-'*92)
 
     rows = []
-    for sc in TABLE_SCS:
-        row = [SCENARIO_LABELS[sc]]
-        for exp_id in ['cnn_lstm', 'pi_ms_cnn_lstm']:
-            aucs, dets, delays = [], [], []
-            for crt_label in CRT_BATTERIES:
-                if crt_label not in all_det_results.get(exp_id, {}):
-                    continue
-                res = all_det_results[exp_id][crt_label][sc][SEV]
-                if 'error' in res or 'metrics' not in res:
-                    continue
-                m = res['metrics'].get(SIGNAL, {})
-                aucs.append(m.get('auc', float('nan')))
-                dets.append(m.get('det_rate_fpr5', float('nan')))
-                d = m.get('det_delay', -1)
-                if d >= 0:
-                    delays.append(d)
+    for sc in SCENARIOS:
+        for sev in SEVERITIES:
+            row = [SCENARIO_LABELS[sc], SEV_LABELS[sev]]
+            for exp_id in ['cnn_lstm', 'pi_ms_cnn_lstm']:
+                aucs, dets, delays = [], [], []
+                for crt_label in CRT_BATTERIES:
+                    if crt_label not in all_det_results.get(exp_id, {}):
+                        continue
+                    res = all_det_results[exp_id][crt_label][sc][sev]
+                    if 'error' in res or 'metrics' not in res:
+                        continue
+                    m = res['metrics'].get(SIGNAL, {})
+                    aucs.append(m.get('auc', float('nan')))
+                    dets.append(m.get('det_rate_fpr5', float('nan')))
+                    d = m.get('det_delay', -1)
+                    if d >= 0:
+                        delays.append(d)
 
-            auc_m = np.nanmean(aucs)  if aucs   else float('nan')
-            det_m = np.nanmean(dets)  if dets   else float('nan')
-            dly_m = np.mean(delays)   if delays else float('nan')
-            row += [auc_m, det_m, dly_m]
+                auc_m = np.nanmean(aucs)  if aucs   else float('nan')
+                det_m = np.nanmean(dets)  if dets   else float('nan')
+                dly_m = np.mean(delays)   if delays else float('nan')
+                row += [auc_m, det_m, dly_m]
 
-        rows.append(row)
-        dly0 = f'{row[3]:>5.1f}' if not np.isnan(row[3]) else '  N/D'
-        dly1 = f'{row[6]:>5.1f}' if not np.isnan(row[6]) else '  N/D'
-        print(f'{row[0]:<22} '
-              f'{row[1]:>5.3f} {row[2]:>10.1%} {dly0}  '
-              f'{row[4]:>5.3f} {row[5]:>10.1%} {dly1}')
+            rows.append(row)
+            dly0 = f'{row[4]:>5.1f}' if not np.isnan(row[4]) else '  N/D'
+            dly1 = f'{row[7]:>5.1f}' if not np.isnan(row[7]) else '  N/D'
+            print(f'{row[0]:<22} {row[1]:<9} '
+                  f'{row[2]:>5.3f} {row[3]:>7.1%} {dly0}  '
+                  f'{row[5]:>5.3f} {row[6]:>7.1%} {dly1}')
 
-    print('='*80)
+    print('='*92)
 
     if save_csv:
         import csv
         csv_path = os.path.join(OUTPUT_DIR, 'table4_9_detection.csv')
         with open(csv_path, 'w', newline='', encoding='utf-8-sig') as f:
             w = csv.writer(f)
-            w.writerow(['退化场景',
+            w.writerow(['场景', '严重程度',
                         'CNN-LSTM AUC', 'CNN-LSTM Det@FPR5%', 'CNN-LSTM Delay',
                         'PI-MSCL AUC',  'PI-MSCL Det@FPR5%',  'PI-MSCL Delay'])
             for r in rows:
                 def _fmt(v):  return f'{v:.4f}' if not np.isnan(v) else 'N/D'
                 def _fmt1(v): return f'{v:.1f}'  if not np.isnan(v) else 'N/D'
-                w.writerow([r[0],
-                            _fmt(r[1]), _fmt(r[2]), _fmt1(r[3]),
-                            _fmt(r[4]), _fmt(r[5]), _fmt1(r[6])])
+                w.writerow([r[0], r[1],
+                            _fmt(r[2]), _fmt(r[3]), _fmt1(r[4]),
+                            _fmt(r[5]), _fmt(r[6]), _fmt1(r[7])])
         print(f'[OK] CSV → {csv_path}')
 
 
