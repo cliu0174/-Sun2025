@@ -30,6 +30,52 @@ SEED       = 42
 
 ---
 
+## 常用运行入口速查
+
+### MS-PI-CNNLSTM / PI-MS-CNN-LSTM
+
+MS-PI-CNNLSTM（多尺度 CNN + LSTM + 物理一致性约束）的主实验脚本是：
+
+```bash
+python experiments/run_exp09_ms_full_stack.py
+```
+
+该脚本对应 Exp-09，多尺度模型类型为 `ms_cnn_lstm_v2`，基础配置文件为 `configs/models/ms_cnn_lstm_v2_config.json`，结果输出到 `experiments/exp09_ms_full_stack/`。
+
+Exp-09 内部包含三组主要配置：
+
+| 实验 ID | 模型含义 | 备注 |
+|------|------|------|
+| `Exp09a_ms_full_stack_w03` | MS-CNN-LSTM + MC Dropout + 速率连续性 + 物理约束 | 较强物理约束，`monotonic_weight=0.3` |
+| `Exp09b_ms_full_stack_w01` | MS-CNN-LSTM + MC Dropout + 速率连续性 + 物理约束 | 较轻物理约束，`monotonic_weight=0.1` |
+| `Exp09c_ms_pi_only` | **PI-MS-CNN-LSTM / MS-PI-CNNLSTM** | 论文主方法常用版本：多尺度 CNN-LSTM + 软单调物理约束 |
+
+如果只想在通用训练入口中调用多尺度模型，可使用 `model_type='ms_cnn_lstm_v2'`，并在 `config_override` 中打开 `architecture.use_multiscale=True` 和相应 `physics_constraints`。
+
+### 之前生成论文图 / 示意图的脚本
+
+以下脚本主要用于“生图”，不一定都需要重新训练；优先看“是否需 GPU”列：
+
+| 脚本 | 主要用途 | 是否需 GPU | 输出 |
+|------|------|------|------|
+| `scripts/plot_paper_figures.py` | 第四章主绘图脚本，一次生成 MAE 趋势、消融热力图、单调违反率、鲁棒性折线图等 6 张核心图 | 否，使用内置汇总数据 | `figures/` |
+| `scripts/plot_exp09c_advantages.py` | 生成 Exp09c / PI-MS-CNN-LSTM 核心优势图，包括全模型横评、监督稀疏度交互效应、复杂度陷阱、鲁棒性优势 | 否，使用内置汇总数据 | `figures/` |
+| `scripts/plot_mae_trend.py` | 生成不同监督比例下 MAE 趋势图 | 否，使用内置数据 | `figures/fig4_9_mae_trend.{png,pdf}` |
+| `scripts/plot_battery_trajectory.py` | 生成单电池 SOH 预测轨迹对比图，读取预测缓存 `.npz` | 否，缓存存在即可 | `figures/fig4_8_soh_*.{png,pdf}` |
+| `scripts/plot_model_comparison.py` | 生成图4-6散点图和图4-7指标柱状图；完整运行会训练 XGBoost/LSTM/CNN-LSTM/PI-MS-CNN-LSTM，`--plot-only` 只读缓存出图 | 完整运行需 GPU；`--plot-only` 不需要 | `figures/fig4_6_scatter.{png,pdf}`、`figures/fig4_7_bar.{png,pdf}` |
+| `scripts/run_and_plot_predictions.py` | 训练 7 个对比模型并生成多模型预测曲线和散点图；支持 `--plot-only` | 完整运行需 GPU；`--plot-only` 不需要 | `figures/`、`figures/pred_cache/` |
+| `scripts/plot_anomaly_detection.py` | CRT 数据集异常检测与 SOH 轨迹图，含 5 类退化场景 × 3 种严重程度 | 视缓存/数据而定 | `figures/` |
+| `scripts/plot_crt_dataset.py` | CRT 自建数据集概览示意图 | 否 | `docs/crt_dataset_overview.png` |
+| `scripts/plot_hust_anomaly_trajectories.py` | HUST 异常电池轨迹可视化 | 否，需本地数据/结果 | `figures/` |
+| `scripts/generate_anomaly_score_two_panel_svg.py` | 生成异常分数双面板 SVG 示意图 | 否 | `outputs/figures/anomaly_score_two_panel_no_title.svg` |
+| `docs/plot_degradation_scenarios.py` | 生成多种电池退化/异常场景示意图 | 否 | `docs/` |
+| `docs/plot_degradation_scenarios_self_trajectory.py` | 生成自轨迹形式的退化场景示意图 | 否 | `docs/` |
+| `docs/plot_15_anomaly_curves.py` | 生成 15 条异常退化曲线示意图 | 否 | `docs/` |
+
+架构图相关文件位于 `docs/`：`MS-PI-CNNLSTM_architecture.tex`、`MS-PI-CNNLSTM_architecture.drawio`，已生成预览包括 `MS-PI-CNNLSTM_architecture.png/pdf`。
+
+---
+
 ## 项目结构
 
 ```
@@ -92,7 +138,7 @@ SEED       = 42
 | `run_exp06_pseudo_label.py` | M6 伪标签训练策略消融实验 |
 | `run_exp07_full_stack.py` | Full Stack 集成（4 比例 × 5 种子，含 M7 PICP/MPIW） |
 | `run_exp08_robustness.py` | M8 鲁棒性验证（3 类扰动，Baseline vs Full Stack） |
-| `run_exp09_ms_full_stack.py` | Exp09 多尺度 CNN-LSTM Full Stack |
+| `run_exp09_ms_full_stack.py` | **MS-PI-CNNLSTM 主运行脚本**；Exp09 多尺度 CNN-LSTM / PI-MS-CNN-LSTM，包含 Exp09a/Exp09b/Exp09c，结果输出到 `experiments/exp09_ms_full_stack/` |
 | `run_exp10_uncertainty.py` | Exp10 不确定性评估 |
 | `run_exp11_robustness.py` | Exp11 鲁棒性扩展实验 |
 | `run_exp12_anomaly_detection.py` | Exp12 在线异常检测完整实验 |
