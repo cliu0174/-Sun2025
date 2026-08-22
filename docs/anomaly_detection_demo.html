@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PI-CNNLSTM · 电池退化异常检测演示系统</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', -apple-system, 'Microsoft YaHei', sans-serif;
+    background: #eef2f7;
+    color: #1e293b;
+    font-size: 13px;
+}
+
+/* ── Header ── */
+.header {
+    background: linear-gradient(135deg, #0f2744 0%, #1d4ed8 100%);
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+.header-left h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
+.header-left p  { font-size: 11px; opacity: 0.70; margin-top: 3px; }
+.header-right {
+    display: flex; gap: 8px;
+}
+.badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── Layout ── */
+.main {
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    gap: 14px;
+    padding: 14px;
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+/* ── Card ── */
+.card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 1px rgba(0,0,0,0.05);
+    padding: 14px;
+}
+.card-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    margin-bottom: 11px;
+}
+
+/* ── Sidebar ── */
+.sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Scenario buttons ── */
+.scene-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+}
+.scene-btn {
+    padding: 9px 6px;
+    border: 2px solid #e2e8f0;
+    border-radius: 9px;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    position: relative;
+    --c: #64748b;
+}
+.scene-btn:hover { border-color: #cbd5e1; transform: translateY(-1px); }
+.scene-btn.active {
+    border-color: var(--c);
+    background: color-mix(in srgb, var(--c) 8%, white);
+}
+.scene-icon { font-size: 20px; display: block; margin-bottom: 3px; }
+.scene-name { font-size: 12px; font-weight: 700; color: inherit; }
+.scene-sub  { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+.scene-btn.active .scene-name { color: var(--c); }
+
+/* ── Severity ── */
+.sev-row { display: flex; gap: 6px; }
+.sev-btn {
+    flex: 1; padding: 6px 4px; border: 1.5px solid #e2e8f0;
+    border-radius: 7px; background: #fff; cursor: pointer;
+    font-size: 12px; text-align: center; transition: all 0.15s;
+}
+.sev-btn:hover { border-color: #94a3b8; }
+.sev-btn.active { border-color: #f59e0b; background: #fffbeb; color: #b45309; font-weight: 700; }
+
+/* ── Playback controls ── */
+.ctrl-row { display: flex; gap: 7px; margin-bottom: 8px; }
+.btn {
+    flex: 1; border: none; border-radius: 8px; padding: 9px 6px;
+    cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s;
+}
+.btn-play  { background: #1d4ed8; color: #fff; }
+.btn-play:hover  { background: #1e40af; }
+.btn-reset { background: #f1f5f9; color: #475569; }
+.btn-reset:hover { background: #e2e8f0; }
+.speed-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.speed-row label { font-size: 11px; color: #64748b; white-space: nowrap; }
+.speed-row input  { flex: 1; accent-color: #1d4ed8; }
+.speed-val { font-size: 12px; font-weight: 700; min-width: 24px; text-align: right; }
+.progress-track { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
+.progress-fill  { height: 100%; background: #1d4ed8; width: 0%; transition: width 0.08s linear; border-radius: 2px; }
+
+/* ── Stats grid ── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 9px; }
+.stat-box { background: #f8fafc; border-radius: 8px; padding: 9px 8px; text-align: center; }
+.stat-val { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.stat-lbl { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+/* ── Alarm ── */
+.alarm {
+    border-radius: 8px; padding: 10px 12px; text-align: center;
+    font-weight: 700; font-size: 13px; transition: all 0.3s;
+}
+.alarm-ok      { background: #f0fdf4; color: #15803d; }
+.alarm-watch   { background: #fefce8; color: #a16207; }
+.alarm-trigger { background: #fef2f2; color: #dc2626; animation: blink 0.9s ease infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.65; } }
+
+/* ── Info box ── */
+.info-content { background: #f8fafc; border-radius: 8px; padding: 11px; }
+.info-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+.info-desc  { font-size: 11.5px; color: #475569; line-height: 1.65; margin-bottom: 7px; }
+.info-mech  { font-size: 11px; color: #94a3b8; line-height: 1.5; margin-bottom: 7px; }
+.auc-pill {
+    display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 700;
+    background: #eff6ff; color: #1d4ed8;
+}
+
+/* ── Chart area ── */
+.chart-col { display: flex; flex-direction: column; gap: 12px; }
+.chart-wrap { position: relative; }
+.chart-tag {
+    position: absolute; top: 11px; right: 14px;
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 5px; padding: 2px 9px;
+    font-size: 11px; font-weight: 600; color: #64748b;
+    z-index: 10;
+}
+canvas { display: block; width: 100% !important; }
+
+/* ── Results table ── */
+.rt { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rt th { background: #f1f5f9; padding: 8px 11px; text-align: left;
+         font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; }
+.rt td { padding: 7px 11px; border-bottom: 1px solid #f1f5f9; }
+.rt tr:last-child td { border-bottom: none; }
+.rt tr:hover td { background: #f8fafc; }
+.good { color: #16a34a; font-weight: 800; }
+.ok   { color: #d97706; font-weight: 700; }
+.note { font-size: 10.5px; color: #94a3b8; padding-top: 7px !important; }
+.signal-tag {
+    font-size: 10px; font-family: monospace;
+    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+}
+
+/* ── Detection overlay ── */
+.det-overlay {
+    position: absolute; top: 36px; left: 70px; right: 14px; bottom: 0;
+    pointer-events: none; overflow: hidden; border-radius: 0 0 8px 0;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-left">
+        <h1>PI-CNNLSTM · 电池退化异常检测演示系统</h1>
+        <p>物理约束神经网络 · 零额外训练成本在线监测 · HUST 77块LFP电池数据集验证</p>
+    </div>
+    <div class="header-right">
+        <span class="badge">SOH 估计模型</span>
+        <span class="badge">推理时异常检测</span>
+        <span class="badge">5类退化场景</span>
+    </div>
+</div>
+
+<div class="main">
+    <!-- ── Sidebar ── -->
+    <div class="sidebar">
+
+        <!-- Scenario -->
+        <div class="card">
+            <div class="card-title">退化场景选择</div>
+            <div class="scene-grid" id="sceneGrid"></div>
+        </div>
+
+        <!-- Severity -->
+        <div class="card">
+            <div class="card-title">异常严重程度</div>
+            <div class="sev-row" id="sevRow">
+                <button class="sev-btn" data-s="mild">轻度<br><span style="font-size:9px;font-weight:400">Mild</span></button>
+                <button class="sev-btn active" data-s="moderate">中度<br><span style="font-size:9px;font-weight:400">Moderate</span></button>
+                <button class="sev-btn" data-s="severe">重度<br><span style="font-size:9px;font-weight:400">Severe</span></button>
+            </div>
+        </div>
+
+        <!-- Playback -->
+        <div class="card">
+            <div class="card-title">播放控制</div>
+            <div class="ctrl-row">
+                <button class="btn btn-play"  id="playBtn">▶ 播放</button>
+                <button class="btn btn-reset" id="resetBtn">↺ 重置</button>
+            </div>
+            <div class="speed-row">
+                <label>速度</label>
+                <input type="range" id="speedSlider" min="1" max="12" value="5">
+                <span class="speed-val" id="speedVal">5×</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="card">
+            <div class="card-title">实时监测状态</div>
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-val" id="sCycle" style="color:#1d4ed8">0</div>
+                    <div class="stat-lbl">当前循环</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="sSOH" style="color:#15803d">1.000</div>
+                    <div class="stat-lbl">当前 SOH</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="sScore" style="color:#64748b">—</div>
+                    <div class="stat-lbl">异常分数</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="sDelay" style="color:#64748b">—</div>
+                    <div class="stat-lbl">检测延迟</div>
+                </div>
+            </div>
+            <div class="alarm alarm-ok" id="alarmBox">🔋 正常运行</div>
+        </div>
+
+        <!-- Info -->
+        <div class="card">
+            <div class="card-title">场景说明</div>
+            <div class="info-content" id="infoBox">
+                <div class="info-title" id="iTitle" style="color:#64748b">正常退化</div>
+                <div class="info-desc" id="iDesc">LFP电池在正常使用条件下的平稳容量衰减。</div>
+                <div class="info-mech" id="iMech">物理机制：SEI膜正常生长 + 锂嵌入/脱出损耗</div>
+                <div id="iAUC"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Chart Column ── -->
+    <div class="chart-col">
+
+        <!-- SOH Chart -->
+        <div class="card chart-wrap">
+            <div class="card-title">SOH 衰减曲线（动态演示 · 循环数据逐步生成）</div>
+            <span class="chart-tag" id="tag1">正常退化</span>
+            <canvas id="sohC" height="190"></canvas>
+        </div>
+
+        <!-- Anomaly Score Chart -->
+        <div class="card chart-wrap">
+            <div class="card-title">轨迹偏差异常分数（Trajectory Deviation）— 超过红色虚线阈值即触发告警</div>
+            <span class="chart-tag" id="tag2">分数: 0.0000</span>
+            <canvas id="scoreC" height="120"></canvas>
+        </div>
+
+        <!-- Scenario description table -->
+        <div class="card">
+            <div class="card-title">五类退化场景说明</div>
+            <table class="rt" id="rt"></table>
+        </div>
+
+        <!-- Signals table -->
+        <div class="card">
+            <div class="card-title">五个检测信号说明</div>
+            <table class="rt" id="sigTable"></table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ===================================================================
+// 1. SCENARIO METADATA
+// ===================================================================
+const SCENE = {
+    normal: {
+        name:'正常退化', en:'Normal', icon:'✅', color:'#64748b',
+        desc:'LFP电池在正常使用条件下的平稳容量衰减，SOH呈线性加微二次函数下降，典型循环寿命800~1000次。',
+        mech:'物理机制：SEI膜正常增长 + 锂离子嵌入/脱出的不可逆损耗',
+        auc:null, aucTxt:'', aucCls:'',
+    },
+    a1:{
+        name:'SOH骤降', en:'Sudden Drop', icon:'⚡', color:'#ef4444',
+        desc:'突发性不可逆损伤导致SOH在数个循环内大幅下降（3~8%），之后沿原电池自身轨迹继续衰减。对应工程中的过放电、机械冲击等事件。',
+        mech:'物理机制：锂枝晶内短路 / 活性材料局部坍塌 / 隔膜微孔损伤',
+        auc:0.73, aucTxt:'AUC = 0.73　检测能力强 ✓', aucCls:'good',
+    },
+    a2:{
+        name:'容量拐点', en:'Knee-point', icon:'📐', color:'#f97316',
+        desc:'SOH退化速率在某一时刻突然加快，曲线出现明显"膝点"，之后以更陡的斜率快速趋近报废。典型的非线性加速退化。',
+        mech:'物理机制：SEI膜失控增厚 / 正极活性颗粒裂纹 / 电解液局部耗尽',
+        auc:0.60, aucTxt:'AUC = 0.60　可检测', aucCls:'ok',
+    },
+    a3:{
+        name:'簇内不均衡', en:'Cell Imbalance', icon:'📊', color:'#eab308',
+        desc:'电池簇中某一电芯退化速率逐渐加快，SOH持续偏低于正常轨迹，差距越来越大。注：LFP电池SOH只会单向衰减，曲线始终偏低而非偏高——偏高只可能是传感器误差，不是退化异常。',
+        mech:'物理机制：热不均匀性差异老化 / 制造公差累积 / 局部电流集中',
+        auc:'≥0.65', aucTxt:'AUC ≥ 0.65 (基线偏离信号)', aucCls:'ok',
+    },
+    a4:{
+        name:'析锂台阶', en:'Li Plating', icon:'🔬', color:'#a855f7',
+        desc:'析锂事件在SOH曲线上留下明显台阶（突降），台阶后退化速率进一步加快，形成"阶跃 + 加速"的双重特征。',
+        mech:'物理机制：低温/高倍率充电 → 锂金属沉积在石墨表面 → 不可逆容量损失',
+        auc:0.70, aucTxt:'AUC = 0.70　检测能力强 ✓', aucCls:'good',
+    },
+    a5:{
+        name:'内阻增长', en:'R Rise', icon:'📈', color:'#3b82f6',
+        desc:'内阻随循环次数以二次方速度缓慢升高，早期几乎不可察觉，后期斜率持续增大。曲线持续偏低于正常基线，属于最难实现早期预警的渐进型退化。',
+        mech:'物理机制：SEI膜持续增厚 / 电极颗粒开裂接触松动 / 集流体腐蚀',
+        auc:'≥0.65', aucTxt:'AUC ≥ 0.65 (基线偏离信号)', aucCls:'ok',
+    },
+};
+
+// ===================================================================
+// 2. DATA GENERATION
+// ===================================================================
+const N = 500;
+const T0 = 250;
+const WIN = 20;
+
+function prng(seed) {
+    let s = seed;
+    return () => {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function smoothArr(arr, w=6) {
+    const h = Math.floor(w/2);
+    return arr.map((_, i) => {
+        let s=0, c=0;
+        for (let j=Math.max(0,i-h); j<=Math.min(arr.length-1,i+h); j++) { s+=arr[j]; c++; }
+        return s/c;
+    });
+}
+
+function makeNormal(seed=42) {
+    const r = prng(seed);
+    const raw = Array.from({length:N}, (_,t) =>
+        1.0 - 0.00045*t - 2e-7*t*t + (r()-0.5)*0.004);
+    return smoothArr(raw, 8).map(v => Math.max(0.48, Math.min(1.0, v)));
+}
+
+const BASE = makeNormal(42);
+
+// ---- LOCAL trajectory deviation (sensitive to sudden changes) ----
+function localTrajDev(soh) {
+    const out = new Array(soh.length).fill(0);
+    for (let t = WIN; t < soh.length; t++) {
+        const seg = soh.slice(t-WIN, t);
+        let xm=(WIN-1)/2, ym=0;
+        seg.forEach(v => ym+=v); ym/=WIN;
+        let sxy=0, sxx=0;
+        seg.forEach((v,i) => { sxy+=(i-xm)*(v-ym); sxx+=(i-xm)**2; });
+        const slope = sxx>1e-10 ? sxy/sxx : 0;
+        out[t] = Math.abs(soh[t] - (ym - slope*xm + slope*WIN));
+    }
+    return out;
+}
+
+// Calibrate local threshold from normal baseline (once)
+const _normLocal = localTrajDev(BASE);
+const _nlSorted  = _normLocal.slice(WIN).sort((a,b)=>a-b);
+const THRESH_LOCAL = _nlSorted[Math.floor(_nlSorted.length * 0.93)] * 3.5;
+
+// Drift from baseline (sensitive to gradual deviation below normal trajectory)
+// Normal: BASE - BASE = 0 exactly.  Anomalies: soh < BASE → positive drift score.
+const THRESH_DRIFT = 0.0042;
+
+// Combined normalized score: threshold at 1.0 on both components
+function computeScore(soh) {
+    const local = localTrajDev(soh);
+    return local.map((v, t) => {
+        const baseVal = t < N ? BASE[t] : BASE[N-1];
+        const drift = Math.max(0, baseVal - (soh[t] ?? baseVal));
+        return Math.max(v / THRESH_LOCAL, drift / THRESH_DRIFT);
+    });
+}
+
+// ---- Scenario generators ----
+function mkA1(sev) {
+    const drops = {mild:0.03, moderate:0.05, severe:0.08};
+    const fbk   = {mild:0.60, moderate:0.68, severe:0.75};
+    const drop = drops[sev];
+    let s0 = null;
+    for (let s=T0+1; s<N; s++) { if (BASE[s] <= BASE[T0]-drop) { s0=s; break; } }
+    if (s0===null) s0 = Math.max(T0+1, Math.min(N-1, Math.floor(fbk[sev]*N)));
+    return [...BASE.slice(0,T0), ...BASE.slice(s0)];
+}
+
+function mkA2(sev) {
+    const st = {mild:2, moderate:3, severe:4}[sev];
+    const tail=[];
+    for (let i=T0; i<N; i+=st) tail.push(BASE[i]);
+    if (!tail.length) tail.push(BASE[N-1]);
+    return [...BASE.slice(0,T0), ...tail];
+}
+
+function mkA3(sev) {
+    const am  = {mild:0.30, moderate:0.50, severe:0.70}[sev];
+    const of  = {mild:0.12, moderate:0.22, severe:0.32}[sev];
+    const maxOff = Math.floor(of*N);
+    const tailN  = Math.min(30, N-1);
+    const endSlope = (BASE[N-1]-BASE[N-1-tailN]) / tailN;
+    const soh = BASE.slice();
+    const dur = Math.max(1, N-1-T0);
+    for (let t=T0; t<N; t++) {
+        const p  = (t-T0)/dur;
+        const alpha = am*p;
+        const ri    = t + Math.floor(maxOff*p);
+        const fv    = ri<=N-1 ? BASE[ri] : BASE[N-1]+(ri-(N-1))*endSlope;
+        soh[t] = (1-alpha)*BASE[t] + alpha*fv;
+    }
+    return soh;
+}
+
+function mkA4(sev) {
+    const dm  = {mild:0.02, moderate:0.035, severe:0.055}[sev];
+    const fbk = {mild:0.58, moderate:0.65, severe:0.72}[sev];
+    const st  = {mild:2,    moderate:2,     severe:3}[sev];
+    let s0=null;
+    for (let s=T0+1; s<N; s++) { if (BASE[s]<=BASE[T0]-dm) { s0=s; break; } }
+    if (s0===null) s0=Math.max(T0+1, Math.min(N-1, Math.floor(fbk*N)));
+    const tail=[];
+    for (let i=s0; i<N; i+=st) tail.push(BASE[i]);
+    if (!tail.length) tail.push(BASE[N-1]);
+    return [...BASE.slice(0,T0), ...tail];
+}
+
+function mkA5(sev) {
+    const am  = {mild:0.25, moderate:0.45, severe:0.65}[sev];
+    const of  = {mild:0.10, moderate:0.18, severe:0.26}[sev];
+    const off = Math.floor(of*N);
+    const tailN = Math.min(30, N-1);
+    const endSlope = (BASE[N-1]-BASE[N-1-tailN]) / tailN;
+    const soh = BASE.slice();
+    const dur = Math.max(1, N-T0);
+    for (let t=T0; t<N; t++) {
+        const p     = (t-T0)/dur;
+        const alpha = am*(p**2);
+        const ri    = t+off;
+        const fv    = ri<=N-1 ? BASE[ri] : BASE[N-1]+(ri-(N-1))*endSlope;
+        soh[t] = (1-alpha)*BASE[t] + alpha*fv;
+    }
+    return soh;
+}
+
+const GENS = { a1:mkA1, a2:mkA2, a3:mkA3, a4:mkA4, a5:mkA5 };
+
+// Returns padded-to-N arrays so axes stay fixed
+function buildScenarioData(key, sev) {
+    const rawSoh = key === 'normal' ? BASE.slice() : GENS[key](sev);
+    const rawLen = rawSoh.length;
+    const rawSc  = computeScore(rawSoh);
+    const maxSC  = Math.max(2.5, ...rawSc.filter(v=>isFinite(v))) * 1.15;
+    // Pad shorter sequences (A1/A2/A4) to N with null so x-axis stays fixed
+    const sohPad = Array.from({length:N}, (_,i) => i < rawLen ? rawSoh[i] : null);
+    const scPad  = Array.from({length:N}, (_,i) => i < rawLen ? rawSc[i]  : null);
+    return { sohPad, scPad, fc: key==='normal' ? null : T0, rawLen, maxSC };
+}
+
+// ===================================================================
+// 3. CHART SETUP
+// ===================================================================
+const faultPlugin = {
+    id:'fault',
+    afterDraw(chart) {
+        const fc = chart._fc, ct = chart._ct;
+        if (fc==null || ct<=fc) return;
+        const {ctx, scales:{x,y}} = chart;
+        const px = x.getPixelForValue(fc);
+        ctx.save();
+        ctx.strokeStyle='rgba(239,68,68,0.55)';
+        ctx.lineWidth=2; ctx.setLineDash([6,4]);
+        ctx.beginPath(); ctx.moveTo(px, y.top); ctx.lineTo(px, y.bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='#ef4444'; ctx.font='bold 10px Segoe UI,sans-serif';
+        ctx.fillText('⚡ 故障注入', px+5, y.top+14);
+        ctx.restore();
+    }
+};
+Chart.register(faultPlugin);
+
+const LABELS_FULL = Array.from({length:N}, (_,i)=>i);
+
+const COMMON_OPT = (yLabel, yMin, yMax) => ({
+    responsive: true,
+    animation: false,
+    plugins: {
+        legend: { display:true, position:'top', labels:{ boxWidth:11, font:{size:11} } },
+        tooltip: { mode:'index', intersect:false, callbacks:{
+            label: ctx => ctx.parsed.y == null ? '' : ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}`
+        }},
+    },
+    scales: {
+        x: {
+            title:{ display:true, text:'循环次数 (Cycle)', font:{size:11} },
+            ticks:{ maxTicksLimit:10, font:{size:10} },
+            grid:{ color:'rgba(0,0,0,0.04)' },
+            min:0, max:N-1,
+        },
+        y: {
+            title:{ display:true, text:yLabel, font:{size:11} },
+            min:yMin, max:yMax,
+            ticks:{ font:{size:10} },
+            grid:{ color:'rgba(0,0,0,0.04)' },
+        }
+    },
+    elements:{ point:{radius:0}, line:{borderWidth:2, tension:0.1} },
+    spanGaps: false,
+});
+
+let sohChart, scoreChart;
+
+function initCharts() {
+    // Pre-fill labels and null data so axes are fixed from the start
+    const nullArr = new Array(N).fill(null);
+
+    sohChart = new Chart(document.getElementById('sohC').getContext('2d'), {
+        type:'line',
+        data:{
+            labels: LABELS_FULL,
+            datasets:[
+                { label:'正常参考轨迹',    data: nullArr.slice(), borderColor:'#94a3b8', borderDash:[5,3], borderWidth:1.5 },
+                { label:'当前电池 SOH',   data: nullArr.slice(), borderColor:'#64748b', borderWidth:2.5 },
+            ]
+        },
+        options: COMMON_OPT('SOH (健康状态)', 0.55, 1.02),
+    });
+
+    scoreChart = new Chart(document.getElementById('scoreC').getContext('2d'), {
+        type:'line',
+        data:{
+            labels: LABELS_FULL,
+            datasets:[
+                { label:'归一化异常分数',      data: nullArr.slice(), borderColor:'#1d4ed8', borderWidth:2.5,
+                  fill:true, backgroundColor:'rgba(29,78,216,0.06)' },
+                { label:'告警阈值 (1.0)', data: nullArr.slice(), borderColor:'#ef4444',
+                  borderDash:[5,4], borderWidth:1.5 },
+            ]
+        },
+        options: COMMON_OPT('归一化异常分数（阈值=1.0）', 0, 3),
+    });
+}
+
+// ===================================================================
+// 4. STATE & ANIMATION
+// ===================================================================
+const ALARM_THRESH = 1.0;
+let curKey = 'normal', curSev = 'moderate';
+let curData = null;
+let curT = 0, playing = false, animId = null, detCycle = null;
+
+function loadScene(key, sev) {
+    curKey=key; curSev=sev;
+    curData = buildScenarioData(key, sev);
+    // Fix score Y-axis when scenario changes (not during animation)
+    scoreChart.options.scales.y.max = Math.min(Math.max(curData.maxSC, 3), 10);
+    curT=0; detCycle=null;
+    updateCharts();
+}
+
+function updateCharts() {
+    if (!curData) return;
+    const {sohPad, scPad, fc, rawLen, maxSC} = curData;
+    const T = Math.min(curT, N);
+    const color = SCENE[curKey].color;
+
+    // Reveal data up to T; future positions stay null (axes fixed)
+    const showNorm = BASE.map((v, i)    => i < T ? v    : null);
+    const showSoh  = sohPad.map((v, i)  => i < T ? v    : null);
+    const showSc   = scPad.map((v, i)   => i < T ? v    : null);
+    const showTh   = LABELS_FULL.map((_, i) => i < T ? ALARM_THRESH : null);
+
+    sohChart.data.datasets[0].data = showNorm;
+    sohChart.data.datasets[1].data = showSoh;
+    sohChart.data.datasets[1].borderColor = color;
+    sohChart.data.datasets[1].label = SCENE[curKey].name + ' SOH';
+    sohChart._fc = fc; sohChart._ct = T;
+    sohChart.update('none');
+
+    scoreChart.data.datasets[0].data = showSc;
+    scoreChart.data.datasets[0].borderColor = color;
+    scoreChart.data.datasets[0].backgroundColor = color + '0f';
+    scoreChart.data.datasets[1].data = showTh;
+    scoreChart._fc = fc; scoreChart._ct = T;
+    scoreChart.update('none');
+
+    // Stats panel
+    const curSOH   = (showSoh[T-1] ?? (T > 0 ? showSoh.slice(0,T).filter(v=>v!==null).at(-1) : null)) ?? 1.0;
+    const curSc    = (showSc[T-1] ?? 0);
+    document.getElementById('sCycle').textContent = T;
+    document.getElementById('sSOH').textContent   = curSOH.toFixed(3);
+    document.getElementById('sSOH').style.color   = curSOH < 0.80 ? '#dc2626' : '#15803d';
+    document.getElementById('sScore').textContent = T > WIN ? curSc.toFixed(2) : '—';
+    document.getElementById('tag1').textContent   = SCENE[curKey].name;
+    document.getElementById('tag2').textContent   = `分数: ${T > WIN ? curSc.toFixed(2) : '待积累'}`;
+    document.getElementById('progressFill').style.width = `${100 * Math.min(T, rawLen) / rawLen}%`;
+
+    // Alarm logic
+    const abox = document.getElementById('alarmBox');
+    const sdEl = document.getElementById('sDelay');
+    if (curKey === 'normal') {
+        abox.className='alarm alarm-ok'; abox.textContent='🔋 正常运行';
+        sdEl.textContent='—'; sdEl.style.color='#64748b';
+    } else if (fc && T <= fc) {
+        abox.className='alarm alarm-ok'; abox.textContent='🔋 正常运行（故障前）';
+        sdEl.textContent='—'; sdEl.style.color='#64748b';
+        detCycle=null;
+    } else if (T > WIN && curSc > ALARM_THRESH) {
+        if (!detCycle) detCycle = T;
+        const delay = detCycle - (fc||0);
+        abox.className='alarm alarm-trigger';
+        abox.textContent=`⚠️ 异常检测！退化加速（故障后第 ${delay} 循环触发）`;
+        sdEl.textContent=`+${delay}`; sdEl.style.color='#dc2626';
+    } else if (fc && T > fc) {
+        abox.className='alarm alarm-watch';
+        abox.textContent='🔍 监测中 — 信号累积中，等待超阈值...';
+    }
+}
+
+function step() {
+    const spd  = +document.getElementById('speedSlider').value;
+    const maxT = curData ? curData.rawLen : N;
+    curT = Math.min(curT + spd, maxT);
+    updateCharts();
+    if (curT < maxT && playing) animId = requestAnimationFrame(step);
+    else { playing=false; document.getElementById('playBtn').textContent='▶ 播放'; }
+}
+
+function togglePlay() {
+    if (playing) {
+        playing=false; cancelAnimationFrame(animId);
+        document.getElementById('playBtn').textContent='▶ 继续';
+    } else {
+        if (curT >= (curData?.rawLen ?? N)) resetAnim();
+        playing=true;
+        document.getElementById('playBtn').textContent='⏸ 暂停';
+        animId = requestAnimationFrame(step);
+    }
+}
+
+function resetAnim() {
+    playing=false; cancelAnimationFrame(animId); curT=0; detCycle=null;
+    document.getElementById('playBtn').textContent='▶ 播放';
+    updateCharts();
+}
+
+// ===================================================================
+// 5. UI ASSEMBLY
+// ===================================================================
+function buildSceneBtns() {
+    const grid = document.getElementById('sceneGrid');
+    Object.entries(SCENE).forEach(([k,v]) => {
+        const b = document.createElement('button');
+        b.className = `scene-btn${k==='normal'?' active':''}`;
+        b.dataset.k = k;
+        b.style.setProperty('--c', v.color);
+        b.innerHTML = `<span class="scene-icon">${v.icon}</span>
+                       <span class="scene-name">${v.name}</span>
+                       <span class="scene-sub">${v.en}</span>`;
+        b.onclick = () => {
+            document.querySelectorAll('.scene-btn').forEach(x=>x.classList.remove('active'));
+            b.classList.add('active');
+            updateInfo(k);
+            loadScene(k, curSev);
+            resetAnim();
+        };
+        grid.appendChild(b);
+    });
+}
+
+function updateInfo(k) {
+    const v = SCENE[k];
+    document.getElementById('iTitle').textContent = v.name;
+    document.getElementById('iTitle').style.color = v.color;
+    document.getElementById('iDesc').textContent  = v.desc;
+    document.getElementById('iMech').textContent  = v.mech;
+    const aucEl = document.getElementById('iAUC');
+    aucEl.innerHTML = v.auc ? `<div class="auc-pill" style="background:${v.color}18;color:${v.color}">${v.aucTxt}</div>` : '';
+}
+
+function buildSevBtns() {
+    document.querySelectorAll('#sevRow .sev-btn').forEach(b => {
+        b.onclick = () => {
+            document.querySelectorAll('#sevRow .sev-btn').forEach(x=>x.classList.remove('active'));
+            b.classList.add('active'); curSev=b.dataset.s;
+            loadScene(curKey, curSev); resetAnim();
+        };
+    });
+}
+
+function buildResultsTable() {
+    // ── 场景描述表 ──
+    const scRows = [
+        {sc:'a1', tp:'突发型',    root:'机械冲击、过充/过放等突发性损伤',         soh:'某循环后 SOH 骤降一大截（3~8%），之后恢复平稳衰减',          inject:'截取自身末期数据拼接至故障点（跳过中间段）',      diff:'⭐ 容易'},
+        {sc:'a2', tp:'突变型',    root:'活性物质耗尽、电解液副反应积累至临界点',   soh:'前期缓慢，拐点后退化速率急剧加快，斜率明显变陡',             inject:'故障点后每隔 3~4 步取一个样本（跳采样加速）',     diff:'⭐⭐ 较易'},
+        {sc:'a3', tp:'渐进型',    root:'电池组单体差异化老化（温度/制造偏差）',    soh:'从故障点起持续偏低，差距随时间线性扩大',                      inject:'将自身未来状态按线性比例混入当前特征',            diff:'⭐⭐⭐ 中等'},
+        {sc:'a4', tp:'台阶+突变', root:'低温/大电流充电致金属锂沉积，不可逆容量损失', soh:'故障点处出现台阶突降（2~5.5%），台阶后继续加速衰减',      inject:'跳至末期状态（台阶）+ 跳采样（加速），两者叠加', diff:'⭐⭐ 较易'},
+        {sc:'a5', tp:'渐进型',    root:'SEI膜增厚、电解液老化致内阻缓慢升高',     soh:'斜率极缓慢变陡，早期几乎察觉不到，后期差距持续扩大',         inject:'按二次方比例将自身未来状态混入当前特征',          diff:'⭐⭐⭐⭐ 最难'},
+    ];
+    document.getElementById('rt').innerHTML = `
+    <thead><tr>
+        <th>退化场景</th><th>类型</th><th>物理根因</th>
+        <th>SOH曲线表现</th><th>仿真注入方式</th><th>检测难度</th>
+    </tr></thead>
+    <tbody>
+    ${scRows.map(r=>`<tr>
+        <td><strong style="color:${SCENE[r.sc].color}">${SCENE[r.sc].icon} ${SCENE[r.sc].name}</strong></td>
+        <td><span class="signal-tag">${r.tp}</span></td>
+        <td>${r.root}</td>
+        <td>${r.soh}</td>
+        <td style="font-size:11px;color:#475569">${r.inject}</td>
+        <td>${r.diff}</td>
+    </tr>`).join('')}
+    </tbody>
+    <tfoot><tr><td colspan="6" class="note">
+        注入模式：self-trajectory（同电池轨迹重排），无需真实失效数据。数据集：HUST 77块LFP电池，故障注入位置：50%生命周期。严重度分 mild / moderate / severe 三级。
+    </td></tr></tfoot>`;
+
+    // ── 检测信号表 ──
+    const sigRows = [
+        {
+            name:'input_zscore',
+            calc:'|当前特征 − 训练集均值| / 训练集标准差，取14维中最大值',
+            meaning:'反映输入数据是否偏离"正常范围"',
+            limit:'生命末期自然偏高，易产生系统性误报',
+            eff:'一般',  ec:'ok',
+        },
+        {
+            name:'mono_violation',
+            calc:'相邻两步预测 SOH 的上升量（下降时记为0）',
+            meaning:'检测"电池变年轻"的物理违规，SOH 应单调递减',
+            limit:'正常预测也有随机抖动，信号噪声较大',
+            eff:'较弱',  ec:'',
+        },
+        {
+            name:'rate_anomaly',
+            calc:'当前下降速率与近20步局部均值的标准差倍数',
+            meaning:'检测退化速率的突变',
+            limit:'窗口短时噪声大，对渐进型场景不敏感',
+            eff:'较弱',  ec:'',
+        },
+        {
+            name:'drop_anomaly',
+            calc:'当前下跌幅度与近20步局部均值的标准差倍数（仅计下跌）',
+            meaning:'专门检测异常加速下跌，与 mono_violation 互补',
+            limit:'局部窗口短时稳定性有限',
+            eff:'较弱',  ec:'',
+        },
+        {
+            name:'trajectory_deviation ★',
+            calc:'对近20步预测做线性外推，计算实际值与预期值的绝对偏差',
+            meaning:'检测 SOH 曲线偏离当前趋势的程度——突变和渐进偏移均能感知',
+            limit:'窗口大小影响灵敏度，窗口太短噪声大，太长响应慢',
+            eff:'最强',  ec:'good',
+        },
+    ];
+    document.getElementById('sigTable').innerHTML = `
+    <thead><tr>
+        <th>信号名称</th><th>计算方式</th><th>检测含义</th><th>主要局限</th><th>实测效果</th>
+    </tr></thead>
+    <tbody>
+    ${sigRows.map(r=>`<tr>
+        <td><span class="signal-tag" style="font-size:11px">${r.name}</span></td>
+        <td style="font-size:11px;color:#475569">${r.calc}</td>
+        <td>${r.meaning}</td>
+        <td style="font-size:11px;color:#94a3b8">${r.limit}</td>
+        <td class="${r.ec}">${r.eff}</td>
+    </tr>`).join('')}
+    </tbody>
+    <tfoot><tr><td colspan="5" class="note">
+        trajectory_deviation 是唯一在全部5类场景下稳定有效的信号（AUC 0.65–0.75）。
+        combined 综合分数 = max(5信号归一化值)，但 input_zscore 在正常末期自然偏高会拖累综合结果，建议直接使用 trajectory_deviation 作为主检测信号。
+    </td></tr></tfoot>`;
+}
+
+// ===================================================================
+// 6. INIT
+// ===================================================================
+initCharts();
+buildSceneBtns();
+buildSevBtns();
+document.getElementById('playBtn').onclick  = togglePlay;
+document.getElementById('resetBtn').onclick = resetAnim;
+document.getElementById('speedSlider').oninput = function() {
+    document.getElementById('speedVal').textContent = this.value + '×';
+};
+buildResultsTable();
+updateInfo('normal');
+loadScene('normal', 'moderate');
+</script>
+</body>
+</html>

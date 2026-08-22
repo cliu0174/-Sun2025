@@ -1,0 +1,11 @@
+{
+  "svg_to_pptx_preview_mae": 1.9653089046478271,
+  "foreground_mae": 8.566781044006348,
+  "slide_size_pixels": [
+    1672,
+    941
+  ],
+  "text_readability_review": "passed",
+  "review_evidence": "PowerPoint-exported preview inspected after correction; no clipping, missing elements, or text-line collisions remain.",
+  "passed": true
+}

@@ -1,0 +1,602 @@
+%% BioMed_Central_Bib_Style_v1.01
+
+\begin{thebibliography}{31}
+% BibTex style file: bmc-mathphys.bst (version 2.1), 2014-07-24
+\ifx \bisbn   \undefined \def \bisbn  #1{ISBN #1}\fi
+\ifx \binits  \undefined \def \binits#1{#1}\fi
+\ifx \bauthor  \undefined \def \bauthor#1{#1}\fi
+\ifx \batitle  \undefined \def \batitle#1{#1}\fi
+\ifx \bjtitle  \undefined \def \bjtitle#1{#1}\fi
+\ifx \bvolume  \undefined \def \bvolume#1{\textbf{#1}}\fi
+\ifx \byear  \undefined \def \byear#1{#1}\fi
+\ifx \bissue  \undefined \def \bissue#1{#1}\fi
+\ifx \bfpage  \undefined \def \bfpage#1{#1}\fi
+\ifx \blpage  \undefined \def \blpage #1{#1}\fi
+\ifx \burl  \undefined \def \burl#1{\textsf{#1}}\fi
+\ifx \doiurl  \undefined \def \doiurl#1{\url{https://doi.org/#1}}\fi
+\ifx \betal  \undefined \def \betal{\textit{et al.}}\fi
+\ifx \binstitute  \undefined \def \binstitute#1{#1}\fi
+\ifx \binstitutionaled  \undefined \def \binstitutionaled#1{#1}\fi
+\ifx \bctitle  \undefined \def \bctitle#1{#1}\fi
+\ifx \beditor  \undefined \def \beditor#1{#1}\fi
+\ifx \bpublisher  \undefined \def \bpublisher#1{#1}\fi
+\ifx \bbtitle  \undefined \def \bbtitle#1{#1}\fi
+\ifx \bedition  \undefined \def \bedition#1{#1}\fi
+\ifx \bseriesno  \undefined \def \bseriesno#1{#1}\fi
+\ifx \blocation  \undefined \def \blocation#1{#1}\fi
+\ifx \bsertitle  \undefined \def \bsertitle#1{#1}\fi
+\ifx \bsnm \undefined \def \bsnm#1{#1}\fi
+\ifx \bsuffix \undefined \def \bsuffix#1{#1}\fi
+\ifx \bparticle \undefined \def \bparticle#1{#1}\fi
+\ifx \barticle \undefined \def \barticle#1{#1}\fi
+\bibcommenthead
+\ifx \bconfdate \undefined \def \bconfdate #1{#1}\fi
+\ifx \botherref \undefined \def \botherref #1{#1}\fi
+\ifx \url \undefined \def \url#1{\textsf{#1}}\fi
+\ifx \bchapter \undefined \def \bchapter#1{#1}\fi
+\ifx \bbook \undefined \def \bbook#1{#1}\fi
+\ifx \bcomment \undefined \def \bcomment#1{#1}\fi
+\ifx \oauthor \undefined \def \oauthor#1{#1}\fi
+\ifx \citeauthoryear \undefined \def \citeauthoryear#1{#1}\fi
+\ifx \endbibitem  \undefined \def \endbibitem {}\fi
+\ifx \bconflocation  \undefined \def \bconflocation#1{#1}\fi
+\ifx \arxivurl  \undefined \def \arxivurl#1{\textsf{#1}}\fi
+\csname PreBibitemsHook\endcsname
+
+%%% 1
+\bibitem[\protect\citeauthoryear{Berecibar
+  et~al.}{2016}]{berecibar2016critical}
+\begin{barticle}
+\bauthor{\bsnm{Berecibar}, \binits{M.}},
+\bauthor{\bsnm{Gandiaga}, \binits{I.}},
+\bauthor{\bsnm{Villarreal}, \binits{I.}},
+\bauthor{\bsnm{Omar}, \binits{N.}},
+\bauthor{\bsnm{Van~Mierlo}, \binits{J.}},
+\bauthor{\bsnm{Bossche}, \binits{P.}}:
+\batitle{Critical review of state of health estimation methods of li-ion
+  batteries for real applications}.
+\bjtitle{Renewable and Sustainable Energy Reviews}
+\bvolume{56},
+\bfpage{572}--\blpage{587}
+(\byear{2016})
+\doiurl{10.1016/j.rser.2015.11.042}
+\end{barticle}
+\endbibitem
+
+%%% 2
+\bibitem[\protect\citeauthoryear{Vignesh et~al.}{2024}]{vignesh2024state}
+\begin{barticle}
+\bauthor{\bsnm{Vignesh}, \binits{S.}},
+\bauthor{\bsnm{Che}, \binits{H.S.}},
+\bauthor{\bsnm{Selvaraj}, \binits{J.}},
+\bauthor{\bsnm{Tey}, \binits{K.S.}},
+\bauthor{\bsnm{Lee}, \binits{J.W.}},
+\bauthor{\bsnm{Shareef}, \binits{H.}},
+\bauthor{\bsnm{Errouissi}, \binits{R.}}:
+\batitle{State of health (soh) estimation methods for second life lithium-ion
+  battery--review and challenges}.
+\bjtitle{Applied Energy}
+\bvolume{369},
+\bfpage{123542}
+(\byear{2024})
+\doiurl{10.1016/j.apenergy.2024.123542}
+\end{barticle}
+\endbibitem
+
+%%% 3
+\bibitem[\protect\citeauthoryear{Che et~al.}{2023}]{che2023health}
+\begin{barticle}
+\bauthor{\bsnm{Che}, \binits{Y.}},
+\bauthor{\bsnm{Hu}, \binits{X.}},
+\bauthor{\bsnm{Lin}, \binits{X.}},
+\bauthor{\bsnm{Guo}, \binits{J.}},
+\bauthor{\bsnm{Teodorescu}, \binits{R.}}:
+\batitle{Health prognostics for lithium-ion batteries: mechanisms, methods, and
+  prospects}.
+\bjtitle{Energy \& Environmental Science}
+\bvolume{16}(\bissue{2}),
+\bfpage{338}--\blpage{371}
+(\byear{2023})
+\doiurl{10.1039/D2EE03019E}
+\end{barticle}
+\endbibitem
+
+%%% 4
+\bibitem[\protect\citeauthoryear{Birkl et~al.}{2017}]{birkl2017degradation}
+\begin{barticle}
+\bauthor{\bsnm{Birkl}, \binits{C.R.}},
+\bauthor{\bsnm{Roberts}, \binits{M.R.}},
+\bauthor{\bsnm{McTurk}, \binits{E.}},
+\bauthor{\bsnm{Bruce}, \binits{P.G.}},
+\bauthor{\bsnm{Howey}, \binits{D.A.}}:
+\batitle{Degradation diagnostics for lithium ion cells}.
+\bjtitle{Journal of Power Sources}
+\bvolume{341},
+\bfpage{373}--\blpage{386}
+(\byear{2017})
+\doiurl{10.1016/j.jpowsour.2016.12.011}
+\end{barticle}
+\endbibitem
+
+%%% 5
+\bibitem[\protect\citeauthoryear{Hochreiter and
+  Schmidhuber}{1997}]{hochreiter1997long}
+\begin{barticle}
+\bauthor{\bsnm{Hochreiter}, \binits{S.}},
+\bauthor{\bsnm{Schmidhuber}, \binits{J.}}:
+\batitle{Long short-term memory}.
+\bjtitle{Neural Computation}
+\bvolume{9}(\bissue{8}),
+\bfpage{1735}--\blpage{1780}
+(\byear{1997})
+\doiurl{10.1162/neco.1997.9.8.1735}
+\end{barticle}
+\endbibitem
+
+%%% 6
+\bibitem[\protect\citeauthoryear{Liu et~al.}{2023}]{liu2023online}
+\begin{barticle}
+\bauthor{\bsnm{Liu}, \binits{K.}},
+\bauthor{\bsnm{Kang}, \binits{L.}},
+\bauthor{\bsnm{Xie}, \binits{D.}}:
+\batitle{Online state of health estimation of lithium-ion batteries based on
+  charging process and long short-term memory recurrent neural network}.
+\bjtitle{Batteries}
+\bvolume{9}(\bissue{2}),
+\bfpage{94}
+(\byear{2023})
+\doiurl{10.3390/batteries9020094}
+\end{barticle}
+\endbibitem
+
+%%% 7
+\bibitem[\protect\citeauthoryear{Zhu et~al.}{2022}]{zhu2022attention}
+\begin{barticle}
+\bauthor{\bsnm{Zhu}, \binits{Z.}},
+\bauthor{\bsnm{Yang}, \binits{Q.}},
+\bauthor{\bsnm{Liu}, \binits{X.}},
+\bauthor{\bsnm{Gao}, \binits{D.}}:
+\batitle{Attention-based cnn-bilstm for soh and rul estimation of lithium-ion
+  batteries}.
+\bjtitle{Journal of Algorithms \& Computational Technology}
+\bvolume{16},
+\bfpage{17483026221130598}
+(\byear{2022})
+\doiurl{10.1177/17483026221130598}
+\end{barticle}
+\endbibitem
+
+%%% 8
+\bibitem[\protect\citeauthoryear{Fan et~al.}{2023}]{fan2023online}
+\begin{barticle}
+\bauthor{\bsnm{Fan}, \binits{Y.}},
+\bauthor{\bsnm{Li}, \binits{Y.}},
+\bauthor{\bsnm{Zhao}, \binits{J.}},
+\bauthor{\bsnm{Wang}, \binits{L.}},
+\bauthor{\bsnm{Yan}, \binits{C.}},
+\bauthor{\bsnm{Wu}, \binits{X.}},
+\bauthor{\bsnm{Zhang}, \binits{P.}},
+\bauthor{\bsnm{Wang}, \binits{J.}},
+\bauthor{\bsnm{Gao}, \binits{G.}},
+\bauthor{\bsnm{Wei}, \binits{L.}}:
+\batitle{Online state-of-health estimation for fast-charging lithium-ion
+  batteries based on a transformer--long short-term memory neural network}.
+\bjtitle{Batteries}
+\bvolume{9}(\bissue{11}),
+\bfpage{539}
+(\byear{2023})
+\doiurl{10.3390/batteries9110539}
+\end{barticle}
+\endbibitem
+
+%%% 9
+\bibitem[\protect\citeauthoryear{Chen et~al.}{2022}]{chen2022state}
+\begin{barticle}
+\bauthor{\bsnm{Chen}, \binits{Z.}},
+\bauthor{\bsnm{Zhao}, \binits{H.}},
+\bauthor{\bsnm{Zhang}, \binits{Y.}},
+\bauthor{\bsnm{Shen}, \binits{S.}},
+\bauthor{\bsnm{Shen}, \binits{J.}},
+\bauthor{\bsnm{Liu}, \binits{Y.}}:
+\batitle{State of health estimation for lithium-ion batteries based on
+  temperature prediction and gated recurrent unit neural network}.
+\bjtitle{Journal of Power Sources}
+\bvolume{521},
+\bfpage{230892}
+(\byear{2022})
+\doiurl{10.1016/j.jpowsour.2021.230892}
+\end{barticle}
+\endbibitem
+
+%%% 10
+\bibitem[\protect\citeauthoryear{Zhao et~al.}{2023}]{zhao2023state}
+\begin{barticle}
+\bauthor{\bsnm{Zhao}, \binits{H.}},
+\bauthor{\bsnm{Chen}, \binits{Z.}},
+\bauthor{\bsnm{Shu}, \binits{X.}},
+\bauthor{\bsnm{Shen}, \binits{J.}},
+\bauthor{\bsnm{Lei}, \binits{Z.}},
+\bauthor{\bsnm{Zhang}, \binits{Y.}}:
+\batitle{State of health estimation for lithium-ion batteries based on hybrid
+  attention and deep learning}.
+\bjtitle{Reliability Engineering \& System Safety}
+\bvolume{232},
+\bfpage{109066}
+(\byear{2023})
+\doiurl{10.1016/j.ress.2022.109066}
+\end{barticle}
+\endbibitem
+
+%%% 11
+\bibitem[\protect\citeauthoryear{Lyu et~al.}{2021}]{lyu2021partial}
+\begin{barticle}
+\bauthor{\bsnm{Lyu}, \binits{Z.}},
+\bauthor{\bsnm{Gao}, \binits{R.}},
+\bauthor{\bsnm{Li}, \binits{X.}}:
+\batitle{A partial charging curve-based data-fusion-model method for capacity
+  estimation of li-ion battery}.
+\bjtitle{Journal of Power Sources}
+\bvolume{483},
+\bfpage{229131}
+(\byear{2021})
+\doiurl{10.1016/j.jpowsour.2020.229131}
+\end{barticle}
+\endbibitem
+
+%%% 12
+\bibitem[\protect\citeauthoryear{Lu et~al.}{2023}]{lu2023deep}
+\begin{barticle}
+\bauthor{\bsnm{Lu}, \binits{J.}},
+\bauthor{\bsnm{Xiong}, \binits{R.}},
+\bauthor{\bsnm{Tian}, \binits{J.}},
+\bauthor{\bsnm{Wang}, \binits{C.}},
+\bauthor{\bsnm{Sun}, \binits{F.}}:
+\batitle{Deep learning to estimate lithium-ion battery state of health without
+  additional degradation experiments}.
+\bjtitle{Nature Communications}
+\bvolume{14}(\bissue{1}),
+\bfpage{2760}
+(\byear{2023})
+\doiurl{10.1038/s41467-023-38458-w}
+\end{barticle}
+\endbibitem
+
+%%% 13
+\bibitem[\protect\citeauthoryear{Ma et~al.}{2022}]{ma2022real}
+\begin{barticle}
+\bauthor{\bsnm{Ma}, \binits{G.}},
+\bauthor{\bsnm{Xu}, \binits{S.}},
+\bauthor{\bsnm{Jiang}, \binits{B.}},
+\bauthor{\bsnm{Cheng}, \binits{C.}},
+\bauthor{\bsnm{Yang}, \binits{X.}},
+\bauthor{\bsnm{Shen}, \binits{Y.}},
+\bauthor{\bsnm{Yang}, \binits{T.}},
+\bauthor{\bsnm{Huang}, \binits{Y.}},
+\bauthor{\bsnm{Ding}, \binits{H.}},
+\bauthor{\bsnm{Yuan}, \binits{Y.}}:
+\batitle{Real-time personalized health status prediction of lithium-ion
+  batteries using deep transfer learning}.
+\bjtitle{Energy \& Environmental Science}
+\bvolume{15}(\bissue{10}),
+\bfpage{4083}--\blpage{4094}
+(\byear{2022})
+\doiurl{10.1039/D2EE01676A}
+\end{barticle}
+\endbibitem
+
+%%% 14
+\bibitem[\protect\citeauthoryear{Zhou et~al.}{2023}]{zhou2022transfer}
+\begin{barticle}
+\bauthor{\bsnm{Zhou}, \binits{K.Q.}},
+\bauthor{\bsnm{Qin}, \binits{Y.}},
+\bauthor{\bsnm{Yuen}, \binits{C.}}:
+\batitle{Transfer-learning-based state-of-health estimation for lithium-ion
+  battery with cycle synchronization}.
+\bjtitle{IEEE/ASME Transactions on Mechatronics}
+\bvolume{28}(\bissue{2}),
+\bfpage{692}--\blpage{702}
+(\byear{2023})
+\doiurl{10.1109/TMECH.2022.3201010}
+\end{barticle}
+\endbibitem
+
+%%% 15
+\bibitem[\protect\citeauthoryear{Zhou et~al.}{2024}]{zhou2024graph}
+\begin{barticle}
+\bauthor{\bsnm{Zhou}, \binits{K.Q.}},
+\bauthor{\bsnm{Qin}, \binits{Y.}},
+\bauthor{\bsnm{Yuen}, \binits{C.}}:
+\batitle{Graph neural network-based lithium-ion battery state of health
+  estimation using partial discharging curve}.
+\bjtitle{Journal of Energy Storage}
+\bvolume{100},
+\bfpage{113502}
+(\byear{2024})
+\doiurl{10.1016/j.est.2024.113502}
+\end{barticle}
+\endbibitem
+
+%%% 16
+\bibitem[\protect\citeauthoryear{Zhang et~al.}{2023}]{zhang2023fewshot}
+\begin{barticle}
+\bauthor{\bsnm{Zhang}, \binits{S.}},
+\bauthor{\bsnm{Liu}, \binits{Z.}},
+\bauthor{\bsnm{Su}, \binits{H.}}:
+\batitle{State of health estimation for lithium-ion batteries on few-shot
+  learning}.
+\bjtitle{Energy}
+\bvolume{268},
+\bfpage{126726}
+(\byear{2023})
+\doiurl{10.1016/j.energy.2023.126726}
+\end{barticle}
+\endbibitem
+
+%%% 17
+\bibitem[\protect\citeauthoryear{Han et~al.}{2024}]{han2024limited}
+\begin{barticle}
+\bauthor{\bsnm{Han}, \binits{D.}},
+\bauthor{\bsnm{Zhang}, \binits{Y.}},
+\bauthor{\bsnm{Ruan}, \binits{H.}}:
+\batitle{Improving the state-of-health estimation of lithium-ion batteries
+  based on limited labeled data}.
+\bjtitle{Journal of Energy Storage}
+\bvolume{100},
+\bfpage{113744}
+(\byear{2024})
+\doiurl{10.1016/j.est.2024.113744}
+\end{barticle}
+\endbibitem
+
+%%% 18
+\bibitem[\protect\citeauthoryear{Wang et~al.}{2024}]{wang2024weaklabels}
+\begin{barticle}
+\bauthor{\bsnm{Wang}, \binits{T.}},
+\bauthor{\bsnm{Ma}, \binits{Z.}},
+\bauthor{\bsnm{Zou}, \binits{S.}},
+\bauthor{\bsnm{Chen}, \binits{Z.}},
+\bauthor{\bsnm{Wang}, \binits{P.}}:
+\batitle{Lithium-ion battery state-of-health estimation: A self-supervised
+  framework incorporating weak labels}.
+\bjtitle{Applied Energy}
+\bvolume{355},
+\bfpage{122332}
+(\byear{2024})
+\doiurl{10.1016/j.apenergy.2023.122332}
+\end{barticle}
+\endbibitem
+
+%%% 19
+\bibitem[\protect\citeauthoryear{Qian et~al.}{2026}]{qian2026minimal}
+\begin{botherref}
+\oauthor{\bsnm{Qian}, \binits{C.}},
+\oauthor{\bsnm{Guan}, \binits{H.}},
+\oauthor{\bsnm{Xiao}, \binits{Y.}},
+\oauthor{\bsnm{Wang}, \binits{L.}},
+\oauthor{\bsnm{Ren}, \binits{Y.}},
+\oauthor{\bsnm{Xia}, \binits{Q.}},
+\oauthor{\bsnm{Yang}, \binits{D.}},
+\oauthor{\bsnm{Wang}, \binits{Z.}}:
+Explainable state of health estimation of lithium-ion batteries with extremely
+  minimal labels via weakly supervised learning.
+eTransportation,
+100623
+(2026)
+\doiurl{10.1016/j.etran.2026.100623}
+\end{botherref}
+\endbibitem
+
+%%% 20
+\bibitem[\protect\citeauthoryear{Li et~al.}{2020}]{li2020state}
+\begin{barticle}
+\bauthor{\bsnm{Li}, \binits{Y.}},
+\bauthor{\bsnm{Sheng}, \binits{H.}},
+\bauthor{\bsnm{Cheng}, \binits{Y.}},
+\bauthor{\bsnm{Stroe}, \binits{D.-I.}},
+\bauthor{\bsnm{Teodorescu}, \binits{R.}}:
+\batitle{State-of-health estimation of lithium-ion batteries based on
+  semi-supervised transfer component analysis}.
+\bjtitle{Applied Energy}
+\bvolume{277},
+\bfpage{115504}
+(\byear{2020})
+\doiurl{10.1016/j.apenergy.2020.115504}
+\end{barticle}
+\endbibitem
+
+%%% 21
+\bibitem[\protect\citeauthoryear{Lin et~al.}{2023}]{lin2023improving}
+\begin{barticle}
+\bauthor{\bsnm{Lin}, \binits{C.}},
+\bauthor{\bsnm{Xu}, \binits{J.}},
+\bauthor{\bsnm{Mei}, \binits{X.}}:
+\batitle{Improving state-of-health estimation for lithium-ion batteries via
+  unlabeled charging data}.
+\bjtitle{Energy Storage Materials}
+\bvolume{54},
+\bfpage{85}--\blpage{97}
+(\byear{2023})
+\doiurl{10.1016/j.ensm.2022.10.030}
+\end{barticle}
+\endbibitem
+
+%%% 22
+\bibitem[\protect\citeauthoryear{Salucci et~al.}{2023}]{salucci2023novel}
+\begin{barticle}
+\bauthor{\bsnm{Salucci}, \binits{C.B.}},
+\bauthor{\bsnm{Bakdi}, \binits{A.}},
+\bauthor{\bsnm{Glad}, \binits{I.K.}},
+\bauthor{\bsnm{Vanem}, \binits{E.}},
+\bauthor{\bsnm{De~Bin}, \binits{R.}}:
+\batitle{A novel semi-supervised learning approach for state of health
+  monitoring of maritime lithium-ion batteries}.
+\bjtitle{Journal of Power Sources}
+\bvolume{556},
+\bfpage{232429}
+(\byear{2023})
+\doiurl{10.1016/j.jpowsour.2022.232429}
+\end{barticle}
+\endbibitem
+
+%%% 23
+\bibitem[\protect\citeauthoryear{Li et~al.}{2026}]{li2026auxiliary}
+\begin{barticle}
+\bauthor{\bsnm{Li}, \binits{Y.}},
+\bauthor{\bsnm{Liu}, \binits{K.}},
+\bauthor{\bsnm{Wang}, \binits{W.}},
+\bauthor{\bsnm{Fang}, \binits{F.}},
+\bauthor{\bsnm{Li}, \binits{K.}}:
+\batitle{Auxiliary-label enhanced semi-supervised learning with selective
+  pseudo-labeling for battery capacity estimation}.
+\bjtitle{IEEE Transactions on Industrial Informatics}
+\bvolume{22}(\bissue{4}),
+\bfpage{2805}--\blpage{2816}
+(\byear{2026})
+\doiurl{10.1109/TII.2025.3645950}
+\end{barticle}
+\endbibitem
+
+%%% 24
+\bibitem[\protect\citeauthoryear{Raissi et~al.}{2019}]{raissi2019physics}
+\begin{barticle}
+\bauthor{\bsnm{Raissi}, \binits{M.}},
+\bauthor{\bsnm{Perdikaris}, \binits{P.}},
+\bauthor{\bsnm{Karniadakis}, \binits{G.E.}}:
+\batitle{Physics-informed neural networks: A deep learning framework for
+  solving forward and inverse problems involving nonlinear partial differential
+  equations}.
+\bjtitle{Journal of Computational Physics}
+\bvolume{378},
+\bfpage{686}--\blpage{707}
+(\byear{2019})
+\doiurl{10.1016/j.jcp.2018.10.045}
+\end{barticle}
+\endbibitem
+
+%%% 25
+\bibitem[\protect\citeauthoryear{Karniadakis
+  et~al.}{2021}]{karniadakis2021physics}
+\begin{barticle}
+\bauthor{\bsnm{Karniadakis}, \binits{G.E.}},
+\bauthor{\bsnm{Kevrekidis}, \binits{I.G.}},
+\bauthor{\bsnm{Lu}, \binits{L.}},
+\bauthor{\bsnm{Perdikaris}, \binits{P.}},
+\bauthor{\bsnm{Wang}, \binits{S.}},
+\bauthor{\bsnm{Yang}, \binits{L.}}:
+\batitle{Physics-informed machine learning}.
+\bjtitle{Nature Reviews Physics}
+\bvolume{3}(\bissue{6}),
+\bfpage{422}--\blpage{440}
+(\byear{2021})
+\doiurl{10.1038/s42254-021-00314-5}
+\end{barticle}
+\endbibitem
+
+%%% 26
+\bibitem[\protect\citeauthoryear{Kohtz et~al.}{2022}]{kohtz2022physics}
+\begin{barticle}
+\bauthor{\bsnm{Kohtz}, \binits{S.}},
+\bauthor{\bsnm{Xu}, \binits{Y.}},
+\bauthor{\bsnm{Zheng}, \binits{Z.}},
+\bauthor{\bsnm{Wang}, \binits{P.}}:
+\batitle{Physics-informed machine learning model for battery state of health
+  prognostics using partial charging segments}.
+\bjtitle{Mechanical Systems and Signal Processing}
+\bvolume{172},
+\bfpage{109002}
+(\byear{2022})
+\doiurl{10.1016/j.ymssp.2022.109002}
+\end{barticle}
+\endbibitem
+
+%%% 27
+\bibitem[\protect\citeauthoryear{Wang et~al.}{2024}]{wang2024physics}
+\begin{barticle}
+\bauthor{\bsnm{Wang}, \binits{F.}},
+\bauthor{\bsnm{Zhai}, \binits{Z.}},
+\bauthor{\bsnm{Zhao}, \binits{Z.}},
+\bauthor{\bsnm{Di}, \binits{Y.}},
+\bauthor{\bsnm{Chen}, \binits{X.}}:
+\batitle{Physics-informed neural network for lithium-ion battery degradation
+  stable modeling and prognosis}.
+\bjtitle{Nature Communications}
+\bvolume{15}(\bissue{1}),
+\bfpage{4332}
+(\byear{2024})
+\doiurl{10.1038/s41467-024-48779-z}
+\end{barticle}
+\endbibitem
+
+%%% 28
+\bibitem[\protect\citeauthoryear{Ye et~al.}{2024}]{ye2024method}
+\begin{barticle}
+\bauthor{\bsnm{Ye}, \binits{J.}},
+\bauthor{\bsnm{Xie}, \binits{Q.}},
+\bauthor{\bsnm{Lin}, \binits{M.}},
+\bauthor{\bsnm{Wu}, \binits{J.}}:
+\batitle{A method for estimating the state of health of lithium-ion batteries
+  based on physics-informed neural network}.
+\bjtitle{Energy}
+\bvolume{294},
+\bfpage{130828}
+(\byear{2024})
+\doiurl{10.1016/j.energy.2024.130828}
+\end{barticle}
+\endbibitem
+
+%%% 29
+\bibitem[\protect\citeauthoryear{Wen et~al.}{2024}]{wen2023physics}
+\begin{barticle}
+\bauthor{\bsnm{Wen}, \binits{P.}},
+\bauthor{\bsnm{Ye}, \binits{Z.-S.}},
+\bauthor{\bsnm{Li}, \binits{Y.}},
+\bauthor{\bsnm{Chen}, \binits{S.}},
+\bauthor{\bsnm{Xie}, \binits{P.}},
+\bauthor{\bsnm{Zhao}, \binits{S.}}:
+\batitle{Physics-informed neural networks for prognostics and health management
+  of lithium-ion batteries}.
+\bjtitle{IEEE Transactions on Intelligent Vehicles}
+\bvolume{9}(\bissue{1}),
+\bfpage{2276}--\blpage{2289}
+(\byear{2024})
+\doiurl{10.1109/TIV.2023.3315548}
+\end{barticle}
+\endbibitem
+
+%%% 30
+\bibitem[\protect\citeauthoryear{Yuan et~al.}{2022}]{Yuan2022HUSTDataset}
+\begin{botherref}
+\oauthor{\bsnm{Yuan}, \binits{Y.}},
+\oauthor{\bsnm{Ma}, \binits{G.}},
+\oauthor{\bsnm{Xu}, \binits{S.}}:
+The Dataset for: Real-time personalized health status prediction of lithium-ion
+  batteries using deep transfer learning.
+Mendeley Data
+(2022).
+\doiurl{10.17632/nsc7hnsg4s.2}
+\end{botherref}
+\endbibitem
+
+%%% 31
+\bibitem[\protect\citeauthoryear{Ward et~al.}{2022}]{ward2022principles}
+\begin{barticle}
+\bauthor{\bsnm{Ward}, \binits{L.}},
+\bauthor{\bsnm{Babinec}, \binits{S.}},
+\bauthor{\bsnm{Dufek}, \binits{E.J.}},
+\bauthor{\bsnm{Howey}, \binits{D.A.}},
+\bauthor{\bsnm{Viswanathan}, \binits{V.}},
+\bauthor{\bsnm{Aykol}, \binits{M.}},
+\bauthor{\bsnm{Beck}, \binits{D.A.}},
+\bauthor{\bsnm{Blaiszik}, \binits{B.}},
+\bauthor{\bsnm{Chen}, \binits{B.-R.}},
+\bauthor{\bsnm{Crabtree}, \binits{G.}}, \betal:
+\batitle{Principles of the battery data genome}.
+\bjtitle{Joule}
+\bvolume{6}(\bissue{10}),
+\bfpage{2253}--\blpage{2271}
+(\byear{2022})
+\doiurl{10.1016/j.joule.2022.08.008}
+\end{barticle}
+\endbibitem
+
+\end{thebibliography}

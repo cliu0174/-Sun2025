@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "slide_count": 1,
+    "svg_media_count": 1,
+    "embedded_svg_exact_hash_match": true,
+    "full_svg_sha256": "0c234b60acd5d0addb4b0bea0a86c45310320a0a358b89b92853a8da1833f044",
+    "embedded_svg_names": [
+      "ppt/media/image-1-2.svg"
+    ],
+    "nested_groups_present": true,
+    "unsupported_foreign_object": false,
+    "unsupported_filter": false,
+    "embedded_raster_image": false
+  },
+  "passed": true
+}

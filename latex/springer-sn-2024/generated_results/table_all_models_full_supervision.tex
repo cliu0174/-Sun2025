@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\caption{Same-protocol comparison under full supervision. Values are mean $\pm$ sample standard deviation across three paired repetitions on the fixed cell split (seed 42).}
+\label{tab:all_models_full_supervision}
+\centering
+\setlength{\tabcolsep}{3.0pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc@{}}
+\toprule
+Model & MAE (\%) & RMSE (\%) & R-squared \\
+\midrule
+XGBoost & 1.800 \textpm{} 0.033 & 3.061 \textpm{} 0.053 & 0.8229 \textpm{} 0.0061 \\
+LSTM & 1.680 \textpm{} 0.047 & 2.958 \textpm{} 0.074 & 0.8346 \textpm{} 0.0083 \\
+GRU & 1.634 \textpm{} 0.032 & 2.714 \textpm{} 0.039 & 0.8608 \textpm{} 0.0040 \\
+Attn. CNN--LSTM & 1.633 \textpm{} 0.059 & 2.900 \textpm{} 0.061 & 0.8410 \textpm{} 0.0067 \\
+CNN--LSTM & 1.649 \textpm{} 0.050 & 2.948 \textpm{} 0.076 & 0.8357 \textpm{} 0.0085 \\
+PI--CNN--LSTM & 1.679 \textpm{} 0.055 & 3.058 \textpm{} 0.109 & 0.8231 \textpm{} 0.0126 \\
+MS--CNN--LSTM & 1.582 \textpm{} 0.102 & 3.048 \textpm{} 0.222 & 0.8238 \textpm{} 0.0260 \\
+PI--MSCL & 1.556 \textpm{} 0.044 & 2.984 \textpm{} 0.028 & 0.8317 \textpm{} 0.0032 \\
+\bottomrule
+\end{tabular*}
+\end{table}

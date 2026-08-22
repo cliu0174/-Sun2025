@@ -139,6 +139,7 @@ def main():
         header += f" {s[:sig_width]:>{sig_width}}"
     header += "  verdict"
     print(header)
+    print(f"  {'(AUC / delay)':<18}" + "  [delay=首次触发距故障点的循环数，-1表示未检出]")
     print('-' * (20 + len(ALL_SIGNALS) * (sig_width + 1) + 12))
 
     test_batteries = data_dict['test_batteries'][:args.n_test]
@@ -190,9 +191,11 @@ def main():
             print(f"{scenario_key:<20}  N/A")
             continue
 
-        # 每个信号的平均 AUC
+        # 每个信号的平均 AUC / Det@FPR5% / delay
         row = f"{scenario_key:<20}"
-        aucs = {}
+        aucs   = {}
+        drates = {}
+        delays = {}
         for sig in ALL_SIGNALS:
             vals = [m[sig]['auc'] for m in all_metrics
                     if sig in m and not np.isnan(m[sig]['auc'])]
@@ -200,12 +203,36 @@ def main():
             aucs[sig] = auc
             row += f" {auc:>{sig_width}.3f}"
 
+            # Det@FPR5%
+            rvals = [m[sig]['det_rate_fpr5'] for m in all_metrics
+                     if sig in m and not np.isnan(m[sig]['det_rate_fpr5'])]
+            drates[sig] = np.mean(rvals) if rvals else float('nan')
+
+            # 检测延迟：只统计成功检测的（delay >= 0）
+            dvals = [m[sig]['det_delay'] for m in all_metrics
+                     if sig in m and m[sig]['det_delay'] >= 0]
+            delays[sig] = np.mean(dvals) if dvals else float('nan')
+
         combined_auc = aucs.get('combined', float('nan'))
         if   combined_auc > 0.70: verdict = 'GOOD'
         elif combined_auc > 0.58: verdict = 'WEAK'
         else:                     verdict = 'FAIL'
         row += f"  {verdict}"
         print(row)
+
+        # Det@FPR5% 行
+        dr_row = f"  {'→ Det@FPR5%':<18}"
+        for sig in ALL_SIGNALS:
+            r = drates[sig]
+            dr_row += f" {('—' if np.isnan(r) else f'{r*100:.1f}%'):>{sig_width}}"
+        print(dr_row)
+
+        # 检测延迟行
+        delay_row = f"  {'→ delay(cycles)':<18}"
+        for sig in ALL_SIGNALS:
+            d = delays[sig]
+            delay_row += f" {('—' if np.isnan(d) else f'{d:.0f}'):>{sig_width}}"
+        print(delay_row)
 
         # 收集诊断量
         drops  = [d.get('pred_drop_at_fault', float('nan')) for d in all_diags]
@@ -216,6 +243,8 @@ def main():
 
     print('-' * (20 + len(ALL_SIGNALS) * (sig_width + 1) + 12))
     print("判断: AUC > 0.70 GOOD | 0.58~0.70 WEAK | < 0.58 FAIL")
+    print("Det@FPR5%: 误报率≤5%约束下的真实检出率（越高越好；随机水平=5%）")
+    print("delay: 在FPR≤5%阈值下，从故障注入到首次报警的循环数（越小越快；—表示整段未检出）")
 
     # 诊断信息
     print(f"\n{'='*65}")

@@ -132,7 +132,13 @@ def clean_3_sigma(df, verbose=False):
     return df, stats
 
 
-def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True, apply_cleaning=False):
+def load_single_hust_battery(
+    file_path,
+    train_ratio=0.75,
+    normalize_target=True,
+    apply_cleaning=False,
+    standardize_features=True,
+):
     """
     加载单个HUST电池数据并划分训练/测试集。
 
@@ -141,6 +147,9 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True,
         train_ratio: 训练集比例 (默认0.75，即75%)
         normalize_target: 是否归一化目标值为SOH (默认True)
         apply_cleaning: 是否应用3-Sigma清洗 (默认False，保持向后兼容)
+        standardize_features: 是否在单电池内部拟合 StandardScaler。单电池任务
+            默认保持旧行为；跨电池任务必须设为 False，并在电池划分后仅用训练
+            电池拟合全局 scaler，避免验证/测试电池统计量泄漏。
 
     Returns:
         Dictionary包含：
@@ -194,15 +203,20 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True,
     test_features = test_df[feature_columns].values
     test_capacity = test_df[target_column].values
 
-    # 标准化特征 (使用训练集的统计量)
-    scaler = StandardScaler()
-    train_features_scaled = scaler.fit_transform(train_features)
+    if standardize_features:
+        # 单电池任务的向后兼容路径。跨电池论文实验不得在划分前进入此分支。
+        scaler = StandardScaler()
+        train_features_scaled = scaler.fit_transform(train_features)
 
-    # 处理测试集为空的情况（train_ratio=1.0）
-    if len(test_features) > 0:
-        test_features_scaled = scaler.transform(test_features)
+        if len(test_features) > 0:
+            test_features_scaled = scaler.transform(test_features)
+        else:
+            test_features_scaled = np.array([]).reshape(0, len(feature_columns))
     else:
-        test_features_scaled = np.array([]).reshape(0, len(feature_columns))
+        # 返回原始特征，供跨电池入口在完成 train/val/test 电池划分后统一处理。
+        scaler = None
+        train_features_scaled = train_features.copy()
+        test_features_scaled = test_features.copy()
 
     # 额定容量 (LFP电池: 1.1 Ah)
     rated_capacity = 1.1
@@ -231,6 +245,7 @@ def load_single_hust_battery(file_path, train_ratio=0.75, normalize_target=True,
         'test_features': test_features_scaled,
         'test_capacity': test_capacity_normalized,
         'scaler': scaler,
+        'features_standardized': standardize_features,
         'battery_name': battery_name,
         'feature_names': feature_columns,
         'n_train': n_train,

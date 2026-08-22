@@ -1,0 +1,11 @@
+{
+  "svg_to_pptx_preview_mae": 1.9639811515808105,
+  "foreground_mae": 8.697120666503906,
+  "slide_size_pixels": [
+    1672,
+    941
+  ],
+  "text_readability_review": "passed",
+  "review_evidence": "Actual PowerPoint-exported preview and zoomed multiscale-CNN module inspected by the primary agent and an independent visual-QA subagent; the 8x3/4x3/2x3 encoding is readable and no clipping, overlap, missing element, broken connector, or text collision was found.",
+  "passed": true
+}

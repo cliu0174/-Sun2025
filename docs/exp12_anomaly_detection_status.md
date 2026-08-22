@@ -150,15 +150,172 @@ HUST 使用的是 **LFP（磷酸铁锂）电池**，其化学特性决定了：
 
 ---
 
-## 六、下一步改进方向
+## 六、下一步改进方向（2026-05-21 最新共识）
 
-用户明确表示**希望继续提升而不是放弃**，以下是可行的改进方向（从易到难）：
+用户提出一个关键判断：当前 Exp-12 失败很可能不是检测逻辑本身完全错误，而是**异常注入后的特征变化不够显著**，没有触发模型预测 SOH 出现明显落差。新的优先方向是：不再主要依赖跨电池供体混合，而是用**同一块电池自身生命周期轨迹的跳跃、抽取、采样和未来状态混合**来构造异常。
 
-### 方向 A：改进异常分数定义（推荐优先尝试）
+核心原则：
+
+```text
+异常后的 features 必须仍来自同一块电池的真实后期轨迹，
+但通过重排生命周期片段，人为制造 SOH 骤降、拐点、加速或渐进偏离。
+```
+
+这样做的好处：
+- 保留同一电池个体特性，避免跨电池供体差异干扰；
+- 异常特征来自真实观测轨迹，不是任意噪声或无物理含义的放大扰动；
+- 可以直接验证用户的核心假设：如果模型学到了 `feature → SOH` 映射，那么同电池后期特征拼接后，预测 SOH 应出现落差或斜率突增。
+
+新增示意图已生成，**不要覆盖旧图**：
+
+```text
+docs/exp12_degradation_scenarios_self_trajectory.png
+docs/plot_degradation_scenarios_self_trajectory.py
+```
+
+### 方向 A：同电池生命周期轨迹重构（推荐优先实现）
+
+#### A1. SOH 骤降 / Single-cell sudden drop
+
+用户明确想模拟“电池 SOH 骤降”的情景。构造方式：
+
+```python
+corrupted_features = concat(features[:t0], features[s0:])
+corrupted_soh      = concat(soh[:t0],      soh[s0:])
+```
+
+含义：
+- `t0` 前正常退化；
+- `t0` 处发生突发不可逆损伤；
+- 损伤后状态等价于跳过一段生命周期，直接进入 `s0` 之后；
+- 后续仍沿同一电池自身退化轨迹继续衰减。
+
+参数建议：
+- `t0 = int(0.50 * T)`
+- `s0` 不固定比例优先，建议按 SOH 落差选择：`soh[t0] - soh[s0] ≈ 0.03 / 0.05 / 0.08` 对应 mild / moderate / severe
+- 如果找不到满足落差的 `s0`，再 fallback 到比例位置，如 `0.60T / 0.68T / 0.75T`
+
+注意：该构造会让异常序列长度变短，评估时 `fault_start = t0`，正样本为 `corrupted[fault_start:]`。
+
+#### A2. 容量拐点 / Capacity knee-point
+
+用户确认“后半段时间压缩”可以通过**抽取/跳采样**实现：
+
+```python
+tail_idx = np.arange(t0, T, step)
+corrupted_features = concat(features[:t0], features[tail_idx])
+corrupted_soh      = concat(soh[:t0],      soh[tail_idx])
+```
+
+含义：
+- `t0` 前正常；
+- `t0` 后仍沿同一电池轨迹退化；
+- 但每个观测点跨过更多真实生命周期，因此单位 pseudo-cycle 内 SOH 下降更快；
+- 模拟容量拐点后斜率突然变陡。
+
+严重度建议：
+
+```text
+mild:     step = 2
+moderate: step = 3
+severe:   step = 4
+```
+
+也可以用连续比例 `gamma = 1.5 / 2.0 / 3.0` 做非整数抽样。
+
+#### A3. 簇内不均衡加剧 / Inter-cell imbalance
+
+改成“同电池未来状态渐进混合”，不用跨电池供体：
+
+```python
+for t >= t0:
+    progress = (t - t0) / (T - t0)
+    alpha_t = max_alpha * progress
+    future_idx = min(T - 1, t + int(max_offset * progress))
+    corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+```
+
+含义：
+- 异常不是一步跳变，而是越来越像同一电池更老阶段；
+- 模拟簇内不均衡逐渐放大、BMS 观测轨迹逐步偏离正常单体。
+
+严重度建议：
+
+```text
+mild:     max_alpha=0.25, max_offset≈0.10T
+moderate: max_alpha=0.40, max_offset≈0.18T
+severe:   max_alpha=0.55, max_offset≈0.25T
+```
+
+#### A4. 析锂台阶 / Lithium plating
+
+构造成“先跳跃，再加速采样”：
+
+```python
+corrupted_features = concat(
+    features[:t0],
+    features[s0:T:step],
+)
+corrupted_soh = concat(
+    soh[:t0],
+    soh[s0:T:step],
+)
+```
+
+含义：
+- `t0` 发生析锂导致的不可逆台阶式损伤；
+- 损伤后直接进入同电池更后期状态；
+- 后续尾段继续跳采样，模拟台阶后加速退化。
+
+建议与 sudden drop 区分：
+- sudden drop：`features[:t0] + features[s0:]`，台阶后保持原始后期速度；
+- lithium plating：`features[:t0] + features[s0:T:step]`，台阶后继续加速。
+
+#### A5. 内阻渐进增长 / Internal resistance rise
+
+改成“二次漂移到未来状态”：
+
+```python
+for t >= t0:
+    progress = (t - t0) / (T - t0)
+    alpha_t = max_alpha * progress ** 2
+    future_idx = min(T - 1, t + offset)
+    corrupted[t] = (1 - alpha_t) * features[t] + alpha_t * features[future_idx]
+```
+
+含义：
+- 早期几乎看不出异常；
+- 后期越来越偏向同一电池更老状态；
+- 模拟内阻逐渐增长导致的后期斜率增加。
+
+### 方向 B：异常分数定义同步升级
 
 **问题**：当前 `rate_anomaly` 和 `input_zscore` 使用全局基准，对 LFP 特征变化不敏感。
 
-**改进**：引入**循环编号感知的局部基准**：
+**改进 1：新增 SOH 骤降分数 `drop_anomaly`**
+
+当前 `mono_violation` 检测的是 SOH 上升，不适合检测 SOH 突然下降。建议新增：
+
+```python
+drop = np.zeros(T)
+drop[1:] = np.maximum(predictions[:-1] - predictions[1:], 0)
+```
+
+再做局部标准化：
+
+```python
+drop_anomaly[t] = (drop[t] - mean(drop[t-K:t])) / std(drop[t-K:t])
+```
+
+该信号直接对应用户关心的判断逻辑：
+
+```text
+如果根据当前输入特征预测出的 SOH 与上一时刻 SOH 存在较大落差/斜率突增，
+就判别出现退化异常。
+```
+
+**改进 2：引入循环编号感知的局部基准 `trajectory_deviation`**
+
 - 对每块电池，维护一条"预期退化轨迹"（用前 N 个循环外推）
 - `trajectory_deviation[t]` = 当前预测值 vs 外推预期值的偏差
 - 这个信号对突发场景（①②④）应该更敏感
@@ -176,38 +333,49 @@ def compute_trajectory_deviation(preds, window=20):
     return deviation
 ```
 
-### 方向 B：改进异常注入使特征变化更显著
+MVP 里不要只打印 `combined`，应同时输出：
 
-**问题**：对 LFP 而言，即使注入末期特征，电压/电流统计量变化仍小。
-
-**改进**：在注入时**放大特征偏差**，而不只是线性混合：
-```python
-# 在注入时将正常特征和供体特征的差距放大 k 倍
-delta = donor_terminal - normal_features[t]
-corrupted[t] = normal_features[t] + k * alpha * delta  # k > 1 放大
-```
-这使注入的特征超出训练分布，z-score 更高，detection 信号更强。但需要评估这是否还符合物理真实性。
-
-### 方向 C：换用更强的异常信号（重构误差）
-
-**思路**：训练一个自编码器（Autoencoder）在正常数据上重建充电特征。推理时，重建误差大 → 异常。这是无监督异常检测的标准方法，但需要额外训练。
-
-### 方向 D：缩小问题范围，只检测最突出的场景
-
-`sudden_aging`（α=0.7，severe）本应是最容易检测的——70% 末期特征混入正常特征。但 AUC 仍为 0.479。
-
-**建议先验证**：直接打印一块测试电池在 fault_cycle 前后的特征均值，确认注入后特征是否**真的**发生了可测量的变化：
-
-```python
-# 诊断代码
-nf = info['features']      # (T, F)
-cf = inject_cell_failure(nf, donor_feat, fault_cycle, 'severe')
-print("故障前特征均值:", nf[:fault_cycle].mean(axis=0))
-print("故障后特征均值:", cf[fault_cycle:].mean(axis=0))
-print("均值差异:", (cf[fault_cycle:] - nf[fault_cycle:]).mean(axis=0))
+```text
+input_zscore / rate_anomaly / drop_anomaly / trajectory_deviation / combined
 ```
 
-如果差异几乎为零，说明需要从数据层面重新审视（可能特征被标准化了，导致注入失效）。
+并额外打印诊断量：
+
+```text
+pred_drop_at_fault = preds_fault[fault_start-1] - preds_fault[fault_start]
+mean_pred_gap_after_fault = mean(preds_clean_aligned - preds_fault_aligned)
+feature_l1_change_after_fault
+```
+
+### 方向 C：旧方案作为备选，不再优先
+
+旧方案包括：
+- 放大跨电池供体特征偏差；
+- 继续改进全局 z-score；
+- 自编码器重构误差。
+
+这些方案暂时降级为备选。下一位 Agent 应优先实现“同电池轨迹重构”版本，因为它更贴近用户要模拟的 SOH 骤降和拐点情景。
+
+### 实现建议
+
+推荐在 `evaluation/anomaly_detection.py` 中新增一组函数，不要直接删除原有 5 个注入函数：
+
+```text
+inject_self_jump_drop()
+inject_self_knee_sampling()
+inject_self_imbalance_drift()
+inject_self_lithium_plating()
+inject_self_resistance_rise()
+```
+
+然后给 `run_anomaly_detection_for_battery()` 增加参数，例如：
+
+```python
+injection_mode: str = 'legacy'  # legacy / self_trajectory
+targets: Optional[np.ndarray] = None
+```
+
+`self_trajectory` 模式需要传入当前电池的真实 SOH `targets`，用于选择 `s0` 或构造 `corrupted_soh` 诊断曲线。模型推理仍然只使用 `corrupted_features`。
 
 ---
 
@@ -215,11 +383,14 @@ print("均值差异:", (cf[fault_cycle:] - nf[fault_cycle:]).mean(axis=0))
 
 | 优先级 | 任务 | 文件 |
 |-------|------|------|
-| P0 | **诊断**：打印故障前后特征均值差异，确认注入有效 | mvp 脚本 |
-| P1 | 实现 `trajectory_deviation` 信号（方向 A） | `evaluation/anomaly_detection.py` |
-| P1 | 在 MVP 上验证新信号是否改善 AUC | `experiments/mvp_anomaly_verify.py` |
-| P2 | 如果 AUC > 0.65，在服务器删旧结果重跑完整 Exp-12 | 服务器 |
-| P3 | 分析最终结果，决定是否写入论文 | — |
+| P0 | 实现 5 个 `self_trajectory` 注入函数，先不要删除 legacy 注入函数 | `evaluation/anomaly_detection.py` |
+| P0 | MVP 增加 `--injection_mode self_trajectory`，并把当前电池 `targets` 传入检测流程 | `experiments/mvp_anomaly_verify.py` |
+| P0 | 新增/打印 `drop_anomaly`，验证 SOH 骤降是否能被预测落差识别 | `evaluation/anomaly_detection.py` / MVP |
+| P1 | 实现 `trajectory_deviation`，并和 `drop_anomaly` 分开输出 AUC | `evaluation/anomaly_detection.py` |
+| P1 | 在 MVP 上同时打印各信号 AUC，不要只看 `combined` | `experiments/mvp_anomaly_verify.py` |
+| P1 | 诊断打印：fault 点预测落差、fault 后 clean-vs-fault 预测差、特征 L1 变化 | `experiments/mvp_anomaly_verify.py` |
+| P2 | 若 `self_jump_drop` / `self_lithium_plating` AUC > 0.65，再扩展完整 Exp-12 | `experiments/run_exp12_anomaly_detection.py` |
+| P3 | 分析最终结果，决定是否写入论文；若仍失败，Exp-12 不写入主线 | — |
 
 ---
 

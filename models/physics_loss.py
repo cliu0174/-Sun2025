@@ -284,10 +284,11 @@ class PhysicsConstrainedLoss(nn.Module):
 
     def smoothness_loss(self, predictions, battery_ids, cycle_indices):
         """
-        平滑性约束：SOH 的变化应该平滑（二阶差分小）- 全 batch 向量化版本
+        速率连续性约束：相邻 SOH 变化率的变化应平滑。
 
         通过按 (battery_id, cycle_idx) 全局排序，使同一电池的样本连续排列，
-        然后用向量化的二阶差分 + mask 过滤跨电池边界的无效差分。
+        再以实际循环间隔归一化一阶差分，避免不同采样间隔把普通二阶
+        差分误当成速率跳变。
 
         Args:
             predictions: (batch_size, 1) 预测值
@@ -321,15 +322,18 @@ class PhysicsConstrainedLoss(nn.Module):
         sorted_bid    = bid_tensor[sort_order]
         sorted_cycles = cycle_indices[sort_order]
 
-        # 一阶差分（相邻样本）
-        first_diff = sorted_preds[1:] - sorted_preds[:-1]
-        # 二阶差分
-        second_diff = first_diff[1:] - first_diff[:-1]
+        cycle_step = (sorted_cycles[1:] - sorted_cycles[:-1]).to(sorted_preds.dtype)
+        valid_step = cycle_step > 0
+        first_rate = (sorted_preds[1:] - sorted_preds[:-1]) / cycle_step.clamp_min(1.0)
+        rate_change = first_rate[1:] - first_rate[:-1]
 
-        # 掩码：三个连续样本必须都在同一电池
-        # second_diff[k] 来自 sorted_preds[k], [k+1], [k+2]
-        second_valid = (sorted_bid[2:] == sorted_bid[1:-1]) & \
-                       (sorted_bid[1:-1] == sorted_bid[:-2])
+        # 三个相邻端点均属于同一电池，且两段循环间隔均为正。
+        second_valid = (
+            (sorted_bid[2:] == sorted_bid[1:-1])
+            & (sorted_bid[1:-1] == sorted_bid[:-2])
+            & valid_step[:-1]
+            & valid_step[1:]
+        )
 
         # 跳过容量回升阶段：三元组中最早的样本 [k] 须 >= min_cycle
         # 因为已按 cycle 升序排列，[k] 最小，只需检查 [k]
@@ -340,7 +344,7 @@ class PhysicsConstrainedLoss(nn.Module):
         if num_valid == 0:
             return torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
 
-        total_loss = torch.sum((second_diff ** 2) * second_valid.to(predictions.dtype))
+        total_loss = torch.sum((rate_change ** 2) * second_valid.to(predictions.dtype))
         return total_loss / num_valid
 
     def forward(self, predictions, targets, battery_ids=None, cycle_indices=None,

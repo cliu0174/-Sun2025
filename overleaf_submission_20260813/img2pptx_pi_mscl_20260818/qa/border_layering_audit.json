@@ -1,0 +1,47 @@
+{
+  "components": [
+    {
+      "component": "panel_a",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    },
+    {
+      "component": "panel_b",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    },
+    {
+      "component": "fusion",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    },
+    {
+      "component": "lstm",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    },
+    {
+      "component": "regression",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    },
+    {
+      "component": "objective",
+      "fill_only_background": true,
+      "separate_outline": true,
+      "outline_last": true,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

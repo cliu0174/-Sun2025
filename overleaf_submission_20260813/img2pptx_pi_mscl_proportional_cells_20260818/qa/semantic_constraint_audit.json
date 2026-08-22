@@ -1,0 +1,43 @@
+{
+  "checks": {
+    "panels.order": true,
+    "input.dimension": true,
+    "input.purple_cells": true,
+    "cnn.branch_order_colors": true,
+    "cnn.slanted_multicolor_grids": true,
+    "cnn.row_major_gradient": true,
+    "cnn.temporal_cell_ratio": true,
+    "cnn.dimensions": true,
+    "fusion.tensor_3d": true,
+    "model.flow": true,
+    "lstm.two_layers": true,
+    "supervision.sparse_markers": true,
+    "monotonicity.violation": true,
+    "rate.kink": true,
+    "objective.three_inputs": true,
+    "objective.formula": true,
+    "canvas.no_raster": true,
+    "input.no_soh_target": true,
+    "cnn.exactly_three": true,
+    "objective.no_extra_edge": true
+  },
+  "human_review": {
+    "reviewed_files": [
+      "qa/pptx_slide_preview.png",
+      "qa/component_crops/multiscale_cnn_render.png",
+      "qa/semantic_review_sheet.png"
+    ],
+    "reviewer": "primary-agent-plus-independent-visual-QA-subagent",
+    "status": "passed",
+    "confirmed": [
+      "each blue, green, and purple branch uses 8x3, 4x3, and 2x3 front grids for the 40, 20, and 10 stages",
+      "the temporal column-count ratio is exactly 4:2:1 while three rows and five stacked planes remain constant",
+      "all nine front grids preserve monotonic row-major lightening",
+      "outer widths decrease approximately 100, 76, and 52 pixels and all stage labels remain centered",
+      "dashed arrows, branch outputs, and Fuse connections remain unobstructed",
+      "no clipping, overlap, text collision, or layout imbalance is visible"
+    ],
+    "non_blocking_note": "At normal full-slide scale the within-row gradient is subtler than in the zoomed module, but the stage cell counts, direction, and multilevel shading remain readable."
+  },
+  "passed": true
+}

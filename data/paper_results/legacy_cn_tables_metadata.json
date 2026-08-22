@@ -1,0 +1,23 @@
+{
+  "source_id": "cn_docx_20260806",
+  "source_document": "latex/els-cas-templates/soh_cn_version.docx",
+  "role": "legacy manuscript result registry",
+  "protocol_status": "not equivalent to the fixed-split v3_leakage_free protocol",
+  "known_limitations": [
+    "No complete per-seed prediction archive was found locally for these tables.",
+    "The visible tables do not expose split, mask, and initialization seeds separately.",
+    "The historical pipeline predates the leakage-free standardization and battery-boundary-preserving windowing audit.",
+    "Table 3 and Table 5 contain different RMSE values for similarly named CNN-LSTM and PI-MSCL comparisons; table identity must therefore be preserved.",
+    "The values are point estimates only; no error bars or significance claims may be reconstructed without raw repeats."
+  ],
+  "permitted_uses": [
+    "Trace the quantitative claims made by the Chinese manuscript.",
+    "Generate explicitly labelled legacy candidate figures.",
+    "Support historical/development discussion without mixing with v3 results."
+  ],
+  "prohibited_uses": [
+    "Relabel as fixed-split leakage-free results.",
+    "Pool with v3_leakage_free runs.",
+    "Infer standard deviations, confidence intervals, or p-values."
+  ]
+}

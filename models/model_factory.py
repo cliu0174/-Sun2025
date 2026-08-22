@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, Union
 from .baseline_models import FNN, CNN, LSTM, GRU, BiLSTM, BiGRU, MLP, ResCNN, XGBoost_Simple, XGBoost_Enhanced
 from .cnn_lstm import CNN_LSTM, CNN_BiLSTM, CNN_MLP
 from .cnn_lstm_v2 import MultiScaleCNN_LSTM  # V2 架构支线（独立，不影响原有模型）
+from .literature_baselines import CNNBiGRUAttention, TransformerSOH
 
 
 class ConfigLoader:
@@ -123,6 +124,8 @@ class ModelFactory:
         'cnn_lstm_pseudo_label',     # Exp-06: CNN-LSTM + M2 MC Dropout + M6 伪标签
         'cnn_lstm_full_stack',       # Exp-07: Full Stack M1+M2+M4+M5+M6+M7
         'ms_cnn_lstm_v2',            # V2 支线: 多尺度CNN + M3 LayerNorm
+        'transformer_soh',           # Shu et al. (2025), fair-protocol reimplementation
+        'cnn_bigru_attention',       # Wu et al. (2025), fair-protocol reimplementation
         'xgboost_simple', 'xgboost_enhanced'
     ]
 
@@ -224,6 +227,14 @@ class ModelFactory:
             config_copy = config.copy()
             config_copy['architecture'] = arch
             return ModelFactory._create_ms_cnn_lstm_v2(config_copy)
+        elif model_type == 'transformer_soh':
+            config_copy = config.copy()
+            config_copy['architecture'] = arch
+            return ModelFactory._create_transformer_soh(config_copy)
+        elif model_type == 'cnn_bigru_attention':
+            config_copy = config.copy()
+            config_copy['architecture'] = arch
+            return ModelFactory._create_cnn_bigru_attention(config_copy)
         elif model_type == 'xgboost_simple':
             return ModelFactory._create_xgboost_simple(arch)
         elif model_type == 'xgboost_enhanced':
@@ -378,6 +389,16 @@ class ModelFactory:
     def _create_ms_cnn_lstm_v2(config: Dict[str, Any]) -> MultiScaleCNN_LSTM:
         """创建 V2 多尺度 CNN-LSTM 模型（独立支线）。"""
         return MultiScaleCNN_LSTM(config)
+
+    @staticmethod
+    def _create_transformer_soh(config: Dict[str, Any]) -> TransformerSOH:
+        """Create the fair-protocol Transformer-SOH baseline."""
+        return TransformerSOH(config)
+
+    @staticmethod
+    def _create_cnn_bigru_attention(config: Dict[str, Any]) -> CNNBiGRUAttention:
+        """Create the fair-protocol CNN--BiGRU--attention baseline."""
+        return CNNBiGRUAttention(config)
 
     @staticmethod
     def _create_xgboost_simple(arch: Dict[str, Any]) -> XGBoost_Simple:

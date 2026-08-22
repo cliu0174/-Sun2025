@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="800" viewBox="0 0 1760 800">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5c6770"/></marker>
+    <marker id="orange" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#cc8737"/></marker>
+    <marker id="red" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#ad5559"/></marker>
+    <style>
+      text{font-family:"Times New Roman",serif;fill:#252a2e}.title{font-size:19px;font-weight:bold}.section{font-size:15px;font-weight:bold}.label{font-size:13px;font-weight:bold}.small{font-size:11px}.tiny{font-size:10px}.panel{fill:#fff;stroke:#b8bec5;stroke-width:1.2}.box{stroke-width:1.2}.edge{fill:none;stroke:#5c6770;stroke-width:1.4;marker-end:url(#arrow)}.orange{fill:none;stroke:#cc8737;stroke-width:1.45;marker-end:url(#orange)}.red{fill:none;stroke:#ad5559;stroke-width:1.45;marker-end:url(#red)}
+    </style>
+  </defs>
+  <rect x="20" y="20" width="1720" height="375" rx="8" class="panel"/><text x="38" y="48" class="title">(a) PI-MSCL architecture</text>
+  <rect x="20" y="415" width="1720" height="365" rx="8" class="panel"/><text x="38" y="443" class="title">(b) Sparse-label physics-informed learning</text>
+  <rect x="62" y="150" width="188" height="104" rx="8" fill="#f7fafc" stroke="#8697a8" class="box"/>
+  <text x="156" y="178" text-anchor="middle" class="label">Charging-feature sequence</text><text x="156" y="201" text-anchor="middle" class="small">Xᵢ,ₜ ∈ R⁴⁰×¹⁴</text><text x="156" y="221" text-anchor="middle" class="small">40 cycles × 14 features</text>
+  <path d="M80 238 L93 227 L106 235 L119 214 L132 222 L145 203 L158 211 L171 189 L184 197 L197 178 L210 186" fill="none" stroke="#6e7f90" stroke-width="1.5"/>
+  <text x="470" y="80" text-anchor="middle" class="section">Multi-scale temporal encoder</text>
+  <text x="285" y="113" class="label" fill="#2f6f8f">Short scale (k = 3)</text>
+  <text x="285" y="208" class="label" fill="#347e65">Intermediate scale (k = 7)</text>
+  <text x="285" y="303" class="label" fill="#78609a">Broad scale (k = 15)</text>
+  <g fill="#e3f0f5" stroke="#4d89a2" class="box"><rect x="290" y="125" width="150" height="48" rx="7"/><rect x="465" y="125" width="150" height="48" rx="7"/></g>
+  <g fill="#e0f1ea" stroke="#4d9b80" class="box"><rect x="290" y="220" width="150" height="48" rx="7"/><rect x="465" y="220" width="150" height="48" rx="7"/></g>
+  <g fill="#eee7f5" stroke="#9079af" class="box"><rect x="290" y="315" width="150" height="48" rx="7"/><rect x="465" y="315" width="150" height="48" rx="7"/></g>
+  <g text-anchor="middle"><text x="365" y="145" class="small">Conv1D (64, k=3)</text><text x="365" y="160" class="tiny">BN + ReLU + MaxPool (2)</text><text x="540" y="145" class="small">Conv1D (64, k=3)</text><text x="540" y="160" class="tiny">BN + ReLU + MaxPool (2)</text><text x="365" y="240" class="small">Conv1D (64, k=7)</text><text x="365" y="255" class="tiny">BN + ReLU + MaxPool (2)</text><text x="540" y="240" class="small">Conv1D (64, k=7)</text><text x="540" y="255" class="tiny">BN + ReLU + MaxPool (2)</text><text x="365" y="335" class="small">Conv1D (64, k=15)</text><text x="365" y="350" class="tiny">BN + ReLU + MaxPool (2)</text><text x="540" y="335" class="small">Conv1D (64, k=15)</text><text x="540" y="350" class="tiny">BN + ReLU + MaxPool (2)</text></g>
+  <g text-anchor="middle" class="tiny"><text x="453" y="188" fill="#2f6f8f">40×14 → 20×64 → 10×64</text><text x="453" y="283" fill="#347e65">40×14 → 20×64 → 10×64</text><text x="453" y="378" fill="#78609a">40×14 → 20×64 → 10×64</text></g>
+  <path d="M250 180 H270 V149 H290" class="edge"/><path d="M250 202 H270 V244 H290" class="edge"/><path d="M250 224 H270 V339 H290" class="edge"/><path d="M440 149 H465 M440 244 H465 M440 339 H465" class="edge"/>
+  <rect x="710" y="165" width="210" height="138" rx="8" fill="#e8eff7" stroke="#587da7" class="box"/><text x="815" y="193" text-anchor="middle" class="label">Multi-scale feature fusion</text><text x="815" y="215" text-anchor="middle" class="small">Concatenate: 3×(10×64) → 10×192</text><text x="815" y="237" text-anchor="middle" class="small">1×1 Conv, 192→128 + BN + ReLU</text><text x="815" y="260" text-anchor="middle" class="small">Output: 10×128</text>
+  <path d="M615 149 H670 V197 H710 M615 244 H710 M615 339 H670 V275 H710" class="edge"/>
+  <rect x="980" y="165" width="185" height="138" rx="8" fill="#fff5d7" stroke="#c6a24a" class="box"/><text x="1072" y="195" text-anchor="middle" class="label">Two-layer LSTM</text><text x="1072" y="218" text-anchor="middle" class="small">Temporal length: 10</text><text x="1072" y="240" text-anchor="middle" class="small">Hidden units: 64</text><text x="1072" y="262" text-anchor="middle" class="small">Dropout: 0.4</text>
+  <rect x="1225" y="165" width="190" height="138" rx="8" fill="#fbebd9" stroke="#d28b42" class="box"/><text x="1320" y="195" text-anchor="middle" class="label">Regression head</text><text x="1320" y="218" text-anchor="middle" class="small">Final hidden state</text><text x="1320" y="240" text-anchor="middle" class="small">FC (64) → ReLU</text><text x="1320" y="262" text-anchor="middle" class="small">Dropout (0.4) → Sigmoid</text>
+  <rect x="1480" y="178" width="180" height="112" rx="12" fill="#f4f5f7" stroke="#555e68" class="box"/><text x="1570" y="212" text-anchor="middle" class="label">ŷᵢ,ₜ</text><text x="1570" y="237" text-anchor="middle" class="small">Predicted SOH</text><text x="1570" y="258" text-anchor="middle" class="small">ŷᵢ,ₜ ∈ (0, 1)</text>
+  <path d="M920 234 H980 M1165 234 H1225 M1415 234 H1480" class="edge"/>
+  <rect x="90" y="515" width="220" height="65" rx="8" fill="#fff3e8" stroke="#d98936" class="box"/><text x="200" y="541" text-anchor="middle" class="label">Retained SOH targets</text><text x="200" y="561" text-anchor="middle" class="tiny">yᵢ,ₜ = min(Qᵢ,ₜ / Qᵢ,₀, 1)</text>
+  <rect x="90" y="605" width="220" height="65" rx="8" fill="#fff3e8" stroke="#d98936" class="box"/><text x="200" y="631" text-anchor="middle" class="label">Mask</text><text x="200" y="650" text-anchor="middle" class="tiny">mᵢ,ₜ ∈ {0,1}; labelled endpoints only</text>
+  <rect x="370" y="540" width="210" height="80" rx="8" fill="#f4f5f7" stroke="#555e68" class="box"/><text x="475" y="570" text-anchor="middle" class="label">Model predictions ŷ</text><text x="475" y="591" text-anchor="middle" class="tiny">all training feature windows</text>
+  <path d="M1570 290 V470 H475 V540" class="edge"/>
+  <rect x="660" y="500" width="220" height="95" rx="8" fill="#fff3e8" stroke="#d98936" class="box"/><text x="770" y="528" text-anchor="middle" class="label">Masked supervised regression</text><text x="770" y="550" text-anchor="middle" class="small">Masked MSE</text><text x="770" y="573" text-anchor="middle" class="label">Lₛᵤₚ</text>
+  <rect x="660" y="620" width="220" height="75" rx="8" fill="#f8e9e9" stroke="#b55458" class="box"/><text x="770" y="647" text-anchor="middle" class="label">Ordered trajectory predictions</text><text x="770" y="669" text-anchor="middle" class="tiny">ŷᵢ,cₐ ŷᵢ,cᵦ; 1 ≤ Δc ≤ 40, cₐ ≥ 300</text>
+  <rect x="970" y="620" width="175" height="75" rx="8" fill="#f8e9e9" stroke="#b55458" class="box"/><text x="1057" y="650" text-anchor="middle" class="label">Soft monotonicity</text><text x="1057" y="675" text-anchor="middle" class="label">Lₘₒₙₒ</text>
+  <rect x="970" y="715" width="175" height="50" rx="8" fill="#f8e9e9" stroke="#b55458" class="box"/><text x="1057" y="738" text-anchor="middle" class="label">Local rate continuity</text><text x="1057" y="756" text-anchor="middle" class="tiny">Predicted-rate smoothness · Lᵣₐₜₑ</text>
+  <rect x="1320" y="575" width="340" height="125" rx="8" fill="#f2d7d7" stroke="#a5484d" stroke-width="1.4"/><text x="1490" y="610" text-anchor="middle" class="label">Training objective</text><text x="1490" y="645" text-anchor="middle" class="section">L = Lₛᵤₚ + λₘₒₙₒLₘₒₙₒ + λᵣₐₜₑLᵣₐₜₑ</text>
+  <path d="M310 547 H660 M310 637 H620 V570 H660 M580 560 H660" class="orange"/><path d="M580 592 H620 V657 H660 M580 607 H620 V740 H970 M880 657 H970" class="red"/><path d="M880 547 H1200 V606 H1320 M1145 657 H1320 M1145 740 H1200 V670 H1320" class="orange"/>
+  <path d="M700 680 l18 -12 l18 9 l18 -16 l18 5" fill="none" stroke="#4d9b80" stroke-width="2.2"/><path d="M738 669 L756 658" stroke="#b55458" stroke-width="3.5"/>
+</svg>

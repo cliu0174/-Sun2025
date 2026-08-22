@@ -1,0 +1,13 @@
+{
+  "layout": true,
+  "standalone": true,
+  "containment": true,
+  "alignment": true,
+  "border_layering": true,
+  "semantic": true,
+  "constraint_coverage": true,
+  "pptx_package": true,
+  "pptx_preview": true,
+  "human_review": true,
+  "passed": true
+}

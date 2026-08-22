@@ -1,0 +1,45 @@
+{
+  "checks": {
+    "panels.order": true,
+    "input.dimension": true,
+    "input.purple_cells": true,
+    "cnn.branch_order_colors": true,
+    "cnn.slanted_multicolor_grids": true,
+    "cnn.row_major_gradient": true,
+    "cnn.dimensions": true,
+    "fusion.tensor_3d": true,
+    "model.flow": true,
+    "lstm.two_layers": true,
+    "supervision.sparse_markers": true,
+    "monotonicity.violation": true,
+    "rate.kink": true,
+    "objective.three_inputs": true,
+    "objective.formula": true,
+    "canvas.no_raster": true,
+    "input.no_soh_target": true,
+    "cnn.exactly_three": true,
+    "objective.no_extra_edge": true
+  },
+  "human_review": {
+    "reviewed_files": [
+      "qa/pptx_slide_preview.png",
+      "qa/component_crops/multiscale_cnn_render.png",
+      "qa/component_crops/fusion_render.png",
+      "qa/semantic_review_sheet.png"
+    ],
+    "reviewer": "primary-agent-plus-independent-visual-QA-subagent",
+    "status": "passed",
+    "confirmed": [
+      "all nine Conv1D front grids lighten monotonically in row-major order from top-left to bottom-right",
+      "blue, green, and purple gradient families remain distinct",
+      "the fused tensor has a front plane, visible top and right facets, and five displaced depth layers",
+      "Fuse-to-tensor and tensor-to-LSTM arrows remain unobstructed",
+      "no clipping, text collision, broken connector, or spacing imbalance is visible"
+    ],
+    "non_blocking_notes": [
+      "Adjacent light cells may appear subtle under extreme downscaling or low-quality printing.",
+      "The purple branch starts darker than the blue and green branches, which increases branch distinction without upsetting the layout."
+    ]
+  },
+  "passed": true
+}

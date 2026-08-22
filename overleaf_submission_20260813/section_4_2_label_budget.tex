@@ -1,0 +1,55 @@
+% Chapter 4, Section 4.2 -- formal values and final conclusions pending.
+\subsection{SOH estimation under different label budgets}
+\label{subsec:main_results}
+
+To test whether PI-MSCL retained cross-cell SOH-estimation capability as numerical supervision became scarce, we evaluated the complete model at label budgets of 100\%, 50\%, 30\%, 10\%, and 5\%. Table~\ref{tab:pi_mscl_label_budget} is reserved for the corresponding MAE, RMSE, and $R^2$ values on the fully held-out test cells. Each entry will be reported as the mean $\pm$ standard deviation across the paired repetitions specified in Section~\ref{subsec:experimental_setup}; no single-run value will be used as the main result.
+
+\begin{table}[t]
+\caption{PI-MSCL performance across SOH-label budgets. Values are formal mean $\pm$ standard deviation across paired repetitions. \textit{[Placeholder: replace all entries with the archived multi-seed results.]}}
+\label{tab:pi_mscl_label_budget}
+\centering
+\small
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc@{}}
+\toprule
+Label budget & MAE (\%) $\downarrow$ & RMSE (\%) $\downarrow$ & $R^2$ $\uparrow$ \\
+\midrule
+100\% & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+50\%  & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+30\%  & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+10\%  & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+5\%   & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Figure~\ref{fig:label_budget_trends} will show how MAE and RMSE change with the available label budget, contrasting PI-MSCL with the pre-specified representative baseline MS--CNN--LSTM under the identical protocol. \textit{[Result placeholder: after formal results are available, describe the observed error trend and the uncertainty across repetitions without attributing it to any individual module.]}
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox[c][45mm][c]{0.88\linewidth}{\centering
+\textbf{Figure 3 placeholder}\\[3mm]
+MAE and RMSE versus SOH-label budget for PI-MSCL and MS--CNN--LSTM.\\
+\textit{Replace with the plot generated from the formal 100/50/30/10/5\% paired results.}}}
+\caption{Point-estimation performance across SOH-label budgets. \textit{[Placeholder: replace with the formal mean $\pm$ standard deviation curves for PI-MSCL and MS--CNN--LSTM.]}}
+\label{fig:label_budget_trends}
+\end{figure}
+
+To complement the aggregate metrics, Figure~\ref{fig:severe_scarcity_trajectories} will display the true and predicted SOH trajectories for three fully held-out cells under the 5\% label budget. The cells will represent slow, intermediate, and rapid degradation, respectively, and will be selected only from the final test-result archive. \textit{[Result placeholder: replace with the three preselected held-out trajectories and report only the trajectory-level observations supported by the figure.]}
+
+\begin{figure}[t]
+\centering
+\begin{minipage}[t]{0.31\linewidth}
+\centering
+\fbox{\parbox[c][32mm][c]{0.90\linewidth}{\centering\footnotesize Slow-degradation test cell\\\textit{TBD}}}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.31\linewidth}
+\centering
+\fbox{\parbox[c][32mm][c]{0.90\linewidth}{\centering\footnotesize Intermediate-degradation test cell\\\textit{TBD}}}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.31\linewidth}
+\centering
+\fbox{\parbox[c][32mm][c]{0.90\linewidth}{\centering\footnotesize Rapid-degradation test cell\\\textit{TBD}}}
+\end{minipage}
+\caption{Representative PI-MSCL trajectories under severe label scarcity (5\% labels). \textit{[Placeholder: replace with predictions and true SOH for three fully held-out test cells; do not reuse legacy trajectories from a different label-budget protocol.]}}
+\label{fig:severe_scarcity_trajectories}
+\end{figure}

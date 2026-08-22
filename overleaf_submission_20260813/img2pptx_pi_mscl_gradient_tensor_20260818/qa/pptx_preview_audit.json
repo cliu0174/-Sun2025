@@ -1,0 +1,11 @@
+{
+  "svg_to_pptx_preview_mae": 1.9961328506469727,
+  "foreground_mae": 8.750061988830566,
+  "slide_size_pixels": [
+    1672,
+    941
+  ],
+  "text_readability_review": "passed",
+  "review_evidence": "Actual PowerPoint-exported preview inspected after the gradient/tensor revision and after correcting the standalone multiscale-CNN module bounds; no clipping, overlap, missing element, broken connector, or text collision remains.",
+  "passed": true
+}

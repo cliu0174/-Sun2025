@@ -1,0 +1,26 @@
+{
+  "model_type": "CNN_BIGRU_ATTENTION",
+  "model_name": "CNN-BiGRU-Attention (literature-aligned baseline)",
+  "architecture": {
+    "input_size": -1,
+    "cnn_channels": [64, 64],
+    "kernel_size": 3,
+    "hidden_size": 64,
+    "num_layers": 2,
+    "attention_size": 64,
+    "head_hidden_size": 64,
+    "dropout_rate": 0.1
+  },
+  "training": {
+    "num_epochs": 200,
+    "batch_size": 1024,
+    "learning_rate": 0.0005,
+    "optimizer": "Adam",
+    "loss_function": "MSELoss",
+    "scheduler": {"enabled": true, "type": "WarmupCosineDecay", "warmup_epochs": 20, "warmup_lr": 0.002, "base_lr": 0.005, "final_lr": 0.0001},
+    "early_stopping": {"enabled": true, "patience": 20, "min_delta": 1e-05}
+  },
+  "data": {"window_size": 40, "shuffle": true, "normalize_target": true},
+  "physics_constraints": {"enabled": false, "base_loss_weight": 1.0, "monotonic_weight": 0.0, "boundary_weight": 0.0, "smoothness_weight": 0.0},
+  "description": "Core CNN-BiGRU-attention architecture adapted from Wu et al., World Electric Vehicle Journal 16 (2025) 487, DOI: 10.3390/wevj16090487; no Hiking Optimization Algorithm is used."
+}

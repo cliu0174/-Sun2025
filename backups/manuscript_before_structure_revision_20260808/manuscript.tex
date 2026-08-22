@@ -1,0 +1,655 @@
+% Springer Nature journal article template, Version 3.1 (December 2024)
+% Project: PI-MSCL battery SOH estimation
+% Reference style follows the supplied single-column sn-mathphys-num template.
+
+\documentclass[pdflatex,sn-mathphys-num]{sn-jnl}
+
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{array}
+
+% Float rhythm follows the manually polished companion Springer manuscript.
+\setcounter{topnumber}{2}
+\setcounter{totalnumber}{3}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.85}
+\setlength{\textfloatsep}{15pt plus 3pt minus 3pt}
+\setlength{\floatsep}{13pt plus 3pt minus 3pt}
+
+\raggedbottom
+
+\begin{document}
+
+\title[PI-MSCL under sparse supervision]{Physics-Informed Multi-Scale CNN-LSTM for Lithium-Ion Battery State-of-Health Estimation under Sparse Cycle-Level Supervision}
+
+\author[1]{\fnm{Chang} \sur{Liu}}
+
+\author*[1]{\fnm{Congyan} \sur{Chen}}\email{chency@seu.edu.cn}
+
+\affil[1]{\orgdiv{School of Automation}, \orgname{Southeast University}, \orgaddress{\street{No.2 Sipailou}, \city{Nanjing}, \postcode{210096}, \country{China}}}
+
+\abstract{Accurate state-of-health (SOH) estimation is essential for lithium-ion battery management, but reference-capacity-derived SOH targets are costly to obtain. This study formulates a controlled sparse-label benchmark on the fully labeled HUST dataset. A fixed proportion of cycle-level targets is retained within every training cell, while complete feature trajectories and fully labeled unseen-cell evaluation are preserved. A physics-informed multi-scale CNN-LSTM, termed PI-MSCL, combines three temporal convolutional receptive fields, recurrent cross-cycle modeling, masked data fitting, and a soft monotonic trajectory constraint. A leakage-controlled $2\times2$ experiment with three paired repetitions separates multi-scale and physical-constraint effects at label-retention ratios of 1.0, 0.7, 0.5, and 0.3. Four complementary baselines provide same-protocol comparisons at the two endpoint ratios. PI-MSCL attained the lowest full-supervision MAE among the eight evaluated models ($1.556\pm0.044\%$), although GRU attained the lowest RMSE and highest $R^2$. Reducing PI-MSCL supervision to 30\% increased its MAE to $1.677\pm0.128\%$, whereas attention CNN--LSTM attained the lowest MAE at this endpoint. At 70\% retention, the physical constraint reduced PI-MSCL MAE by 0.045 percentage points and improved all three trajectory metrics on average. At 30\% retention, it reduced the monotonicity-violation rate by 0.348 percentage points but did not provide a stable point-error gain across seeds. Complete operating trajectories can therefore supply structural supervision under a reduced SOH-label budget, but the resulting accuracy--trajectory-consistency trade-off precludes a universal advantage claim.}
+
+\keywords{Lithium-ion battery, state of health, partial lifecycle supervision, physics-informed learning, multi-scale CNN-LSTM, battery management system}
+
+\maketitle
+
+\section{Introduction}
+
+Lithium-ion batteries are core energy-storage components in electric vehicles, grid storage, and portable electronics. Reliable battery health monitoring is therefore essential for safe and economical operation. State of health (SOH) quantifies the relative loss of available capacity or power capability. Battery management systems (BMSs) use this indicator for safety warning, lifetime management, and maintenance decisions \cite{berecibar2016critical}. Recent reviews of second-life applications likewise identify SOH estimation as a bottleneck for safe reuse and operation \cite{vignesh2024state}. Degradation diagnostics show that aging is governed by coupled electrochemical and mechanical processes \cite{birkl2017degradation}. Loss of active material, solid-electrolyte-interphase growth, lithium inventory loss, and impedance increase alter the measured voltage, current, temperature, and charge-discharge response \cite{che2023health}. Multiscale studies show that degradation mechanisms evolve across coupled material and electrode scales \cite{zhang2023coupling}. Knee-point analyses further demonstrate that capacity-loss rates can change markedly within a lifecycle \cite{attia2022knees}. These measurable responses create an opportunity for data-driven SOH estimation. They also expose a central difficulty: operating trajectories are continuous, whereas reliable capacity calibration is often intermittent, costly, and unavailable throughout life.
+
+Existing SOH estimation studies have developed along two broad lines. Model-based and diagnostic approaches offer physical insight but often require controlled tests, engineered indicators, or parameter identification \cite{dubarry2022best}. Data-driven methods instead learn mappings from measurable charge-discharge signals to battery health. Early-cycle trajectories support lifetime prediction \cite{severson2019data}, while machine-learning pipelines demonstrate the value of operating-feature representations \cite{roman2021machine}. Related models jointly estimate state of charge and health \cite{ng2020predicting}, use partial charging curves \cite{lyu2021partial}, or combine convolutional features with ensemble regression under noisy observations \cite{yang2022robust}. These developments motivate more unified machine-learning descriptions of degradation across measurement and lifecycle scales \cite{li2022towards}.
+
+Deep sequence models extend this approach by representing nonlinear degradation and cross-cell variability. LSTM networks provide the recurrent foundation \cite{hochreiter1997long} and have been applied to online health estimation from charging data \cite{liu2023online}. CNN-BiLSTM attention models combine local curve representations with temporal dependencies \cite{zhu2022attention}, while Transformer-LSTM architectures target fast-charging conditions \cite{fan2023online}. GRU-based models incorporate thermal response \cite{chen2022state}, and hybrid attention methods adaptively weight temporal features \cite{zhao2023state}. Other studies reduce experimental burden through domain adaptation \cite{lu2023deep}, personalized transfer learning \cite{ma2022real}, cycle synchronization \cite{zhou2022transfer}, or graph representations of partial discharge curves \cite{zhou2024graph}. Despite these advances, conventional supervised training still benefits from sufficiently dense SOH targets.
+
+However, most supervised data-driven models are developed with dense target coverage: each training cycle or sampled window is paired with a capacity-derived SOH value. This assumption is convenient for benchmark construction but expensive to reproduce, because reliable SOH targets generally depend on reference capacity measurements rather than direct sensing. Recent label-efficient studies confirm that this bottleneck is substantive, but they instantiate label scarcity in different ways. Few-shot learning reduces the number of training examples available to a Bayesian estimator \cite{zhang2023fewshot}, whereas early-life labeled observations can be expanded through feature-informed data augmentation \cite{han2024limited}. Self-supervised learning with weak labels uses auxiliary degradation signals before fine-tuning on a smaller annotated set \cite{wang2024weaklabels}, and weakly supervised pre-training has recently been extended to extremely small sets of real SOH labels \cite{qian2026minimal}. Semi-supervised transfer learning \cite{li2020state}, unlabeled charging data \cite{lin2023improving}, maritime battery monitoring \cite{salucci2023novel}, and selective pseudo-labeling with auxiliary tasks \cite{li2026auxiliary} provide further evidence that unannotated cycling data can support battery health estimation. These studies establish label efficiency as an important objective, but their supervision units and auxiliary information differ: scarcity may occur across cells, early-life samples, isolated curve segments, or weak and pseudo labels. The present study instead isolates a cycle-level SOH-label budget within every training cell while retaining the complete sequence of operating features and cycle order.
+
+Physics-informed learning provides a complementary mechanism for this setting because trajectory constraints do not require a true SOH target at every cycle. In the broader machine-learning literature, physics-informed neural networks and physics-informed machine learning incorporate governing relations or domain constraints into the learning objective to improve data efficiency and the admissibility of learned solutions \cite{raissi2019physics,karniadakis2021physics}. In battery applications, physics-guided models have been developed for SOH prognostics from partial charging segments \cite{kohtz2022physics}, stable degradation modeling and prognosis \cite{wang2024physics}, and neural-network estimation with explicit degradation constraints \cite{ye2024method}. Physics-informed prognostics and health-management studies further demonstrate the value of embedding battery knowledge into learned health representations \cite{wen2023physics}. Recent work has extended physics-aware estimation to partial charging profiles \cite{gu2026real}, varying operating conditions \cite{lin2025physics}, and different cell chemistries \cite{lin2025lightweight}. For sparse cycle-level supervision, physical consistency can therefore play a more specific role than an auxiliary penalty evaluated only at labeled samples: it can provide structural weak supervision along the retained feature trajectory. Because short-term capacity recovery and measurement fluctuation can produce local SOH increases, this prior should be implemented softly rather than as a hard monotonic rule.
+
+In this paper, we propose a physics-informed multi-scale CNN-LSTM framework, termed PI-MSCL, for lithium-ion battery SOH estimation under controlled sparse-label supervision. We use the fully labeled HUST dataset to construct a transparent test bed. Batteries are first separated into training, validation, and test sets. A fixed proportion of cycle-level SOH targets is then retained randomly within each training battery. Input features and cycle order remain complete, and validation and test batteries remain fully labeled. This artificial intervention measures robustness to a reduced label budget; it does not reproduce a naturally missing field-data process. PI-MSCL uses parallel one-dimensional convolutional branches to extract short-, medium-, and long-range degradation patterns. An LSTM then models cross-cycle health evolution. A masked supervised loss uses only retained labels, while a soft monotonic term penalizes excessive upward deviations after an early-cycle threshold. The two objectives combine calibrated observations with label-independent structural information.
+
+The main contributions of this study are as follows:
+\begin{itemize}
+  \item We define a reproducible, battery-stratified cycle-level masking protocol on HUST that varies the training-label budget while preserving complete operating trajectories and fully labeled cross-cell evaluation.
+  \item We develop PI-MSCL, a compact multi-scale CNN-LSTM that combines three temporal receptive fields with recurrent cross-cycle modeling and soft monotonic structural supervision.
+  \item We use a controlled two-factor comparison to separate the contribution of multi-scale representation from that of physical consistency under four label-retention ratios.
+  \item We evaluate not only pointwise SOH error but also trajectory-level monotonicity and upward-deviation behavior, allowing accuracy gains and physical plausibility to be interpreted without conflation.
+\end{itemize}
+
+The remainder of this paper is organized as follows. Section~\ref{sec:methodology} presents PI-MSCL and its learning objectives. Section~\ref{sec:experiments} defines the HUST dataset, sparse-label construction, comparison design, and evaluation metrics. Section~\ref{sec:results} reports the full-supervision benchmark, label-budget results, trajectory analysis, and ablation study. Section~\ref{sec:discussion} interprets the controlled experiment, failure modes, and external-validity boundary. Section~\ref{sec:conclusion} summarizes the findings.
+
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Problem formulation and learning interface}
+\label{subsec:problem_formulation}
+
+The target task is to estimate the SOH of an unseen lithium-ion cell from operating features extracted from its charging process. For a battery cell indexed by $i$, let $\mathbf{x}_{i,t}\in\mathbb{R}^{F}$ denote the feature vector extracted at cycle or window index $t$, where $F$ is the feature dimension. A model input is a fixed-length feature sequence
+\begin{equation}
+\mathbf{X}_{i,t}=\left[\mathbf{x}_{i,t-T+1},\mathbf{x}_{i,t-T+2},\ldots,\mathbf{x}_{i,t}\right]\in\mathbb{R}^{T\times F},
+\label{eq:input_sequence}
+\end{equation}
+where $T$ is the sequence length and $F$ is the input-feature dimension. The corresponding target is the normalized SOH value $y_{i,t}\in[0,1]$ at the final cycle of the window. Input windows are constructed independently within each battery, so no sequence can cross a cell boundary. Capacity and SOH are reserved for target construction and are never included in $\mathbf{X}_{i,t}$.
+
+The model receives a binary supervision indicator $m_{i,t}\in\{0,1\}$ together with each target position. An indicator of one permits direct data fitting, whereas an indicator of zero disables only the target-dependent term. The feature window, battery identity, and cycle index remain available in both cases. For a mini-batch $\mathcal{B}$, the masked supervised loss is
+\begin{equation}
+\mathcal{L}_{\mathrm{sup}}=
+\begin{cases}
+\dfrac{\sum_{(i,t)\in\mathcal{B}} m_{i,t}\left(\hat{y}_{i,t}-y_{i,t}\right)^2}
+{\sum_{(i,t)\in\mathcal{B}} m_{i,t}}, & \sum_{(i,t)\in\mathcal{B}}m_{i,t}>0,\\[6pt]
+0, & \text{otherwise},
+\end{cases}
+\label{eq:masked_mse}
+\end{equation}
+where $\hat{y}_{i,t}$ is the predicted SOH. A mini-batch without a labeled target contributes zero data loss but can still contribute physical loss. When all target labels are available, Eq.~\eqref{eq:masked_mse} reduces to the standard mean squared error. The experimental procedure used to construct $m_{i,t}$ and control the label budget is specified in Section~\ref{subsec:split_protocol}, rather than being treated as part of the model architecture.
+
+\subsection{Overview of PI-MSCL}
+\label{subsec:overview}
+
+PI-MSCL addresses three requirements of battery SOH estimation under sparse supervision: multi-scale feature extraction, cross-cycle state modeling, and physically admissible trajectory regularization. As illustrated in Fig.~\ref{fig:pimscl_framework}, the framework comprises a multi-scale one-dimensional convolutional extractor, an LSTM module, a bounded SOH regression head, and a physics-informed objective.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../../docs/PI-MSCL_architecture_v5_preview.pdf}
+  \caption{PI-MSCL under controlled sparse-label supervision.}
+  \label{fig:pimscl_framework}
+\end{figure}
+
+Figure~\ref{fig:pimscl_framework} follows the evidence path of the method. Panel (a) connects the complete operating-feature trajectory and sparse SOH targets to the learnable mapping. Three receptive-field scales extract local-to-long-range patterns, a two-layer LSTM propagates the fused representation, and a bounded regression head produces cycle-wise SOH estimates. Panel (b) separates the label-supported data path from the trajectory-structure path. Thus, a cycle without a retained SOH target still affects the learned representation and participates in the soft monotonic constraint through its prediction.
+
+\subsection{Multi-scale representation and temporal state modeling}
+\label{subsec:multiscale}
+
+Battery degradation signals contain information at different temporal scales. Short-range variations reflect local charge-response fluctuations and measurement dynamics between neighboring cycles. Medium-range patterns describe transitional changes over several cycles, such as shifts in charge duration or voltage statistics. Long-range patterns reflect the slower evolution of capacity fade and resistance-related behavior across a wider lifecycle window. A single convolutional kernel can only emphasize one receptive-field scale, which may be insufficient when the same feature sequence contains both local fluctuations and slowly varying degradation trends.
+
+To address this issue, PI-MSCL uses a three-branch multi-scale one-dimensional CNN module. Each branch receives the same input sequence but uses a different kernel size:
+\begin{equation}
+\mathbf{H}^{(s)}_{i,t}=\phi_{s}\left(\mathbf{X}_{i,t};k_s\right),
+\quad k_s\in\{3,7,15\},
+\label{eq:multiscale_branch}
+\end{equation}
+where $\phi_s(\cdot)$ denotes a branch containing two repeated Conv1D--batch-normalization--ReLU--max-pooling blocks. Same padding is used in the convolutions, and each pooling layer has kernel size and stride two. The three kernel sizes represent short-, medium-, and long-range receptive fields, respectively, while both convolutional layers in every branch contain 64 channels. For $T=40$, the two pooling operations reduce each aligned branch sequence to 10 temporal positions. The three outputs are concatenated along the channel dimension and fused by a $1\times1$ convolution:
+\begin{equation}
+\mathbf{H}_{i,t}=\phi_{\mathrm{fuse}}\left(
+\left[\mathbf{H}^{(3)}_{i,t};\mathbf{H}^{(7)}_{i,t};\mathbf{H}^{(15)}_{i,t}\right]
+\right),
+\label{eq:multiscale_fusion}
+\end{equation}
+where $[\cdot;\cdot;\cdot]$ denotes channel-wise concatenation and $\phi_{\mathrm{fuse}}(\cdot)$ maps the resulting 192 channels to 128 channels using Conv1D, batch normalization, and ReLU activation. This design changes the receptive-field structure without changing the downstream LSTM used by the single- and multi-scale variants.
+
+\noindent\textbf{Temporal state mapping.}
+After multi-scale feature fusion, the output sequence $\mathbf{H}_{i,t}$ is fed into an LSTM module to model the temporal evolution of battery health. LSTM networks are suitable for sequential modeling because their gated state updates can preserve relevant historical information while filtering transient noise \cite{hochreiter1997long}. In PI-MSCL, a two-layer LSTM with hidden dimension 64 is used:
+\begin{equation}
+\mathbf{Z}_{i,t}=\mathrm{LSTM}\left(\mathbf{H}_{i,t}\right),
+\label{eq:lstm_sequence}
+\end{equation}
+where $\mathbf{Z}_{i,t}$ is the sequence of hidden states. The last hidden state $\mathbf{z}_{i,t}^{\mathrm{last}}$ is treated as the degradation representation of the input window. It is passed through a fully connected regression head,
+\begin{equation}
+\hat{y}_{i,t}=\sigma\left(f_{\mathrm{fc}}\left(\mathbf{z}_{i,t}^{\mathrm{last}}\right)\right),
+\label{eq:soh_regression}
+\end{equation}
+where $f_{\mathrm{fc}}(\cdot)$ comprises a 64-unit fully connected layer, ReLU activation, dropout with probability 0.4, and a scalar output layer; $\sigma(\cdot)$ is the sigmoid function. The sigmoid mapping bounds the predicted SOH to $[0,1]$, consistent with normalized capacity-based SOH, and makes a separate boundary penalty unnecessary in the main configuration.
+
+\subsection{Physics-informed training objective}
+\label{subsec:objective}
+
+The supervised loss in Eq.~\eqref{eq:masked_mse} learns the numerical mapping between operating features and SOH when calibrated labels are available. However, when labels are sparse, the data-fitting term provides no direct gradient for unlabeled cycles. PI-MSCL therefore adds a soft monotonic physical consistency constraint to the predicted SOH trajectory. The constraint is based on the macroscopic degradation tendency that, after the early activation and measurement-fluctuation stage, battery SOH should generally follow a non-increasing trend.
+
+For a mini-batch, define the set of valid ordered pairs
+\begin{equation}
+\mathcal{P}=\left\{(a,b): i_a=i_b,\;0<c_b-c_a\leq K,\;c_a\geq c_{\min}\right\},
+\label{eq:pair_set}
+\end{equation}
+Here, $i_a=i_b$ requires both samples to belong to the same battery, and $c_a$ and $c_b$ are their cycle indices. The maximum permitted cycle gap is $K$, while $c_{\min}$ is the delayed activation threshold. The condition $c_a\geq c_{\min}$ prevents early-cycle capacity recovery or activation behavior from being over-penalized. The soft monotonic loss is
+\begin{equation}
+\mathcal{L}_{\mathrm{mono}}=
+\frac{1}{|\mathcal{P}|}
+\sum_{(a,b)\in\mathcal{P}}
+\omega_{a,b}\,
+\mathrm{ReLU}\left(\hat{y}_{i_b,c_b}-\hat{y}_{i_a,c_a}-\epsilon\right),
+\label{eq:mono_loss}
+\end{equation}
+where $\epsilon$ is the tolerance for small local upward fluctuations and $\omega_{a,b}$ is a temporal decay weight. The pair set is constructed within each mini-batch using battery and true cycle metadata; supervision indicators do not enter Eq.~\eqref{eq:mono_loss}. An exponential decay is used:
+\begin{equation}
+\omega_{a,b}=\exp\left[-\alpha\left(c_b-c_a\right)\right],
+\label{eq:temporal_decay}
+\end{equation}
+which gives stronger weight to nearby cycle pairs than to distant pairs. The main configuration uses $\epsilon=0.005$, $c_{\min}=300$, $K=40$, and $\alpha=0.2$.
+
+The full training objective is
+\begin{equation}
+\mathcal{L}=\mathcal{L}_{\mathrm{sup}}
++\lambda_{\mathrm{mono}}\mathcal{L}_{\mathrm{mono}},
+\label{eq:total_loss}
+\end{equation}
+where $\lambda_{\mathrm{mono}}=0.3$ in the main PI-MSCL configuration. Although the training library supports additional boundary and second-order smoothness terms, both are disabled in the main experiment. The reported method therefore combines the masked data loss with one explicit trajectory prior, making the architectural and physical contributions identifiable in the factorial comparison.
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\subsection{Datasets and SOH definition}
+\label{subsec:datasets}
+
+The study uses the public HUST lithium-ion battery degradation dataset \cite{Yuan2022HUSTDataset}. It contains full-lifecycle records from 77 LFP/graphite cells with a nominal capacity of 1.1 Ah and nominal voltage of 3.3 V. The cells were tested at 30~$^{\circ}$C using a common constant-current/constant-voltage charging procedure and multiple discharge profiles. The resulting collection contains substantial variation in lifetime, fading rate, and local capacity fluctuation across cells, allowing a battery-level split to test generalization to unseen cells. Using a public dataset also supports reproducible degradation analysis and is consistent with calls for standardized battery-data infrastructure \cite{ward2022principles}.
+
+SOH was defined as normalized capacity relative to the initial capacity of each cell:
+\begin{equation}
+\mathrm{SOH}_{i,t}=\frac{Q_{i,t}}{Q_{i,0}},
+\label{eq:soh_definition}
+\end{equation}
+where $Q_{i,t}$ is the measured capacity of cell $i$ at cycle $t$ and $Q_{i,0}$ is the initial measured capacity. This definition makes the target dimensionless and aligns the prediction range with the sigmoid-bounded output of PI-MSCL.
+
+HUST provides capacity measurements for all recorded cycles. Sparse supervision is therefore introduced only after the battery split as a controlled intervention on the training targets. The original measurements remain unchanged, and no HUST sample is presented as naturally unlabeled field data.
+
+\subsection{Feature construction and preprocessing}
+\label{subsec:features_preprocessing}
+
+The implementation reads the 16 charging-cycle features summarized in Table~\ref{tab:features}. The inputs describe voltage and current statistics, CC/CV charge throughput and duration, local signal slopes, and entropy-based complexity. The two slope descriptors complement the fourteen distributional, duration, throughput, and entropy features by representing local charging dynamics. The discharge-capacity column used to construct SOH is excluded from the input, preventing direct target leakage.
+
+\begin{table}[t]
+\caption{Charging-cycle features used for SOH estimation.}
+\label{tab:features}
+\centering
+\begin{tabular}{lll}
+\toprule
+Group & Feature & Description \\
+\midrule
+Voltage statistics & voltage mean & Mean voltage during the CC stage \\
+Voltage statistics & voltage std & Voltage fluctuation during the CC stage \\
+Voltage statistics & voltage kurtosis & Sharpness of the voltage distribution \\
+Voltage statistics & voltage skewness & Asymmetry of the voltage distribution \\
+CC-stage dynamics & CC Q & Charged capacity during the CC stage \\
+CC-stage dynamics & CC charge time & Duration of the CC charging stage \\
+Voltage dynamics & voltage slope & Local slope of the charging-voltage signal \\
+Voltage complexity & voltage entropy & Entropy-based complexity of the voltage signal \\
+Current statistics & current mean & Mean current during the CV stage \\
+Current statistics & current std & Current fluctuation during the CV stage \\
+Current statistics & current kurtosis & Sharpness of the current distribution \\
+Current statistics & current skewness & Asymmetry of the current distribution \\
+CV-stage dynamics & CV Q & Charged capacity during the CV stage \\
+CV-stage dynamics & CV charge time & Duration of the CV charging stage \\
+Current dynamics & current slope & Local slope of the charging-current signal \\
+Current complexity & current entropy & Entropy-based complexity of the current signal \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+No three-sigma row deletion or synthetic data-degradation transform is enabled in the main experiment, so lifecycle continuity is preserved. After the cells are assigned to training, validation, and test sets, a \texttt{StandardScaler} is fitted once using only the concatenated training-cell features. The fitted transformation is then applied unchanged to validation and test cells. In particular, no scaler is fitted independently on an unseen cell. Fixed-length windows of $T=40$ are subsequently generated within each battery, and the SOH at the final position is used as the many-to-one target.
+
+\subsection{Battery-level split and controlled sparse-label protocol}
+\label{subsec:split_protocol}
+
+All experiments use a battery-level split rather than a random cycle-level data split. Integer allocation of the 77 HUST cells at a 60/20/20 ratio gives 46 training cells, 15 validation cells, and 16 test cells. All cycles from a given cell remain in one subset. Test cells are therefore unseen during optimization, and the reported errors quantify cross-cell generalization rather than interpolation between cycles of a previously observed cell.
+
+After the split, the label-retention ratio $r$ controls the available SOH targets only within the training cells. For each training battery $i$, a seeded random sampler without replacement selects
+\begin{equation}
+  n_i^{\mathrm{lab}}=\max\left(1,\operatorname{round}(rN_i)\right)
+\end{equation}
+of its $N_i$ cycle-level targets and assigns $m_{i,t}=1$ to the selected indices. The remaining target indicators are zero. The experiment uses $r\in\{1.0,0.7,0.5,0.3\}$; $r=1.0$ is the full-supervision reference. Feature rows, cycle order, and windows are never removed by this operation. Validation and test cells remain fully labeled for model selection and final evaluation. Thus, the protocol measures sensitivity to a controlled within-battery label budget; it does not model a continuous missing interval, an early-life prefix, or a periodic field-calibration schedule.
+
+Battery-split, label-mask, and network-initialization seeds are recorded separately for every run. The primary matrix fixes the battery split at seed 42 and uses three paired repetitions. Training seeds are 929, 2262, and 7, with label-mask seeds 1929, 3262, and 1007, respectively. Within each repetition, all four factorial variants share the same split and label mask. Main tables report the arithmetic mean and sample standard deviation over these three runs. The present analysis does not average across alternative battery partitions, so all effect estimates remain conditional on the fixed split.
+
+\subsection{Compared models and ablation design}
+\label{subsec:baselines}
+
+The primary comparison is a controlled $2\times2$ factorial design implemented by one shared model class. The architecture factor switches between a single Conv1D stream with kernel size 7 and the proposed parallel streams with kernel sizes 3, 7, and 15. The physics factor switches the soft monotonic loss off or on. This produces single-scale CNN-LSTM, PI-CNN-LSTM, multi-scale CNN-LSTM, and PI-MSCL. All four variants use identical battery splits, input windows, preprocessing, LSTM and regression heads, optimizer settings, label masks, and stopping rules for a given run.
+
+This design defines a two-dimensional ablation matrix. Its axes compare single-scale with multi-scale representation and no-physics with soft monotonic physical consistency. The paired contrasts separate average architecture and constraint effects, while the interaction term tests whether their combination behaves additively.
+
+\begin{table}[t]
+\caption{Model variants used in the main comparisons and ablation analysis.}
+\label{tab:model_variants}
+\centering
+\begin{tabular}{lll}
+\toprule
+Model & Multi-scale CNN & Soft monotonic constraint \\
+\midrule
+CNN-LSTM & No & No \\
+PI-CNN-LSTM & No & Yes \\
+MS-CNN-LSTM & Yes & No \\
+PI-MSCL & Yes & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The factorial matrix is supplemented by a same-protocol baseline panel. XGBoost represents a classical non-neural regressor applied to flattened 40-cycle windows; LSTM and GRU represent recurrent sequence baselines without convolution; and an attention CNN-LSTM represents a recent temporal-weighting alternative to the proposed multi-scale receptive fields. These additional models use the same split seed, training cells, 16 input features, window length, retained-label masks, validation cells, and fully labeled test cells. To keep the expanded evaluation proportional to its supporting role, the additional panel is evaluated at the two endpoint budgets, $r=1.0$ and $r=0.3$, with the same three paired training and mask seeds. The primary four-model factorial matrix remains the only comparison used to estimate architecture and physics main effects across all four label ratios.
+
+The LSTM and GRU baselines each use two recurrent layers with hidden dimension 64 and the common 64-unit regression head. The attention CNN--LSTM uses convolutional channels 256 and 128 with kernel size 7, followed by the same two-layer LSTM and four-head self-attention with dropout 0.1. XGBoost uses 300 trees, maximum depth 6, learning rate 0.05, row and column subsampling of 0.8, and L1/L2 coefficients of 0.1/1.0. All neural baselines use the optimizer, scheduler, batch size, stopping rule, and label masks specified in Section~\ref{subsec:training_config}. No model is retuned after inspection of the test results; the panel is therefore a controlled same-protocol comparison, not a claim of architecture-specific optimal tuning.
+
+Published label-efficient SOH studies are used to position the experimental question rather than to construct a numerical leaderboard. As summarized in Table~\ref{tab:literature_protocols}, their datasets, label units, transfer assumptions, feature representations, and test protocols differ from the controlled HUST experiment. Directly ranking their reported errors against the present test MAE would therefore confound method quality with protocol choice.
+
+\begin{table}[t]
+\caption{Label-efficient SOH protocols related to the present study.}
+\label{tab:literature_protocols}
+\centering
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.10}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.21\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+Study & Label-scarcity setting & Main learning mechanism & Difference from this work \\
+\midrule
+Lu et al. \cite{lu2023deep} & No labels from the target battery domain & Domain-adaptive DNN ensemble across manufacturers & Cross-domain label absence rather than sparse cycle labels within each training cell \\
+Wang et al. \cite{wang2024weaklabels} & Reduced annotated fraction with weak-label pretraining & Self-supervised Transformer representation and fine-tuning & Pretraining and transfer protocol on other public datasets; not a controlled HUST mask \\
+Han et al. \cite{han2024limited} & Limited early-life labeled measurements & Feature-based data augmentation and staged ML prediction & Synthesizes additional training information from equivalent-circuit features \\
+Wang et al. \cite{wang2024physics} & Regular, small-sample, and transfer experiments & Learned degradation dynamics with data, monotonicity, and governing-equation losses & Broader multi-dataset physics-informed transfer problem with different features and metrics \\
+Present study & Fixed cycle-level label budget within every HUST training cell & Masked data fitting, multi-scale CNN-LSTM, and soft monotonicity & Isolates label-budget robustness under one fixed unseen-cell evaluation protocol \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Training, statistical aggregation, and evaluation}
+\label{subsec:training_config}
+\label{subsec:metrics}
+
+All variants use a sequence length of 40. PI-MSCL uses three convolutional branches with kernel sizes 3, 7, and 15; each branch contains two 64-channel layers, and the concatenated output is fused to 128 channels. The common temporal head is a two-layer LSTM with hidden dimension 64, followed by a 64-unit fully connected layer, ReLU, dropout of 0.4, a scalar layer, and sigmoid output. PI-MSCL contains 241,281 trainable parameters for the currently audited 16-feature input. Its physical settings are $\lambda_{\mathrm{mono}}=0.3$, $\epsilon=0.005$, $c_{\min}=300$, $K=40$, and $\alpha=0.2$.
+
+Models are optimized with Adam for at most 200 epochs using a batch size of 1024. The learning rate increases linearly from $2\times10^{-3}$ to $5\times10^{-3}$ over 20 warmup epochs and then follows cosine decay to $10^{-4}$. Early stopping monitors validation MAE with patience 20. Any strictly lower value updates the selected checkpoint, which is restored for testing. Every formal run archives the configuration, seed roles, battery lists, checkpoint, predictions, targets, battery identifiers, and true cycle indices. Main tables report mean $\pm$ sample standard deviation over runs explicitly marked as formal in the archive.
+
+\noindent\textbf{Evaluation metrics.}
+SOH estimation performance was evaluated using mean absolute error (MAE), root mean squared error (RMSE), and the coefficient of determination ($R^2$):
+\begin{align}
+\mathrm{MAE} &= \frac{1}{N}\sum_{n=1}^{N}\left|\hat{y}_{n}-y_{n}\right|, \\
+\mathrm{RMSE} &= \sqrt{\frac{1}{N}\sum_{n=1}^{N}\left(\hat{y}_{n}-y_{n}\right)^2}, \\
+R^2 &= 1-\frac{\sum_{n=1}^{N}\left(y_n-\hat{y}_n\right)^2}{\sum_{n=1}^{N}\left(y_n-\bar{y}\right)^2}.
+\end{align}
+MAE measures average prediction deviation, RMSE emphasizes large errors, and $R^2$ measures explained variance. All three are computed over every window of the fully labeled test cells. Trajectory metrics are then computed independently within each test battery after sorting predictions by the saved true cycle index. Let $\Delta\hat{y}_{i,t}=\hat{y}_{i,t+1}-\hat{y}_{i,t}$ for adjacent available predictions whose earlier cycle is at least $c_{\min}$. The monotonicity-violation rate, cumulative upward excess, and trajectory roughness are
+\begin{align}
+V_{\mathrm{mono}} &= 100\,\frac{\sum_{i,t}\mathbb{I}\!\left(\Delta\hat{y}_{i,t}>\epsilon\right)}{N_{\mathrm{pair}}},\\
+U_i &= \sum_t \max\left(\Delta\hat{y}_{i,t}-\epsilon,0\right),\\
+D_2 &= \frac{1}{N_{\mathrm{trip}}}\sum_{i,t}\left|\hat{y}_{i,t+2}-2\hat{y}_{i,t+1}+\hat{y}_{i,t}\right|.
+\end{align}
+The analysis reports $V_{\mathrm{mono}}$, $\bar{U}$ (the mean of $U_i$ across test cells), and $D_2$ (the mean absolute second difference over eligible adjacent triplets). The evaluation uses the same $\epsilon=0.005$ and $c_{\min}=300$ as training. Only adjacent pairs are included, giving the violation rate an unambiguous denominator. Qualitative selection follows a two-stage rule. First, test MAE is averaged across the four factorial variants for each paired mask/training-seed repetition. The repetition closest to the median of the three cross-model means is retained. Second, the MAE of each test cell is averaged across the four variants within that repetition. The representative battery is closest to the across-cell median; seeds and battery identifiers provide deterministic tie breakers. Thus, neither the displayed repetition nor the displayed cell is selected in favor of PI-MSCL or a visually desirable trajectory.
+\section{Results}
+\label{sec:results}
+
+% This result shell intentionally contains no legacy values. Formal values,
+% tables, and figures are populated only from non-smoke runs produced after the
+% battery-boundary and preprocessing-leakage corrections.
+\subsection{Performance across SOH-label budgets}
+\label{subsec:new_label_budget}
+
+Within the factorial family, PI-MSCL achieved the lowest dense-label mean MAE, $1.556\pm0.044\%$, followed by the unconstrained multi-scale model at $1.582\pm0.102\%$. The single-scale CNN--LSTM instead obtained the lowest RMSE ($2.948\pm0.076\%$) and the highest $R^2$ ($0.8357\pm0.0085$). Thus, the reduction in average absolute deviation did not coincide with a reduction in the larger residuals emphasized by RMSE. Under full supervision, the single-scale physical constraint increased mean MAE by 0.030 percentage points and RMSE by 0.110 percentage points. Its multi-scale counterpart reduced mean MAE by 0.026 percentage points and RMSE by 0.064 percentage points relative to the unconstrained model. The latter MAE change was nevertheless seed-sensitive, with improvement in only one of the three paired repetitions.
+
+The label-budget experiment retained the same fully labeled unseen test cells while decreasing the proportion of training targets. Figure~\ref{fig:label_budget_performance} and Tables~\ref{tab:label_budget_mae}--\ref{tab:label_budget_r2} show that none of the four models deteriorated monotonically with every reduction in $r$. The single-scale PI model produced the lowest mean MAE at $r=0.7$ and $r=0.5$ ($1.588\%$ and $1.598\%$, respectively), whereas PI-MSCL remained lowest at $r=1.0$. At $r=0.3$, the unconstrained multi-scale model achieved $1.634\pm0.057\%$ MAE, compared with $1.677\pm0.128\%$ for PI-MSCL. Relative to its own dense-label reference, PI-MSCL therefore incurred a 0.121-percentage-point MAE increase at 30\% label retention. The corresponding $R^2$ changed from $0.8317$ to $0.8251$, but its standard deviation increased from 0.0032 to 0.0238, indicating greater optimization sensitivity under the smaller label budget.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../../output/figures/formal_main_v3/fig3_performance_vs_label_budget_group.pdf}
+  \caption{Point-estimation performance across training-label budgets.}
+  \label{fig:label_budget_performance}
+\end{figure}
+
+\input{generated_results/table_label_budget.tex}
+\input{generated_results/table_label_budget_r2.tex}
+
+The physical constraint exhibited a budget-dependent rather than uniformly increasing benefit. For the single-scale model, it reduced mean MAE by 0.058 and 0.081 percentage points at $r=0.7$ and $r=0.5$. It instead increased MAE by 0.030 and 0.018 percentage points at $r=1.0$ and $r=0.3$. For the multi-scale model, MAE improved by 0.026 and 0.045 percentage points at $r=1.0$ and $r=0.7$. It increased by 0.044 and 0.043 percentage points at $r=0.5$ and $r=0.3$. These reversals were retained in the analysis rather than averaged into a single label-efficiency score.
+
+\subsection{Same-protocol comparison with complementary baselines}
+\label{subsec:new_extended_baselines}
+
+The endpoint comparison tested whether the factorial-family behavior generalized to complementary model classes. XGBoost, LSTM, GRU, and attention CNN--LSTM were evaluated at $r=1.0$ and $r=0.3$ using the same battery split, 16-feature windows, retained-label masks, test cells, and paired seeds. Under full supervision, Table~\ref{tab:all_models_full_supervision} shows that PI-MSCL produced the lowest MAE ($1.556\pm0.044\%$), whereas GRU produced the lowest RMSE ($2.714\pm0.039\%$) and highest $R^2$ ($0.8608\pm0.0040$). Attention CNN--LSTM and GRU also approached PI-MSCL in MAE, reaching $1.633\pm0.059\%$ and $1.634\pm0.032\%$, respectively. The proposed model was therefore not uniformly superior across error criteria.
+
+\input{generated_results/table_all_models_full_supervision.tex}
+
+At 30\% label retention, attention CNN--LSTM attained the lowest MAE ($1.567\pm0.087\%$), followed by GRU ($1.599\pm0.042\%$); PI-MSCL reached $1.677\pm0.128\%$. Table~\ref{tab:all_models_endpoint_budget} further shows negative mean endpoint changes for all four complementary baselines, but their paired standard deviations were of the same order as the changes. These small, seed-dependent decreases should not be interpreted as evidence that deleting labels improves estimation. Their mean MAE therefore did not increase between the two tested endpoints under this fixed split. In contrast, PI-MSCL exhibited a $+0.121\pm0.125$-percentage-point paired change, indicating greater sensitivity of its point accuracy to the smallest label budget. Published results obtained under different datasets or splits remain contextual references and are not inserted into this same-scale ranking.
+
+\input{generated_results/table_all_models_endpoint_budget.tex}
+
+\subsection{Trajectory stability on unseen cells}
+\label{subsec:new_trajectory_results}
+
+The point-error results were complemented by the same trajectory metrics for all eight models in Table~\ref{tab:all_models_trajectory_sparse}. At $r=0.3$, the single-scale physical constraint reduced the mean monotonicity-violation rate from $0.796\%$ to $0.443\%$. Cumulative upward excess decreased from 5.482 to 1.896 percentage points per battery, and roughness decreased from 0.121 to 0.091 percentage points. The corresponding multi-scale comparison reduced these quantities from $0.886\%$ to $0.537\%$, from 5.510 to 1.901 percentage points, and from 0.148 to 0.125 percentage points, respectively. In paired form, PI-MSCL reduced the monotonicity-violation rate by $0.348\pm0.317$ percentage points and cumulative upward excess by $3.609\pm2.652$ percentage points, while its MAE changed by $+0.043\pm0.185$ percentage points. All three paired repetitions showed the same direction of structural improvement at this endpoint, whereas their point-error changes had mixed signs.
+
+\input{generated_results/table_all_models_trajectory_r0p3.tex}
+
+The broader comparison also prevents this within-family improvement from being mistaken for global trajectory dominance. LSTM attained the lowest mean violation rate ($0.176\%$) and roughness (0.0491 percentage points), while GRU attained the lowest cumulative upward excess (1.4940 percentage points). PI-MSCL ranked between these recurrent baselines and its unconstrained counterpart on the three trajectory measures. XGBoost, by contrast, produced substantially more upward and second-difference variation despite a competitive endpoint response to label removal. These results indicate that recurrent temporal smoothing itself is a strong baseline for trajectory regularity; the physical term is supported by its controlled paired effect, not by an across-model claim of best smoothness.
+
+Figure~\ref{fig:representative_trajectory} shows the unseen cell selected by the predeclared median-repetition and median-cell rules. The deterministic procedure selected training seed 2262, mask seed 3262, and battery 10-6. All variants followed the broad capacity-fade trend, but their late-life residuals differed and none removed the difficult tail region. The physical variants suppressed short upward excursions, whereas the aligned error panel shows that smoothing alone did not prevent local bias. The displayed example is therefore used to expose the same accuracy--regularity trade-off observed in the aggregate statistics, rather than as evidence of universal trajectory dominance.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../../output/figures/formal_main_v3/fig4_trajectory_and_error_group.pdf}
+  \caption{Representative unseen-cell SOH trajectory and aligned prediction error at 30\% label retention.}
+  \label{fig:representative_trajectory}
+\end{figure}
+
+\subsection{Factorial ablation and interaction of architecture and physics}
+\label{subsec:new_factorial_ablation}
+
+After the main results, the $2\times2$ matrix was used to summarize paired marginal effects and architecture--constraint interaction. For a lower-is-better error metric $q_{ap}(r)$, where $a\in\{0,1\}$ denotes single- or multi-scale convolution and $p\in\{0,1\}$ denotes the absence or presence of physics, the average architecture and physics improvements were defined as
+\begin{align}
+\Delta_{\mathrm{MS}}(r) &= \tfrac{1}{2}\left[q_{00}(r)-q_{10}(r)+q_{01}(r)-q_{11}(r)\right],\\
+\Delta_{\mathrm{PI}}(r) &= \tfrac{1}{2}\left[q_{00}(r)-q_{01}(r)+q_{10}(r)-q_{11}(r)\right].
+\end{align}
+Positive values indicate an average reduction in error. Table~\ref{tab:factorial_effects} and Fig.~\ref{fig:factorial_effects} show that the average multi-scale effect was largest under full supervision (0.095 percentage points) but approached zero or changed sign at smaller budgets. The mean physics effect was also small under full supervision ($-0.002$ percentage points), beneficial at $r=0.7$ and $r=0.5$ (0.052 and 0.018 percentage points), and adverse at $r=0.3$ ($-0.031$ percentage points). The architecture--physics interaction was negative at $r=0.5$ and highly variable across repetitions. Thus, the two modules did not behave as independently additive improvements in the tested matrix. These factorial results explain why PI-MSCL did not occupy the lowest-error position at every label budget even though its physical term reduced all three reported trajectory quantities at the $r=0.3$ endpoint.
+
+\input{generated_results/table_factorial_effects.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../../output/figures/formal_main_v3/fig5_ablation_effects_group.pdf}
+  \caption{Paired effects of multi-scale representation and physical consistency on MAE.}
+  \label{fig:factorial_effects}
+\end{figure}
+
+\iffalse
+\subsection{Full-supervision benchmark on the public dataset}
+\label{subsec:full_supervision_results}
+
+The full-supervision experiment first evaluated whether PI-MSCL can provide a reliable SOH estimator under the standard public-dataset setting, where every training sample has an available SOH label. Table~\ref{tab:full_supervision} summarizes the test performance of XGBoost, LSTM, CNN-LSTM, and PI-MSCL under $r=1.0$.
+
+\begin{table}[t]
+\caption{Full-supervision benchmark performance on the test cells ($r=1.0$).}
+\label{tab:full_supervision}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Model & RMSE (\%) & MAE (\%) & $R^2$ \\
+\midrule
+XGBoost & 1.907 & 1.097 & 0.9322 \\
+LSTM & 2.086 & 1.164 & 0.9188 \\
+CNN-LSTM & 1.945 & \textbf{1.059} & 0.9294 \\
+PI-MSCL & \textbf{1.688} & 1.101 & \textbf{0.9461} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost achieved an RMSE of 1.907\% and an MAE of 1.097\%, indicating that hand-crafted charging features contain useful SOH information. However, its static regression structure does not explicitly model cross-cycle temporal evolution. The LSTM baseline produced higher RMSE and MAE than XGBoost, showing that recurrent modeling alone was not sufficient when local degradation features were not explicitly extracted. CNN-LSTM reduced MAE to 1.059\%, the lowest MAE in this full-supervision comparison, but its RMSE and $R^2$ remained close to those of XGBoost.
+
+PI-MSCL achieved the best RMSE and $R^2$, with RMSE decreasing to 1.688\% and $R^2$ increasing to 0.9461. Its MAE was slightly higher than that of CNN-LSTM, which indicates that the physical consistency constraint did not uniformly reduce all point-wise errors under dense supervision. The gain appeared mainly in suppressing larger trajectory deviations and improving the global consistency of SOH predictions. This observation provides an important baseline for the later incomplete-supervision analysis: PI-MSCL was not designed simply to minimize point-wise MAE under ideal full-label conditions, but to improve trajectory-level robustness when supervision becomes incomplete.
+
+\subsection{Architecture and physical-constraint ablation}
+\label{subsec:ablation_results}
+
+To separate the effects of multi-scale representation and physical consistency, a two-dimensional ablation was conducted. The architecture axis compared the single-scale CNN-LSTM with the proposed multi-scale MS-CNN-LSTM. The constraint axis compared models trained without physics and models trained with the soft monotonic physical consistency loss. Table~\ref{tab:ablation_matrix_full} reports the RMSE values under full supervision.
+
+\begin{table}[t]
+\caption{Two-dimensional ablation matrix under full supervision. Values are RMSE (\%).}
+\label{tab:ablation_matrix_full}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Model & No physics & Soft monotonic & Constraint gain \\
+\midrule
+CNN-LSTM & 1.945 & 1.819 & 0.126 \\
+MS-CNN-LSTM & 1.779 & \textbf{1.688} & 0.091 \\
+Architecture gain & 0.166 & 0.131 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both architectural improvement and physical consistency reduced RMSE. Replacing the single-scale CNN-LSTM with MS-CNN-LSTM reduced RMSE by 0.166 percentage points without the physical constraint and by 0.131 percentage points with the physical constraint. Adding the soft monotonic constraint reduced RMSE by 0.126 percentage points for the single-scale architecture and by 0.091 percentage points for the multi-scale architecture. These results show that multi-scale representation was the larger contributor under full supervision, while the physical constraint provided a smaller but still positive trajectory-regularization effect.
+
+The same ablation was then extended to all supervision ratios, as shown in Table~\ref{tab:ablation_ratios}. The RMSE improvement from the multi-scale architecture was stable across $r=1.0$, $0.7$, $0.5$, and $0.3$. The full PI-MSCL model consistently achieved the lowest RMSE among the four ablation variants at each ratio.
+
+\begin{table}[t]
+\caption{RMSE comparison across supervision ratios in the architecture-constraint ablation.}
+\label{tab:ablation_ratios}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Ratio & CNN-LSTM & PI-CNN-LSTM & MS-CNN-LSTM & PI-MSCL \\
+\midrule
+$r=1.0$ & 1.945 & 1.819 & 1.779 & \textbf{1.688} \\
+$r=0.7$ & 2.086 & 1.864 & 1.814 & \textbf{1.728} \\
+$r=0.5$ & 2.355 & 2.057 & 1.982 & \textbf{1.876} \\
+$r=0.3$ & 2.380 & 2.154 & 2.161 & \textbf{1.937} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ablation results support two conclusions. First, multi-scale convolution was the main source of representational improvement because it reduced RMSE under both physics-free and physics-informed settings. Second, the soft monotonic constraint became more important as the label density decreased. At $r=0.3$, the physical constraint reduced the RMSE of the multi-scale model from 2.161\% to 1.937\%, a larger absolute gain than under full supervision. This behavior is consistent with the role of physical consistency as structural weak supervision when direct SOH labels become sparse.
+
+\subsection{Robustness under partial lifecycle supervision}
+\label{subsec:partial_results}
+
+The partial-supervision experiments evaluated how model accuracy changed as the supervision ratio decreased. Table~\ref{tab:mae_ratios} reports MAE values for XGBoost, LSTM, CNN-LSTM, and PI-MSCL under four supervision ratios.
+
+\begin{table}[t]
+\caption{MAE (\%) under different supervision ratios.}
+\label{tab:mae_ratios}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Model & $r=1.0$ & $r=0.7$ & $r=0.5$ & $r=0.3$ \\
+\midrule
+XGBoost & 1.097 & 1.139 & 1.174 & 1.238 \\
+LSTM & 1.164 & 1.197 & 1.268 & 1.296 \\
+CNN-LSTM & \textbf{1.059} & 1.147 & 1.164 & 1.186 \\
+PI-MSCL & 1.101 & \textbf{1.115} & \textbf{1.137} & \textbf{1.134} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Under full supervision, CNN-LSTM achieved the lowest MAE. When the supervision ratio decreased, the three baselines degraded more clearly. From $r=1.0$ to $r=0.3$, MAE increased by 0.141 percentage points for XGBoost, 0.132 percentage points for LSTM, and 0.127 percentage points for CNN-LSTM. In contrast, PI-MSCL increased by only 0.033 percentage points, from 1.101\% to 1.134\%. The nearly flat MAE curve indicates that PI-MSCL retained stable point-wise accuracy when direct SOH labels were reduced.
+
+PI-MSCL became the best-performing model once the supervision ratio dropped below full supervision. At $r=0.7$, PI-MSCL achieved an MAE of 1.115\%, lower than CNN-LSTM at 1.147\%. At $r=0.5$ and $r=0.3$, PI-MSCL remained the best model, with MAE values of 1.137\% and 1.134\%, respectively. This result supports the central motivation of the framework: the physical constraint is most valuable when the data-fitting term is weakened by sparse labels.
+
+Table~\ref{tab:partial_multimetric} further compares CNN-LSTM and PI-MSCL using MAE, RMSE, and $R^2$ in the partial-supervision regimes. PI-MSCL improved all three metrics at $r=0.7$, $r=0.5$, and $r=0.3$. The RMSE reduction was larger than the MAE reduction. For example, at $r=0.3$, RMSE decreased from 2.211\% for CNN-LSTM to 1.921\% for PI-MSCL, while MAE decreased from 1.186\% to 1.134\%. Since RMSE is more sensitive to large errors, this difference indicates that PI-MSCL mainly reduced larger trajectory deviations rather than uniformly shrinking every point-wise error.
+
+\begin{table}[t]
+\caption{Multi-metric comparison between CNN-LSTM and PI-MSCL under partial supervision.}
+\label{tab:partial_multimetric}
+\centering
+\begin{tabular}{lcccccc}
+\toprule
+Ratio & \multicolumn{3}{c}{CNN-LSTM} & \multicolumn{3}{c}{PI-MSCL} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+& MAE (\%) & RMSE (\%) & $R^2$ & MAE (\%) & RMSE (\%) & $R^2$ \\
+\midrule
+$r=0.7$ & 1.147 & 1.989 & 0.9239 & \textbf{1.115} & \textbf{1.707} & \textbf{0.9431} \\
+$r=0.5$ & 1.164 & 2.102 & 0.9176 & \textbf{1.137} & \textbf{1.842} & \textbf{0.9283} \\
+$r=0.3$ & 1.186 & 2.211 & 0.9045 & \textbf{1.134} & \textbf{1.921} & \textbf{0.9185} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Trajectory-level behavior on an unseen cell}
+\label{subsec:trajectory_case}
+
+Point-wise metrics do not fully reveal whether an SOH model produces physically reasonable degradation trajectories. A trajectory-level case study was therefore conducted on an unseen test cell under the sparse supervision setting $r=0.3$. The final figure will compare the true SOH trajectory, the CNN-LSTM prediction, and the PI-MSCL prediction for the same cell.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for the unseen-cell SOH trajectory comparison.\\ The final figure should show true SOH, CNN-LSTM prediction, and PI-MSCL prediction under $r=0.3$.}}
+  \caption{Trajectory-level SOH prediction comparison on an unseen cell under sparse supervision.}
+  \label{fig:trajectory_case}
+\end{figure*}
+
+In the current manuscript data, the CNN-LSTM trajectory showed stronger local oscillations and a more visible stage-wise bias in the unlabeled lifecycle region. Its RMSE on the representative unseen cell was 0.454\%. PI-MSCL produced a smoother and more monotonic trajectory, with an RMSE of 0.207\% on the same cell. This trajectory-level reduction is consistent with the aggregate RMSE improvements in Table~\ref{tab:partial_multimetric}.
+
+A corresponding error-evolution plot will be inserted after the final figure assets are consolidated. In the current manuscript data, the PI-MSCL error curve stayed closer to zero, with an MAE of 0.159\%, whereas CNN-LSTM showed a larger systematic positive drift in the later lifecycle region, with an MAE of 0.346\%. In SOH estimation, positive drift in late-life regions can be safety-sensitive because it corresponds to overestimating the remaining health of a degrading battery. The case study therefore illustrates the practical value of combining multi-scale feature learning with a soft monotonic physical constraint: the model not only improves aggregate metrics, but also suppresses trajectory shapes that are undesirable for BMS use.
+\fi
+% Archived from the main evidence chain on 2026-08-06. The underlying draft
+% remains recoverable here and in backups/manuscript_pre_restructure_20260806,
+% but it is excluded because the synthetic risk experiment is outside the
+% controlled sparse-label SOH question evaluated in Sections 3--4.
+\iffalse
+\section{Trajectory-Based Abnormal Degradation Risk Indication}
+\label{sec:risk}
+
+The preceding experiments focused on SOH estimation accuracy and robustness under partial lifecycle supervision. In practical BMS deployment, however, the predicted SOH trajectory may also provide auxiliary information for abnormal degradation risk indication. This section therefore examines whether the trained SOH estimator can be reused, without training an additional fault-diagnosis model, to generate low-cost warning signals for degradation patterns that visibly disturb the predicted trajectory.
+
+The scope of this analysis is deliberately limited. The objective is not to replace electrochemical diagnosis, impedance analysis, or dedicated fault classifiers. Instead, the objective is to test whether a physically constrained SOH prediction trajectory can expose deviations associated with sudden accelerated aging, capacity-knee behavior, and lithium-plating-like step drops. Knee points in battery aging trajectories are widely recognized as important markers of nonlinear degradation transition \cite{attia2022knees}. These scenarios are treated as trajectory-level risk patterns because they alter either the local SOH level, the degradation slope, or both. This framing is consistent with the broader degradation-diagnostics view that battery faults and aging mechanisms often appear as changes in observable capacity and response trajectories \cite{birkl2017degradation}.
+
+\subsection{Trajectory-Deviation Risk Score}
+
+The risk score is constructed from the model output rather than from additional SOH labels. Let $\hat{y}_t$ denote the SOH predicted by a trained estimator at cycle or window $t$. For each detection window, a first-order local trend is fitted to the recent prediction sequence,
+\begin{equation}
+  \tilde{y}_t = a_t t + b_t,
+\end{equation}
+where $a_t$ and $b_t$ are obtained by linear regression over the local window. The trajectory-deviation score is then defined as the absolute residual between the current prediction and the local trend,
+\begin{equation}
+  s_t = |\hat{y}_t - \tilde{y}_t|.
+\end{equation}
+The underlying assumption is that a normal SOH trajectory should remain locally smooth and approximately monotonic over a short window, whereas an abnormal event or an abrupt degradation-regime change will increase the residual from the local trend.
+
+This score is attractive for deployment because it depends only on the online SOH predictions. No ground-truth SOH label is required at the detection time, and no separate abnormal-state classifier is trained. The score therefore evaluates whether PI-MSCL's smoother and more physically consistent prediction trajectory can increase the signal-to-noise ratio of trajectory disturbances relative to a purely data-driven CNN-LSTM baseline.
+
+\subsection{Thresholding and Warning Rule}
+
+To reduce false alarms caused by isolated noise, the warning rule combines a statistical threshold with a persistence criterion. The detection threshold is estimated from the normal segment of the score sequence as
+\begin{equation}
+  \tau = \mu_s + 2\sigma_s,
+\end{equation}
+where $\mu_s$ and $\sigma_s$ denote the mean and standard deviation of the normal trajectory-deviation scores. A warning is triggered only when $s_t > \tau$ holds for $N$ consecutive windows. In the current manuscript experiments, $N$ is set to 20. This N-hit strategy trades a modest detection delay for improved robustness against transient fluctuations.
+
+The detection performance is evaluated using three complementary metrics. The area under the receiver operating characteristic curve (AUC) measures the separability between normal and abnormal score distributions across thresholds. Det@FPR5\% reports the true detection rate when the window-level false-positive rate is fixed at 5\%. Delay reports the number of windows between abnormal injection and the first satisfied N-hit warning condition.
+
+\subsection{Risk-Indication Results}
+
+Figure~\ref{fig:risk_trajectories} will show representative normal and abnormal SOH prediction trajectories for the in-house abnormal-degradation scenarios after the final figure assets are consolidated. In the current manuscript data, sudden accelerated aging produced a clear separation between normal and abnormal predicted trajectories near the injection point, followed by a steeper degradation slope. Capacity-knee behavior showed a milder pre-event trajectory followed by an increased post-knee decay rate. The lithium-plating-like step-drop scenario produced an abrupt SOH decrease followed by continued accelerated decay. These trajectory shapes are consistent with the intended use of the deviation score: the score responds when the predicted trajectory no longer follows its recent local trend.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for normal and abnormal SOH prediction trajectories.\\ The final figure should compare CNN-LSTM and PI-MSCL under sudden aging, capacity knee, and lithium-plating-like step-drop scenarios.}}
+  \caption{Representative trajectory-level risk patterns under abnormal degradation scenarios.}
+  \label{fig:risk_trajectories}
+\end{figure*}
+
+Figure~\ref{fig:risk_scores} will present the corresponding trajectory-deviation scores, normal-score baseline, and detection threshold. The current results indicate that PI-MSCL yields larger and more sustained score excursions than CNN-LSTM in abrupt degradation scenarios. This behavior is expected because the physical constraint suppresses background oscillations in normal prediction trajectories, making abnormal deviations easier to separate from normal variation.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for trajectory-deviation scores and N-hit warnings.\\ The final figure should show the score baseline, threshold, and warning time for each scenario.}}
+  \caption{Trajectory-deviation scores and warning decisions under abnormal degradation scenarios.}
+  \label{fig:risk_scores}
+\end{figure*}
+
+Table~\ref{tab:risk_detection} summarizes the quantitative warning performance reported in the current manuscript. Across the three abnormal-degradation scenarios and three severity levels, PI-MSCL consistently improves AUC and Det@FPR5\% and reduces detection delay compared with CNN-LSTM. The advantage is particularly clear in abrupt trajectory-disturbance scenarios. For the severe lithium-plating-like step-drop case, PI-MSCL achieves an AUC of 0.893, Det@FPR5\% of 87.3\%, and a mean delay of 5.0 windows, compared with 0.837, 80.8\%, and 18.5 windows for CNN-LSTM. In the medium sudden-aging case, the delay decreases from 11.2 windows to 5.8 windows. In the medium capacity-knee case, Det@FPR5\% increases from 67.2\% to 85.4\%.
+
+\begin{table}[t]
+\caption{Abnormal degradation risk-indication performance under different scenarios.}
+\label{tab:risk_detection}
+\centering
+\begin{tabular}{llcccccc}
+\toprule
+Scenario & Severity & \multicolumn{3}{c}{CNN-LSTM} & \multicolumn{3}{c}{PI-MSCL} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+ & & AUC & Det@FPR5\% & Delay & AUC & Det@FPR5\% & Delay \\
+\midrule
+Sudden aging & Mild & 0.716 & 63.5 & 58.8 & 0.809 & 74.3 & 7.2 \\
+Sudden aging & Medium & 0.734 & 67.3 & 11.2 & 0.815 & 76.3 & 5.8 \\
+Sudden aging & Severe & 0.729 & 71.8 & 8.0 & 0.817 & 78.2 & 4.8 \\
+Capacity knee & Mild & 0.720 & 62.6 & 96.0 & 0.837 & 77.9 & 23.0 \\
+Capacity knee & Medium & 0.741 & 67.2 & 59.0 & 0.869 & 85.4 & 15.2 \\
+Capacity knee & Severe & 0.750 & 68.8 & 67.8 & 0.858 & 83.9 & 21.2 \\
+Lithium-plating step drop & Mild & 0.741 & 67.5 & 28.0 & 0.838 & 81.3 & 10.0 \\
+Lithium-plating step drop & Medium & 0.756 & 70.8 & 25.0 & 0.847 & 83.4 & 6.0 \\
+Lithium-plating step drop & Severe & 0.837 & 80.8 & 18.5 & 0.893 & 87.3 & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These results suggest that PI-MSCL is useful not only as a point-wise SOH estimator, but also as a trajectory generator whose physically smoothed output can support simple risk screening. The interpretation should nevertheless remain bounded. The current deviation score is most suitable for abrupt or slope-changing degradation patterns. Progressive anomalies with slowly accumulating deviations may require longer detection windows, multi-signal fusion, or a dedicated diagnostic model. Therefore, the proposed risk-indication module should be viewed as an engineering extension of SOH estimation rather than as a complete battery-fault diagnosis framework.
+
+\fi
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Interpretation of the controlled label-budget experiment}
+
+The experimental intervention is a reduction in the number of cycle-level SOH targets available during training, not a reduction in the number of training batteries and not a truncation of their operating records. Each training cell retains its complete 16-dimensional feature trajectory, while an independently sampled subset of its targets contributes to the supervised loss. This design isolates a practically relevant statistical question: how strongly does a cross-battery estimator depend on the density of calibration targets when operating measurements remain available? Distributing the same nominal budget within every training battery also prevents a low ratio from being implemented merely by removing entire cells, which would confound label density with the diversity of degradation trajectories.
+
+This controlled intervention has a deliberately narrower meaning than several adjacent forms of limited supervision. Randomly retained targets can occur in early, middle, and late life; the experiment therefore does not test forecasting into an entirely unlabeled future segment. It also does not reproduce a periodic calibration schedule because the interval between retained targets is stochastic rather than fixed. Neither does it reproduce naturally missing field records, whose absence may depend on operating conditions and sensor health. Accordingly, the results support conclusions about sensitivity to a distributed cycle-level label budget and generalization to unseen HUST cells under the tested distribution. Claims about early-to-late temporal extrapolation, periodic BMS calibration, cross-chemistry transfer, or field deployment require separate, predeclared protocols.
+
+The battery-level split is central to this interpretation. All overlapping windows from a cell remain in a single partition, and preprocessing parameters are estimated only from the training cells. Thus, the fully labeled test set evaluates genuinely unseen cells rather than interpolating withheld windows from a trajectory already observed during fitting. The use of one fixed primary split and paired training/mask repetitions separates optimization and masking variability without averaging over different test populations. It yields a transparent main comparison, but the resulting effect sizes remain conditional on that battery partition; independent split sensitivity is therefore an appropriate supplementary analysis rather than a substitute for the fixed-split table.
+
+\subsection{Physical consistency, failure modes, and scope of use}
+
+The soft monotonic term encodes weak degradation structure without inventing replacement SOH targets. For a masked training window, the network can still be evaluated and adjacent predictions can still contribute to the label-independent constraint, whereas its unavailable target contributes nothing to the supervised error. This distinction is important: the method exploits the ordering and continuity of an observed trajectory, but it does not convert model predictions into ground truth. The factorial design consequently evaluates two separable mechanisms---multi-scale representation and physical regularization---under identical masks and data partitions.
+
+Physical plausibility and pointwise accuracy were not interchangeable objectives in the completed matrix. At 70\% label retention, the physical constraint improved PI-MSCL point error and all three trajectory metrics on average. This condition provides the clearest evidence that complete unlabeled feature trajectories can supply useful structural supervision. At 30\% retention, however, all three trajectory quantities improved while the paired MAE changes had mixed signs and a slightly adverse mean. Physical consistency therefore did not compensate progressively for every removed label. Instead, it regularized trajectory shape and sometimes traded local fidelity for fewer nonphysical upward excursions when supervised anchoring was weak.
+
+The multi-scale representation produced a second trade-off. It reduced mean MAE relative to the single-scale data-driven model at three of four budgets, but its mean RMSE was higher and $R^2$ lower at all four budgets. The wider receptive-field family thus appears to reduce many moderate absolute deviations while leaving some large residuals, particularly in difficult late-life regions. This error-distribution explanation is consistent with the representative trajectory but is not a mechanistic proof; cell-specific degradation, optimization variance, and the fixed 40-cycle window remain rival explanations. The large paired standard deviations at several budgets further argue against presenting either architecture or regularization as a universally dominant module.
+
+The same-protocol algorithm comparison reinforces this conditional interpretation. PI-MSCL had the lowest dense-label MAE, but GRU had the best dense-label RMSE and $R^2$. Attention CNN--LSTM had the lowest sparse-endpoint MAE, while LSTM and GRU led different trajectory criteria at $r=0.3$. The physical term should therefore be evaluated through its paired effect relative to the same architecture, not through a claim of global model dominance. The common training protocol controls several sources of variation but does not establish architecture-specific optimal tuning or computational superiority. Training cost, inference latency, and energy use were not benchmarked and remain outside the present comparison.
+
+Recently published label-efficient, transfer-learning, and physics-informed estimators are used to locate the research question. Their reported errors arise from different chemistries, features, label units, and train--test protocols. Combining these heterogeneous values into a leaderboard would overstate precision and obscure the contribution of the controlled experiment.
+
+Finally, the current evidence is laboratory-benchmark evidence. HUST provides a sizeable set of LFP cells with consistent measurements, but one chemistry and one experimental source cannot represent the full variation of field duty cycles, sensor drift, temperature, and reference-capacity procedures. The proposed estimator should therefore be viewed as a leakage-controlled test of sparse-target learning rather than a deployment-ready BMS calibration policy. The most informative extensions are a continuous-prefix protocol for temporal extrapolation, a periodic-mask protocol for scheduled calibration, independent battery partitions, and external datasets with different chemistries and operating profiles. These additions would test new claims and should not be retrospectively inferred from the present random-mask results.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This study formulated lithium-ion battery SOH estimation under a controlled cycle-level label budget and developed PI-MSCL to use complete operating trajectories when only a subset of SOH targets was retained. Under full supervision, PI-MSCL achieved the lowest mean MAE among all eight same-protocol models, while GRU retained the lowest RMSE and highest $R^2$. At 30\% label retention, attention CNN--LSTM achieved the lowest MAE, and reducing PI-MSCL supervision to this endpoint increased its mean MAE by 0.121 percentage points relative to its dense-label reference.
+
+The principal finding is conditional rather than uniformly favorable. At 70\% label retention, the soft physical constraint improved PI-MSCL point error and trajectory regularity. At 30\%, it still reduced monotonicity violations, cumulative upward excess, and roughness relative to the same unconstrained architecture, but did not yield a stable MAE advantage across paired seeds or the best trajectory metrics among all models. The factorial experiment therefore supports physical consistency as label-independent structural supervision, while also showing that the benefit depends on the available supervised anchors and can be accompanied by a point-accuracy cost. The multi-scale architecture similarly reduced average absolute deviation in several conditions without consistently reducing large errors.
+
+The scope of the study is bounded in three ways. First, random masking on fully labeled HUST data measures robustness to a controlled label budget; it does not reproduce continuous early-life labeling, periodic BMS calibration, or naturally missing field records. Second, evaluation on one LFP dataset does not establish cross-chemistry or field-deployment generality. Third, soft monotonicity is a structural prior rather than an electrochemical degradation model and may trade pointwise accuracy for trajectory regularity at some label ratios. Future validation should therefore include predeclared prefix and periodic calibration protocols, additional chemistries, and operational datasets with independently established SOH references.
+
+\backmatter
+
+\section*{Declarations}
+
+\noindent\textbf{Authors' contributions.}
+Chang Liu contributed to conceptualization, investigation, methodology, software, validation, visualization, and writing---original draft. Congyan Chen contributed to formal analysis, funding acquisition, project administration, supervision, validation, and writing---review and editing.
+
+\noindent\textbf{Funding.}
+This work was supported by the Guangdong Basic and Applied Basic Research Foundation (Grant No.~2024A1515011962).
+
+\noindent\textbf{Competing interests.}
+The authors declare no competing interests.
+
+\noindent\textbf{Data availability.}
+The HUST battery dataset is publicly available through Mendeley Data at \url{https://doi.org/10.17632/nsc7hnsg4s.2} \cite{Yuan2022HUSTDataset}. No private or in-house battery dataset is used in the main study.
+
+\noindent\textbf{Code availability.}
+The code-availability statement and repository identifier will be confirmed before submission.
+
+\bibliography{references}
+
+\end{document}
+
+
+
+
+
+
+
+

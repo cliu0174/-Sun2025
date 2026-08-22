@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\caption{Same-protocol endpoint comparison across SOH-label retention ratios. Values are mean $\pm$ sample standard deviation across three paired repetitions on the fixed cell split (seed 42); change is $r=0.3-r=1.0$.}
+\label{tab:all_models_endpoint_budget}
+\centering
+\setlength{\tabcolsep}{3.0pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc@{}}
+\toprule
+Model & \multicolumn{2}{c}{MAE (\%)} & Change (pp) \\
+\cmidrule(lr){2-3}
+ & r = 1.0 & r = 0.3 & 0.3--1.0 \\
+\midrule
+XGBoost & 1.800 \textpm{} 0.033 & 1.773 \textpm{} 0.038 & -0.028 \textpm{} 0.067 \\
+LSTM & 1.680 \textpm{} 0.047 & 1.630 \textpm{} 0.083 & -0.050 \textpm{} 0.128 \\
+GRU & 1.634 \textpm{} 0.032 & 1.599 \textpm{} 0.042 & -0.035 \textpm{} 0.064 \\
+Attn. CNN--LSTM & 1.633 \textpm{} 0.059 & 1.567 \textpm{} 0.087 & -0.066 \textpm{} 0.100 \\
+CNN--LSTM & 1.649 \textpm{} 0.050 & 1.659 \textpm{} 0.031 & 0.010 \textpm{} 0.039 \\
+PI--CNN--LSTM & 1.679 \textpm{} 0.055 & 1.677 \textpm{} 0.021 & -0.002 \textpm{} 0.037 \\
+MS--CNN--LSTM & 1.582 \textpm{} 0.102 & 1.634 \textpm{} 0.057 & 0.052 \textpm{} 0.148 \\
+PI--MSCL & 1.556 \textpm{} 0.044 & 1.677 \textpm{} 0.128 & 0.121 \textpm{} 0.125 \\
+\bottomrule
+\end{tabular*}
+\end{table}

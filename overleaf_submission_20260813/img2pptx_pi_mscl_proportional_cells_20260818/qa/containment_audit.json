@@ -1,0 +1,75 @@
+{
+  "checks": [
+    {
+      "component": "input_sequence",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 15,
+      "passed": true
+    },
+    {
+      "component": "multiscale_cnn",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 7,
+      "passed": true
+    },
+    {
+      "component": "fusion",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 120,
+      "passed": true
+    },
+    {
+      "component": "lstm",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 78,
+      "passed": true
+    },
+    {
+      "component": "regression",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 93,
+      "passed": true
+    },
+    {
+      "component": "output_curve",
+      "parent": "panel_a",
+      "inside": true,
+      "minimum_manifest_padding_px": 12,
+      "passed": true
+    },
+    {
+      "component": "supervised_path",
+      "parent": "panel_b",
+      "inside": true,
+      "minimum_manifest_padding_px": 30,
+      "passed": true
+    },
+    {
+      "component": "monotonic_path",
+      "parent": "panel_b",
+      "inside": true,
+      "minimum_manifest_padding_px": 30,
+      "passed": true
+    },
+    {
+      "component": "rate_path",
+      "parent": "panel_b",
+      "inside": true,
+      "minimum_manifest_padding_px": 12,
+      "passed": true
+    },
+    {
+      "component": "objective",
+      "parent": "panel_b",
+      "inside": true,
+      "minimum_manifest_padding_px": 42,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

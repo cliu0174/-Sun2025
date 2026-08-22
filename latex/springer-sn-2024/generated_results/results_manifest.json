@@ -1,0 +1,33 @@
+{
+  "generated_at_utc": "2026-08-07T15:13:29.348004+00:00",
+  "source_summary": "D:\\Projects\\1111-soh\\experiments\\paper_main_results\\fixed_split\\v3_leakage_free\\summary.json",
+  "source_sha256": "9a82e8b5ac19e29fe411e63d3ded8471ba4324c43a381d9662968eb7b44c6a24",
+  "pipeline_revision": "v3_leakage_free",
+  "expected_repeats": 3,
+  "formal_run_count": 48,
+  "models": [
+    "single_no_pi",
+    "single_pi",
+    "multi_no_pi",
+    "multi_pi"
+  ],
+  "ratios": [
+    1.0,
+    0.7,
+    0.5,
+    0.3
+  ],
+  "units": {
+    "mae_rmse": "SOH percentage points",
+    "r2": "dimensionless",
+    "monotonicity_violation_rate": "percent of eligible adjacent pairs",
+    "upward_excess_roughness": "SOH percentage points"
+  },
+  "files": [
+    "table_full_supervision.tex",
+    "table_label_budget.tex",
+    "table_label_budget_r2.tex",
+    "table_trajectory_r0p3.tex",
+    "table_factorial_effects.tex"
+  ]
+}

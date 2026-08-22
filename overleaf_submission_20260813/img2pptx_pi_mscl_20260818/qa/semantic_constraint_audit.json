@@ -1,0 +1,35 @@
+{
+  "checks": {
+    "panels.order": true,
+    "input.dimension": true,
+    "cnn.branch_order_colors": true,
+    "cnn.dimensions": true,
+    "model.flow": true,
+    "lstm.two_layers": true,
+    "supervision.sparse_markers": true,
+    "monotonicity.violation": true,
+    "rate.kink": true,
+    "objective.three_inputs": true,
+    "objective.formula": true,
+    "canvas.no_raster": true,
+    "input.no_soh_target": true,
+    "cnn.exactly_three": true,
+    "objective.no_extra_edge": true
+  },
+  "human_review": {
+    "reviewed_files": [
+      "qa/semantic_review_sheet.png",
+      "qa/pptx_slide_preview.png"
+    ],
+    "reviewer": "primary-agent-plus-independent-visual-QA-subagent",
+    "status": "passed",
+    "issues_found_and_corrected": [
+      "input matrix row ordering",
+      "input branch trunk color and split topology",
+      "three-scale merge topology",
+      "fused 10-step sequence detail",
+      "output-arrow/tick-label overlap"
+    ]
+  },
+  "passed": true
+}

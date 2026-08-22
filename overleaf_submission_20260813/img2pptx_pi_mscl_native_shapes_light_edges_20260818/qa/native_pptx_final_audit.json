@@ -1,0 +1,58 @@
+{
+  "pptx": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_native_shapes_light_edges_20260818\\PI-MSCL_architecture_native_shapes_light_backplanes_20260818.pptx",
+  "slides": 1,
+  "top_level_objects": 29,
+  "recursive_object_count": 580,
+  "recursive_type_counts": {
+    "AUTO_SHAPE (1)": 173,
+    "GROUP (6)": 25,
+    "FREEFORM (5)": 278,
+    "TEXT_BOX (17)": 87,
+    "LINE (9)": 17
+  },
+  "named_objects": 580,
+  "unique_names": 580,
+  "editable_text_objects": 87,
+  "in_memory_text_edit_probe": true,
+  "package": {
+    "p_sp": 538,
+    "p_cxnSp": 17,
+    "p_grpSp": 25,
+    "p_pic": 0,
+    "a_t": 87,
+    "a_custGeom": 278,
+    "media_files": []
+  },
+  "fully_ungrouped_package": {
+    "p_sp": 538,
+    "p_cxnSp": 17,
+    "p_grpSp": 0,
+    "p_pic": 0,
+    "a_t": 87,
+    "a_custGeom": 278,
+    "media_files": []
+  },
+  "visual": {
+    "reference": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_proportional_cells_20260818\\qa\\rendered_svg.png",
+    "preview": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_native_shapes_light_edges_20260818\\qa\\pptx_slide_preview.png",
+    "mae_rgb": 3.7638,
+    "rmse_rgb": 13.5277,
+    "fraction_pixels_max_channel_diff_gt_12": 0.067562,
+    "grouped_vs_fully_ungrouped_mae_rgb": 0.0
+  },
+  "hard_checks": {
+    "single_slide": true,
+    "no_picture_objects": true,
+    "no_embedded_media": true,
+    "at_least_500_native_objects": true,
+    "all_svg_texts_are_editable_text_frames": true,
+    "all_objects_have_unique_names": true,
+    "semantic_module_groups_present": true,
+    "text_edit_probe_succeeded": true,
+    "visual_mae_below_8": true,
+    "grouped_and_ungrouped_render_identically": true,
+    "fully_ungrouped_has_zero_groups": true,
+    "fully_ungrouped_has_no_pictures": true
+  },
+  "all_hard_checks_pass": true
+}

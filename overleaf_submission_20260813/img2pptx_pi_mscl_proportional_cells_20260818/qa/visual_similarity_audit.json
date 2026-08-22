@@ -1,0 +1,37 @@
+{
+  "baseline_mae": 12.180712699890137,
+  "target_mae": 10.962641429901124,
+  "best_mae": 12.180712699890137,
+  "foreground_mae": 44.1607551574707,
+  "relative_improvement": 0.0,
+  "target_relative_improvement": 0.1,
+  "target_achieved": false,
+  "attempts_used": 0,
+  "max_try": 3,
+  "optimization_status": "no_safe_improvement",
+  "delivered_state": "best_valid_candidate",
+  "hard_audits_passed": true,
+  "semantic_audits_passed": true,
+  "constraint_coverage_passed": true,
+  "component_mae": {
+    "panel_a": 14.334293365478516,
+    "input_sequence": 24.47893524169922,
+    "multiscale_cnn": 20.727684020996094,
+    "fusion": 14.630985260009766,
+    "lstm": 15.107173919677734,
+    "regression": 21.446760177612305,
+    "output_curve": 16.975791931152344,
+    "panel_b": 10.72842025756836,
+    "supervised_path": 12.062975883483887,
+    "monotonic_path": 15.13377571105957,
+    "rate_path": 10.730762481689453,
+    "objective": 16.55658531188965
+  },
+  "attempts": [],
+  "semantic_revision_tradeoff": {
+    "pre_edit_reference_mae": 12.112852096557617,
+    "post_edit_mae": 12.180712699890137,
+    "reason_for_acceptance": "The previous version used the same 6x3 grid count for the 40, 20, and 10 stages and therefore did not encode temporal-length reduction. The revised 8x3, 4x3, and 2x3 grids satisfy the user-approved 4:2:1 semantic mapping while preserving constant row and stack depth, and all hard audits pass.",
+    "post_baseline_optimization": "No safe local MAE optimization was identified after independent review without weakening the new proportional cell-count encoding or the ordered gradients."
+  }
+}

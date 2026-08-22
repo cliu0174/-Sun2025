@@ -25,6 +25,10 @@ def train_xgboost_baseline(
     test_ratio=0.2,
     device='cpu',  # XGBoost uses CPU by default
     seed=42,
+    split_seed=None,
+    supervision_ratio=1.0,
+    supervision_seed=None,
+    supervision_mode='distributed_random',
     apply_cleaning=False,
     degradation_scenario='none',
     noise_level='medium',
@@ -46,6 +50,10 @@ def train_xgboost_baseline(
         data_dict: 数据字典
     """
     set_seed(seed)
+    if split_seed is None:
+        split_seed = seed
+    if supervision_seed is None:
+        supervision_seed = seed
 
     print("\n" + "="*70)
     print(f"XGBoost Baseline Training: {model_type.upper()}")
@@ -63,7 +71,7 @@ def train_xgboost_baseline(
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
-        seed=seed
+        seed=split_seed
     )
 
     # 3. 准备数据
@@ -75,7 +83,10 @@ def train_xgboost_baseline(
         random_missing_rate=random_missing_rate,
         cycle_drop_rate=cycle_drop_rate,
         cycle_drop_num_gaps=cycle_drop_num_gaps,
-        seed=seed
+        seed=seed,
+        supervision_ratio=supervision_ratio,
+        supervision_seed=supervision_seed,
+        supervision_mode=supervision_mode,
     )
 
     # 4. 加载配置
@@ -107,6 +118,7 @@ def train_xgboost_baseline(
         model_type=model_type,
         input_size=data_dict['n_features']
     )
+    model.model.set_params(random_state=seed)
 
     print(f"Model created: {model.__class__.__name__}")
     if model_type == 'xgboost_simple':
@@ -121,16 +133,27 @@ def train_xgboost_baseline(
 
     X_train_list = []
     y_train_list = []
+    train_labeled = 0
+    train_total = 0
     for batch in train_loader:
         if isinstance(batch, dict):
             features = batch['window'].cpu().numpy()
             targets = batch['target_soh'].cpu().numpy().flatten()
+            labeled = batch.get('is_labeled')
+            if labeled is None:
+                labeled = np.ones(len(targets), dtype=bool)
+            else:
+                labeled = labeled.cpu().numpy().astype(bool).reshape(-1)
         else:
             features, targets = batch
             features = features.cpu().numpy()
             targets = targets.cpu().numpy().flatten()
-        X_train_list.append(features)
-        y_train_list.append(targets)
+            labeled = np.ones(len(targets), dtype=bool)
+        train_total += len(targets)
+        train_labeled += int(labeled.sum())
+        if labeled.any():
+            X_train_list.append(features[labeled])
+            y_train_list.append(targets[labeled])
 
     X_train = np.vstack(X_train_list)
     y_train = np.concatenate(y_train_list)
@@ -152,7 +175,14 @@ def train_xgboost_baseline(
     X_val = np.vstack(X_val_list)
     y_val = np.concatenate(y_val_list)
 
-    print(f"Train set: {X_train.shape}, Val set: {X_val.shape}")
+    print(
+        f"Train set: {X_train.shape} labeled windows "
+        f"({train_labeled}/{train_total}), Val set: {X_val.shape}"
+    )
+    print(
+        "XGBoost fitting rule: only retained-label training windows are used; "
+        "unlabeled windows do not enter a physics loss or any other objective."
+    )
 
     # 8. 训练XGBoost模型
     print("\n" + "="*70)
@@ -175,16 +205,19 @@ def train_xgboost_baseline(
     all_predictions = []
     all_targets = []
     all_battery_ids_from_batch = []
+    all_cycle_indices = []
 
     for batch in test_loader:
         if isinstance(batch, dict):
             features = batch['window']
             targets = batch['target_soh'].cpu().numpy().flatten()
             battery_ids = batch['battery_id']
+            cycle_indices = batch.get('cycle_idx')
         else:
             features, targets = batch
             targets = targets.cpu().numpy().flatten()
             battery_ids = None
+            cycle_indices = None
 
         # XGBoost预测
         predictions = model(features)  # 返回torch.Tensor
@@ -195,6 +228,10 @@ def train_xgboost_baseline(
 
         if battery_ids is not None:
             all_battery_ids_from_batch.extend(battery_ids)
+        if cycle_indices is not None:
+            if torch.is_tensor(cycle_indices):
+                cycle_indices = cycle_indices.cpu().numpy()
+            all_cycle_indices.extend(np.asarray(cycle_indices).reshape(-1).tolist())
 
     # 合并结果
     predictions = np.concatenate(all_predictions)
@@ -234,6 +271,19 @@ def train_xgboost_baseline(
         'predictions': predictions,
         'targets': targets,
         'battery_ids': final_battery_ids,
+        'cycle_indices': np.asarray(all_cycle_indices, dtype=np.int32),
+        'train_batteries': list(train_batteries),
+        'val_batteries': list(val_batteries),
+        'test_batteries': list(test_batteries),
+        'cycle_level_train_samples': int(len(data_dict['train_targets'])),
+        'cycle_level_train_labeled_samples': int(data_dict['train_supervision_mask'].sum()),
+        'windowed_train_samples': int(train_total),
+        'windowed_train_labeled_samples': int(train_labeled),
+        'windowed_train_label_ratio': float(train_labeled / train_total),
+        'supervision_ratio': float(supervision_ratio),
+        'supervision_seed': int(supervision_seed),
+        'split_seed': int(split_seed),
+        'training_seed': int(seed),
         'training_time': training_time,
         'history': {
             'train_loss': [],

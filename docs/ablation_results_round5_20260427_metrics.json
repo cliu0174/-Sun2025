@@ -1,0 +1,89 @@
+{
+  "experiment": "ablation_single_module",
+  "seeds": [42, 123, 34, 999, 1024],
+  "ratios": [1.0, 0.5, 0.3],
+  "device": "cuda",
+  "_archive_note": "Round 5 snapshot (2026-04-27) — 5 seeds × 3 ratios. Eneg1 全部失败（ndarray ambiguous）。详见 ablation_results_round5_20260427.md",
+  "experiments": [
+    {
+      "exp_id": "Eneg1_no_physics",
+      "label": "无物理约束",
+      "modules": "None",
+      "model_type": "cnn_lstm",
+      "note": "纯 CNN-LSTM，无任何物理约束（对照组）",
+      "by_ratio": {}
+    },
+    {
+      "exp_id": "E0_baseline",
+      "label": "Baseline",
+      "modules": "无",
+      "model_type": "cnn_lstm",
+      "note": "CNN-LSTM + 软单调（min_cycle=300, w=0.3, tol=0.005）",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.008243250008672477, "mae_std": 0.0018583362664040225, "rmse_mean": 0.013683183491230011, "rmse_std": 0.00344062619374264, "r2_mean": 0.9623181581497192, "mono_viol_rate_mean": 0.05398, "mono_viol_rate_std": 0.018977012409755124, "mono_viol_mean_mean": 0.0093758, "delta_soh_mean_mean": 0.0005772, "delta_mae": null, "rel_improvement": null, "mono_viol_rate_delta": null},
+        "0.5": {"n": 5, "mae_mean": 0.008071416895836592, "mae_std": 0.0019568200658936774, "rmse_mean": 0.013126628659665584, "rmse_std": 0.0038882173759105638, "r2_mean": 0.9646743893623352, "mono_viol_rate_mean": 0.0507, "mono_viol_rate_std": 0.03910690476117996, "mono_viol_mean_mean": 0.0117106, "delta_soh_mean_mean": 0.000554, "delta_mae": null, "rel_improvement": null, "mono_viol_rate_delta": null},
+        "0.3": {"n": 5, "mae_mean": 0.008318015653640033, "mae_std": 0.0022445329823585743, "rmse_mean": 0.013555697165429592, "rmse_std": 0.0039008267439927234, "r2_mean": 0.962502121925354, "mono_viol_rate_mean": 0.0774, "mono_viol_rate_std": 0.07782400015419408, "mono_viol_mean_mean": 0.009821, "delta_soh_mean_mean": 0.0005612, "delta_mae": null, "rel_improvement": null, "mono_viol_rate_delta": null}
+      }
+    },
+    {
+      "exp_id": "E1_m1_attention",
+      "label": "+ M1 注意力",
+      "modules": "M1",
+      "model_type": "cnn_lstm_attention",
+      "note": "LSTM 输出后加入循环级注意力机制（CycleAttention）",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.008239440992474556, "rmse_mean": 0.013983490504324436, "r2_mean": 0.9607686519622802, "mono_viol_rate_mean": 0.0565, "mono_viol_mean_mean": 0.005384, "delta_soh_mean_mean": 0.0005472, "delta_mae": 3.8090161979201925e-06, "rel_improvement": 0.04620769955918892, "mono_viol_rate_delta": 0.0025200000000000014},
+        "0.5": {"n": 5, "mae_mean": 0.008627931121736765, "rmse_mean": 0.013649392127990722, "r2_mean": 0.9628623962402344, "mono_viol_rate_mean": 0.12842, "mono_viol_mean_mean": 0.0047358, "delta_soh_mean_mean": 0.0006064, "delta_mae": -0.0005565142259001728, "rel_improvement": -6.894876489247317, "mono_viol_rate_delta": 0.07772},
+        "0.3": {"n": 5, "mae_mean": 0.008596725575625897, "rmse_mean": 0.01411940585821867, "r2_mean": 0.96001216173172, "mono_viol_rate_mean": 0.06808, "mono_viol_mean_mean": 0.0052216, "delta_soh_mean_mean": 0.0005304, "delta_mae": -0.00027870992198586464, "rel_improvement": -3.3506780173453854, "mono_viol_rate_delta": -0.00932}
+      }
+    },
+    {
+      "exp_id": "E2_m2_mc_dropout",
+      "label": "+ M2 MC Dropout",
+      "modules": "M2",
+      "model_type": "cnn_lstm_mc",
+      "note": "推理时保持 Dropout 激活，50次随机推理取均值",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.007878907024860382, "rmse_mean": 0.01273655630648136, "r2_mean": 0.966824221611023, "mono_viol_rate_mean": 0.08456, "mono_viol_mean_mean": 0.0044762, "delta_soh_mean_mean": 0.0011892, "delta_mae": 0.00036434298381209443, "rel_improvement": 4.419894864632033, "mono_viol_rate_delta": 0.030580000000000003},
+        "0.5": {"n": 5, "mae_mean": 0.008158763404935598, "rmse_mean": 0.013596751727163792, "r2_mean": 0.9624426603317261, "mono_viol_rate_mean": 0.0545, "mono_viol_mean_mean": 0.0030194, "delta_soh_mean_mean": 0.0010028, "delta_mae": -8.73465090990063e-05, "rel_improvement": -1.0821707046759224, "mono_viol_rate_delta": 0.0038},
+        "0.3": {"n": 5, "mae_mean": 0.00825269492343068, "rmse_mean": 0.013360906951129436, "r2_mean": 0.9640816211700439, "mono_viol_rate_mean": 0.10154, "mono_viol_mean_mean": 0.0054416, "delta_soh_mean_mean": 0.0011218, "delta_mae": 6.532073020935197e-05, "rel_improvement": 0.7852922250845619, "mono_viol_rate_delta": 0.02414}
+      }
+    },
+    {
+      "exp_id": "E3_m4_smoothness",
+      "label": "+ M4 速率连续性",
+      "modules": "M4",
+      "model_type": "cnn_lstm",
+      "note": "速率连续性约束 smoothness_weight=0.05，min_cycle=300",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.00836992533877492, "rmse_mean": 0.013460113666951656, "r2_mean": 0.9628545880317688, "mono_viol_rate_mean": 0.0917, "mono_viol_mean_mean": 0.0064042, "delta_soh_mean_mean": 0.0005938, "delta_mae": -0.00012667533010244335, "rel_improvement": -1.5367158580556457, "mono_viol_rate_delta": 0.03772},
+        "0.5": {"n": 5, "mae_mean": 0.008229058887809514, "rmse_mean": 0.013352413848042487, "r2_mean": 0.9622367262840271, "mono_viol_rate_mean": 0.02886, "mono_viol_mean_mean": 0.008128, "delta_soh_mean_mean": 0.000519, "delta_mae": -0.00015764199197292224, "rel_improvement": -1.953089451422554, "mono_viol_rate_delta": -0.02184},
+        "0.3": {"n": 5, "mae_mean": 0.00844794549047947, "rmse_mean": 0.013746183551847934, "r2_mean": 0.9620835900306701, "mono_viol_rate_mean": 0.0925, "mono_viol_mean_mean": 0.006383, "delta_soh_mean_mean": 0.0005576, "delta_mae": -0.00012992983683943714, "rel_improvement": -1.562029241704766, "mono_viol_rate_delta": 0.0151}
+      }
+    },
+    {
+      "exp_id": "E4_m5_adaptive",
+      "label": "+ M5 自适应权重",
+      "modules": "M5",
+      "model_type": "cnn_lstm_adaptive_weight",
+      "note": "4 个损失项权重全部可学习（自动替代人工调参，含 M4）",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.009234057925641536, "rmse_mean": 0.016525203920900823, "r2_mean": 0.9431039810180664, "mono_viol_rate_mean": 0.11506, "mono_viol_mean_mean": 0.00829, "delta_soh_mean_mean": 0.0005952, "delta_mae": -0.0009908079169690595, "rel_improvement": -12.019627160727385, "mono_viol_rate_delta": 0.06108},
+        "0.5": {"n": 5, "mae_mean": 0.008490853942930698, "rmse_mean": 0.013794265314936638, "r2_mean": 0.9607948780059814, "mono_viol_rate_mean": 0.04778, "mono_viol_mean_mean": 0.0054256, "delta_soh_mean_mean": 0.0005206, "delta_mae": -0.00041943704709410633, "rel_improvement": -5.196572702253316, "mono_viol_rate_delta": -0.00292},
+        "0.3": {"n": 5, "mae_mean": 0.008799020387232303, "rmse_mean": 0.01483254563063383, "r2_mean": 0.9555091381072998, "mono_viol_rate_mean": 0.07432, "mono_viol_mean_mean": 0.0053726, "delta_soh_mean_mean": 0.0005402, "delta_mae": -0.0004810047335922704, "rel_improvement": -5.782686083089766, "mono_viol_rate_delta": -0.00308}
+      }
+    },
+    {
+      "exp_id": "E5_m2_m6_pseudo",
+      "label": "+ M2+M6 伪标签",
+      "modules": "M2+M6",
+      "model_type": "cnn_lstm_pseudo_label",
+      "note": "MC Dropout 估计不确定性，筛选高置信无标签样本作伪标签（ratio<1.0 有效）",
+      "by_ratio": {
+        "1.0": {"n": 5, "mae_mean": 0.007988543901592492, "rmse_mean": 0.013392070308327675, "r2_mean": 0.9633188128471375, "mono_viol_rate_mean": 0.07614, "mono_viol_mean_mean": 0.0042034, "delta_soh_mean_mean": 0.0009808, "delta_mae": 0.00025470610707998415, "rel_improvement": 3.0898748286418036, "mono_viol_rate_delta": 0.02216},
+        "0.5": {"n": 5, "mae_mean": 0.00826952764764428, "rmse_mean": 0.013282507099211216, "r2_mean": 0.9642813682556153, "mono_viol_rate_mean": 0.06816, "mono_viol_mean_mean": 0.0020518, "delta_soh_mean_mean": 0.001587, "delta_mae": -0.00019811075180768863, "rel_improvement": -2.454473041900219, "mono_viol_rate_delta": 0.01746},
+        "0.3": {"n": 5, "mae_mean": 0.008866478968411685, "rmse_mean": 0.01531122699379921, "r2_mean": 0.953695785999298, "mono_viol_rate_mean": 0.18394, "mono_viol_mean_mean": 0.0065142, "delta_soh_mean_mean": 0.0016768, "delta_mae": -0.0005484633147716522, "rel_improvement": -6.593679762211558, "mono_viol_rate_delta": 0.10654}
+      }
+    }
+  ]
+}

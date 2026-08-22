@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\caption{MAE (\%) across SOH-label retention ratios. Values are mean $\pm$ sample standard deviation across three paired repetitions on the fixed cell split (seed 42).}
+\label{tab:label_budget_mae}
+\centering
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
+\toprule
+Model & r = 1.0 & r = 0.7 & r = 0.5 & r = 0.3 \\
+\midrule
+CNN--LSTM & 1.649 \textpm{} 0.050 & 1.647 \textpm{} 0.103 & 1.679 \textpm{} 0.138 & 1.659 \textpm{} 0.031 \\
+PI--CNN--LSTM & 1.679 \textpm{} 0.055 & 1.588 \textpm{} 0.030 & 1.598 \textpm{} 0.017 & 1.677 \textpm{} 0.021 \\
+MS--CNN--LSTM & 1.582 \textpm{} 0.102 & 1.650 \textpm{} 0.076 & 1.614 \textpm{} 0.055 & 1.634 \textpm{} 0.057 \\
+PI--MSCL & 1.556 \textpm{} 0.044 & 1.605 \textpm{} 0.029 & 1.659 \textpm{} 0.139 & 1.677 \textpm{} 0.128 \\
+\bottomrule
+\end{tabular*}
+\end{table}

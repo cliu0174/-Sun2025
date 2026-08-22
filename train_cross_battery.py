@@ -163,7 +163,13 @@ def load_all_batteries(data_dir='data/HUST data', apply_cleaning=False):
     for battery_name in tqdm(battery_names, desc="加载数据"):
         file_path = os.path.join(data_dir, f'{battery_name}.csv')
         try:
-            data = load_single_hust_battery(file_path, train_ratio=1.0, normalize_target=True, apply_cleaning=apply_cleaning)
+            data = load_single_hust_battery(
+                file_path,
+                train_ratio=1.0,
+                normalize_target=True,
+                apply_cleaning=apply_cleaning,
+                standardize_features=False,
+            )
             all_data[battery_name] = data
 
             # 统计清洗效果
@@ -275,6 +281,59 @@ def generate_supervision_mask(battery_ids, ratio, seed):
     return mask
 
 
+def generate_trajectory_prefix_supervision_mask(battery_ids, ratio, seed):
+    """Allocate a global SOH-label budget to as few trajectory prefixes as possible.
+
+    Training batteries are randomly ordered with ``seed``. Labels are then kept
+    from the earliest available cycles of the first battery, then the next, until
+    the requested global budget is exhausted. All remaining samples stay in the
+    feature stream as unlabeled samples. This intentionally differs from the
+    original per-battery random mask and emulates a small number of labelled
+    early-life trajectories.
+    """
+    assert 0.0 < ratio <= 1.0, f"supervision_ratio must be in (0, 1], got {ratio}"
+
+    battery_ids = np.asarray(battery_ids)
+    n_total = len(battery_ids)
+    mask = np.zeros(n_total, dtype=bool)
+    battery_order = list(np.unique(battery_ids))
+    rng = np.random.RandomState(seed)
+    rng.shuffle(battery_order)
+    remaining = max(1, int(round(n_total * ratio)))
+
+    labeled_counts = {}
+    fully_labeled = []
+    partially_labeled = None
+    for battery_name in battery_order:
+        if remaining <= 0:
+            break
+        # ``prepare_cross_battery_data`` appends every battery chronologically,
+        # so these indices form an early-life prefix for this battery.
+        battery_indices = np.where(battery_ids == battery_name)[0]
+        n_take = min(len(battery_indices), remaining)
+        mask[battery_indices[:n_take]] = True
+        labeled_counts[str(battery_name)] = int(n_take)
+        if n_take == len(battery_indices):
+            fully_labeled.append(str(battery_name))
+        else:
+            partially_labeled = str(battery_name)
+        remaining -= n_take
+
+    metadata = {
+        'supervision_mode': 'trajectory_prefix_concentrated',
+        'supervision_seed': int(seed),
+        'requested_ratio': float(ratio),
+        'actual_ratio': float(mask.mean()) if n_total else 0.0,
+        'n_total': int(n_total),
+        'n_labeled': int(mask.sum()),
+        'battery_order': [str(name) for name in battery_order],
+        'labeled_counts_by_battery': labeled_counts,
+        'fully_labeled_batteries': fully_labeled,
+        'partially_labeled_battery': partially_labeled,
+    }
+    return mask, metadata
+
+
 def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_batteries,
                                degradation_scenario='none',
                                noise_level='medium',
@@ -287,7 +346,8 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
                                cycle_drop_num_gaps=None,
                                seed=42,
                                supervision_ratio=1.0,
-                               supervision_seed=None):
+                               supervision_seed=None,
+                               supervision_mode='distributed_random'):
     """
     准备跨电池的训练/验证/测试数据。
 
@@ -558,9 +618,30 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
     if supervision_seed is None:
         supervision_seed = seed  # 默认与主 seed 一致，保证可复现
 
-    train_supervision_mask = generate_supervision_mask(
-        train_battery_ids, ratio=supervision_ratio, seed=supervision_seed
-    )
+    if supervision_mode == 'distributed_random':
+        train_supervision_mask = generate_supervision_mask(
+            train_battery_ids, ratio=supervision_ratio, seed=supervision_seed
+        )
+        supervision_metadata = {
+            'supervision_mode': supervision_mode,
+            'supervision_seed': int(supervision_seed),
+            'requested_ratio': float(supervision_ratio),
+            'actual_ratio': float(train_supervision_mask.mean()),
+            'n_total': int(len(train_supervision_mask)),
+            'n_labeled': int(train_supervision_mask.sum()),
+        }
+    elif supervision_mode == 'trajectory_prefix_concentrated':
+        train_supervision_mask, supervision_metadata = (
+            generate_trajectory_prefix_supervision_mask(
+                train_battery_ids, ratio=supervision_ratio, seed=supervision_seed
+            )
+        )
+    else:
+        raise ValueError(
+            "Unknown supervision_mode: "
+            f"{supervision_mode!r}. Expected 'distributed_random' or "
+            "'trajectory_prefix_concentrated'."
+        )
     val_supervision_mask = np.ones(len(val_battery_ids), dtype=bool)  # val 完全监督
     test_supervision_mask = np.ones(len(test_battery_ids), dtype=bool)  # test 完全监督
 
@@ -599,12 +680,16 @@ def prepare_cross_battery_data(all_data, train_batteries, val_batteries, test_ba
         'test_batteries': test_batteries,
         'supervision_ratio': supervision_ratio,
         'supervision_seed': supervision_seed,
+        'supervision_mode': supervision_mode,
+        'supervision_metadata': supervision_metadata,
     }
 
     return data_dict
 
 
-def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, use_physics=False, siamese_mode=False, triplet_mode=False, step_k=1):
+def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False,
+                       use_physics=False, siamese_mode=False, triplet_mode=False,
+                       step_k=1, preserve_battery_boundaries=True):
     """
     创建PyTorch DataLoader，支持窗口化数据和物理约束。
 
@@ -617,13 +702,16 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         siamese_mode: 是否使用孪生采样模式（向后兼容：默认False）
         triplet_mode: 是否使用三元组采样模式（向后兼容：默认False）
         step_k: 采样的步长（默认1=相邻）
+        preserve_battery_boundaries: 是否保证每个滑动窗口完全位于同一块电池内。
+            论文实验必须为 True；False 仅用于复现早期跨电池窗口化结果。
     """
     from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 
-    # 根据是否使用物理约束选择不同的数据处理方式
-    if use_physics and window_size > 1:
-        # 物理约束模式：按每个电池单独窗口化（不跨电池边界）
-        print(f"  使用物理约束模式（窗口大小={window_size}，按电池单独窗口化）")
+    # 窗口边界与物理约束开关必须解耦。论文实验无论是否启用物理损失，
+    # 都逐电池窗口化，避免输入窗口跨越两块不同电池。
+    if window_size > 1 and (use_physics or preserve_battery_boundaries):
+        mode_desc = "物理约束" if use_physics else "标准监督"
+        print(f"  使用{mode_desc}模式（窗口大小={window_size}，按电池单独窗口化）")
 
         # 为每个电池单独创建 windowed dataset
         train_datasets = []
@@ -699,6 +787,24 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
         val_dataset = ConcatDataset(val_datasets)
         test_dataset = ConcatDataset(test_datasets)
 
+        # 记录真正进入 many-to-one 训练的窗口级标签覆盖率。监督比例是在
+        # cycle level 生成的，而每块电池最初 window_size-1 个循环只作为
+        # 历史输入、不会成为窗口目标；两种口径都归档，避免论文误报预算。
+        windowed_train_total = int(sum(len(ds) for ds in train_datasets))
+        windowed_train_labeled = int(
+            sum(ds.supervision_mask.sum().item() for ds in train_datasets)
+        )
+        data_dict['windowed_train_samples'] = windowed_train_total
+        data_dict['windowed_train_labeled_samples'] = windowed_train_labeled
+        data_dict['windowed_train_label_ratio'] = (
+            windowed_train_labeled / windowed_train_total
+            if windowed_train_total else 0.0
+        )
+        print(
+            f"  窗口目标有标签: {windowed_train_labeled}/{windowed_train_total} "
+            f"({100 * data_dict['windowed_train_label_ratio']:.2f}%)"
+        )
+
         # 创建 DataLoader
         # num_workers=0 保证结果完全一致（单进程）
         # 如需加速可改为 4 或 8（结果仍一致但更快）
@@ -727,12 +833,13 @@ def create_dataloaders(data_dict, batch_size=64, window_size=1, seq2seq=False, u
             pin_memory=False
         )
 
-        # 物理约束模式下，电池ID在batch的元数据中，这里设为None
+        # 电池边界保持模式下，电池ID在 batch 元数据中，这里设为 None
         test_battery_ids = None
 
     else:
-        # 标准模式：跨电池窗口化（保持原有训练方式）
-        print(f"  使用标准模式（窗口大小={window_size}，跨电池窗口化）")
+        # 仅用于复现早期结果。window_size > 1 时会产生跨电池边界窗口，
+        # 不得用于论文主结果或消融实验。
+        print(f"  使用旧版兼容模式（窗口大小={window_size}，跨电池窗口化）")
 
         def apply_windowing(features, targets, battery_ids, window_size, seq2seq=False):
             """
@@ -874,6 +981,7 @@ def train_cross_battery_model(
     test_ratio=0.2,
     device='cuda',
     seed=42,
+    split_seed=None,                     # 电池级划分种子 (None=与训练 seed 一致)
     apply_cleaning=False,
     color_by_battery=True,              # 是否按电池着色（默认True）
     highlight_anomalies=True,            # 是否突出显示异常电池（默认True）
@@ -888,7 +996,11 @@ def train_cross_battery_model(
     cycle_drop_num_gaps=None,            # 场景四手动缺失段数量
     supervision_ratio=1.0,               # 部分监督比例 (1.0=全监督, 0.5=50%有标签)
     supervision_seed=None,               # 部分监督 mask 种子 (None=与主 seed 一致)
+    supervision_mode='distributed_random',
     config_override=None,                # dict，深度合并覆盖 config（用于超参扫描）
+    preserve_battery_boundaries=True,    # 所有序列窗口均限制在单块电池内
+    results_dir_override=None,           # 独立运行目录，避免批量实验相互覆盖
+    save_diagnostic_plots=True,          # 批量论文实验可关闭旧版诊断图
 ):
     """
     跨电池训练模型。
@@ -900,6 +1012,7 @@ def train_cross_battery_model(
         test_ratio: 测试集比例
         device: 计算设备
         seed: 随机种子
+        split_seed: 电池级 Train/Val/Test 划分种子；None 时沿用 seed
         apply_cleaning: 是否应用3-Sigma数据清洗（默认False，保持向后兼容）
         color_by_battery: 是否按电池着色（默认True）
         highlight_anomalies: 是否突出显示异常电池（默认True）
@@ -918,6 +1031,8 @@ def train_cross_battery_model(
                             例如: num_gaps=2 表示分成2段连续缺失
     """
     set_seed(seed)
+    if split_seed is None:
+        split_seed = seed
 
     print("\n" + "="*70)
     print(f"跨电池训练: {model_type.upper()}")
@@ -971,7 +1086,7 @@ def train_cross_battery_model(
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
-        seed=seed
+        seed=split_seed
     )
 
     # 3. 准备数据
@@ -988,7 +1103,8 @@ def train_cross_battery_model(
         cycle_drop_num_gaps=cycle_drop_num_gaps,
         seed=seed,
         supervision_ratio=supervision_ratio,
-        supervision_seed=supervision_seed
+        supervision_seed=supervision_seed,
+        supervision_mode=supervision_mode,
     )
 
     # 4. 加载模型配置
@@ -1077,7 +1193,10 @@ def train_cross_battery_model(
     is_seq2seq = 'seq2seq' in config_model_type
 
     # 时序模型和CNN混合模型需要窗口化数据
-    needs_window = any(model_name in config_model_type for model_name in ['lstm', 'gru', 'cnn'])
+    needs_window = any(
+        model_name in config_model_type
+        for model_name in ['lstm', 'gru', 'cnn', 'transformer']
+    )
     if needs_window or is_seq2seq:
         window_size = config.get('data', {}).get('window_size', 10)
         if is_seq2seq:
@@ -1096,7 +1215,8 @@ def train_cross_battery_model(
         use_physics=use_physics,  # 传递物理约束标志
         siamese_mode=siamese_mode,  # 传递孪生采样标志（向后兼容：默认False）
         triplet_mode=triplet_mode,  # 传递三元组采样标志（向后兼容：默认False）
-        step_k=step_k  # 传递配对步长
+        step_k=step_k,  # 传递配对步长
+        preserve_battery_boundaries=preserve_battery_boundaries,
     )
 
     # 7. 创建模型
@@ -1761,6 +1881,7 @@ def train_cross_battery_model(
     all_predictions = []
     all_targets = []
     all_battery_ids_from_batch = []  # 用于物理约束模式下收集电池ID
+    all_cycle_indices_from_batch = []
 
     with torch.no_grad():
         for batch in test_loader:
@@ -1773,12 +1894,14 @@ def train_cross_battery_model(
                 features = batch['window'].to(device)
                 targets = batch['target_soh'].cpu().numpy()
                 battery_ids_batch = batch['battery_id']  # 提取电池ID
+                cycle_indices_batch = batch.get('cycle_idx', None)
             else:
                 # Standard mode: tuple batch (legacy support)
                 features, targets = batch
                 features = features.to(device)
                 targets = targets.cpu().numpy()
                 battery_ids_batch = None
+                cycle_indices_batch = None
 
             # M2 修复：MCDropout 模型用 50 次采样均值作为点估计，
             # 与 Baseline 的 model.eval() 干净预测保持可比性
@@ -1804,6 +1927,12 @@ def train_cross_battery_model(
             # 收集电池ID（用于着色）
             if battery_ids_batch is not None:
                 all_battery_ids_from_batch.extend(battery_ids_batch)
+            if cycle_indices_batch is not None:
+                if torch.is_tensor(cycle_indices_batch):
+                    cycle_indices_batch = cycle_indices_batch.detach().cpu().numpy()
+                all_cycle_indices_from_batch.extend(
+                    np.asarray(cycle_indices_batch).reshape(-1).tolist()
+                )
 
     predictions_np = np.array(all_predictions)
     targets_np = np.array(all_targets)
@@ -1817,6 +1946,11 @@ def train_cross_battery_model(
         final_battery_ids = test_battery_ids
     else:
         final_battery_ids = None
+
+    final_cycle_indices = (
+        np.asarray(all_cycle_indices_from_batch, dtype=np.int32)
+        if all_cycle_indices_from_batch else None
+    )
 
     test_mae = np.mean(np.abs(predictions_np - targets_np))
     test_rmse = np.sqrt(np.mean((predictions_np - targets_np) ** 2))
@@ -1836,7 +1970,7 @@ def train_cross_battery_model(
     print(f"R2:   {test_r2:.6f}")
 
     # 10. 保存结果
-    results_dir = f'results/cross_battery/{model_type}'
+    results_dir = results_dir_override or f'results/cross_battery/{model_type}'
     os.makedirs(results_dir, exist_ok=True)
 
     # 保存模型
@@ -1855,7 +1989,13 @@ def train_cross_battery_model(
         'train_ratio': train_ratio,
         'val_ratio': val_ratio,
         'test_ratio': test_ratio,
-        'seed': seed
+        'seed': seed,
+        'training_seed': seed,
+        'split_seed': split_seed,
+        'supervision_seed': data_dict.get('supervision_seed'),
+        'supervision_mode': data_dict.get('supervision_mode'),
+        'supervision_metadata': data_dict.get('supervision_metadata'),
+        'preserve_battery_boundaries': preserve_battery_boundaries,
     }
     with open(os.path.join(results_dir, 'battery_split.json'), 'w') as f:
         json.dump(split_info, f, indent=2)
@@ -1871,6 +2011,22 @@ def train_cross_battery_model(
         'predictions': predictions_np.tolist(),
         'targets': targets_np.tolist(),
         'battery_ids': final_battery_ids if isinstance(final_battery_ids, (list, np.ndarray)) else None,  # 保存电池编号
+        'cycle_indices': final_cycle_indices.tolist() if final_cycle_indices is not None else None,
+        'training_seed': seed,
+        'split_seed': split_seed,
+        'supervision_seed': data_dict.get('supervision_seed'),
+        'supervision_ratio': supervision_ratio,
+        'supervision_mode': data_dict.get('supervision_mode'),
+        'supervision_metadata': data_dict.get('supervision_metadata'),
+        'cycle_level_train_samples': int(len(data_dict['train_supervision_mask'])),
+        'cycle_level_train_labeled_samples': int(data_dict['train_supervision_mask'].sum()),
+        'windowed_train_samples': data_dict.get('windowed_train_samples'),
+        'windowed_train_labeled_samples': data_dict.get('windowed_train_labeled_samples'),
+        'windowed_train_label_ratio': data_dict.get('windowed_train_label_ratio'),
+        'preserve_battery_boundaries': preserve_battery_boundaries,
+        'train_batteries': train_batteries,
+        'val_batteries': val_batteries,
+        'test_batteries': test_batteries,
         'history': history
     }
 
@@ -1879,9 +2035,10 @@ def train_cross_battery_model(
         pickle.dump(results, f)
 
     # 绘制图表
-    plot_cross_battery_results(history, predictions_np, targets_np,
-                                final_battery_ids if color_by_battery else None,
-                                results_dir, highlight_anomalies)
+    if save_diagnostic_plots:
+        plot_cross_battery_results(history, predictions_np, targets_np,
+                                    final_battery_ids if color_by_battery else None,
+                                    results_dir, highlight_anomalies)
 
     # M6 诊断数据保存
     if history.get('pseudo_diag'):

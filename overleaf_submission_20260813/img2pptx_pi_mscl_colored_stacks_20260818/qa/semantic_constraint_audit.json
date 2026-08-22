@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "panels.order": true,
+    "input.dimension": true,
+    "input.purple_cells": true,
+    "cnn.branch_order_colors": true,
+    "cnn.slanted_multicolor_grids": true,
+    "cnn.dimensions": true,
+    "model.flow": true,
+    "lstm.two_layers": true,
+    "supervision.sparse_markers": true,
+    "monotonicity.violation": true,
+    "rate.kink": true,
+    "objective.three_inputs": true,
+    "objective.formula": true,
+    "canvas.no_raster": true,
+    "input.no_soh_target": true,
+    "cnn.exactly_three": true,
+    "objective.no_extra_edge": true
+  },
+  "human_review": {
+    "reviewed_files": [
+      "qa/semantic_review_sheet.png",
+      "qa/pptx_slide_preview.png"
+    ],
+    "reviewer": "primary-agent-plus-independent-visual-QA-subagent",
+    "status": "passed",
+    "confirmed": [
+      "blue, green, and purple Conv1D branch color families are distinct",
+      "all 40-20-10 feature-map stages use diagonal layered perspective and varied internal tiles",
+      "purple Input cells are visible in the middle-to-lower region without overwhelming blue and green",
+      "no clipping, overlap, broken connector, or text collision is visible"
+    ],
+    "non_blocking_note": "The palest rear blue and green feature-map layers have low contrast on white, but their outlines remain readable."
+  },
+  "passed": true
+}

@@ -1,0 +1,67 @@
+source_id,table_id,metric,method,architecture,physics,label_ratio,value,unit,notes
+cn_docx_20260806,Table1,MAE,XGBoost,tree,na,1.0,1.097,percent,full-supervision model comparison
+cn_docx_20260806,Table1,RMSE,XGBoost,tree,na,1.0,1.907,percent,full-supervision model comparison
+cn_docx_20260806,Table1,R2,XGBoost,tree,na,1.0,0.9322,unitless,full-supervision model comparison
+cn_docx_20260806,Table1,MAE,LSTM,lstm,no,1.0,1.164,percent,full-supervision model comparison
+cn_docx_20260806,Table1,RMSE,LSTM,lstm,no,1.0,2.086,percent,full-supervision model comparison
+cn_docx_20260806,Table1,R2,LSTM,lstm,no,1.0,0.9188,unitless,full-supervision model comparison
+cn_docx_20260806,Table1,MAE,CNN-LSTM,single_scale,no,1.0,1.059,percent,full-supervision model comparison
+cn_docx_20260806,Table1,RMSE,CNN-LSTM,single_scale,no,1.0,1.945,percent,full-supervision model comparison
+cn_docx_20260806,Table1,R2,CNN-LSTM,single_scale,no,1.0,0.9294,unitless,full-supervision model comparison
+cn_docx_20260806,Table1,MAE,PI-MSCL,multi_scale,yes,1.0,1.101,percent,full-supervision model comparison
+cn_docx_20260806,Table1,RMSE,PI-MSCL,multi_scale,yes,1.0,1.688,percent,full-supervision model comparison
+cn_docx_20260806,Table1,R2,PI-MSCL,multi_scale,yes,1.0,0.9461,unitless,full-supervision model comparison
+cn_docx_20260806,Table2,RMSE,Single-scale / no physics,single_scale,no,1.0,1.945,percent,2x2 ablation
+cn_docx_20260806,Table2,RMSE,Single-scale / physics,single_scale,yes,1.0,1.819,percent,2x2 ablation
+cn_docx_20260806,Table2,RMSE,Multi-scale / no physics,multi_scale,no,1.0,1.779,percent,2x2 ablation
+cn_docx_20260806,Table2,RMSE,Multi-scale / physics,multi_scale,yes,1.0,1.688,percent,2x2 ablation
+cn_docx_20260806,Table3,RMSE,Single-scale / no physics,single_scale,no,1.0,1.945,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / no physics,single_scale,no,0.7,2.086,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / no physics,single_scale,no,0.5,2.355,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / no physics,single_scale,no,0.3,2.380,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / physics,single_scale,yes,1.0,1.819,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / physics,single_scale,yes,0.7,1.864,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / physics,single_scale,yes,0.5,2.057,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Single-scale / physics,single_scale,yes,0.3,2.154,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / no physics,multi_scale,no,1.0,1.779,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / no physics,multi_scale,no,0.7,1.814,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / no physics,multi_scale,no,0.5,1.982,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / no physics,multi_scale,no,0.3,2.161,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / physics,multi_scale,yes,1.0,1.688,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / physics,multi_scale,yes,0.7,1.728,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / physics,multi_scale,yes,0.5,1.876,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table3,RMSE,Multi-scale / physics,multi_scale,yes,0.3,1.937,percent,label-budget 2x2 matrix
+cn_docx_20260806,Table4,MAE,XGBoost,tree,na,1.0,1.097,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,XGBoost,tree,na,0.7,1.139,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,XGBoost,tree,na,0.5,1.174,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,XGBoost,tree,na,0.3,1.238,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,LSTM,lstm,no,1.0,1.164,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,LSTM,lstm,no,0.7,1.197,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,LSTM,lstm,no,0.5,1.268,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,LSTM,lstm,no,0.3,1.296,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,CNN-LSTM,single_scale,no,1.0,1.059,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,CNN-LSTM,single_scale,no,0.7,1.147,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,CNN-LSTM,single_scale,no,0.5,1.164,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,CNN-LSTM,single_scale,no,0.3,1.186,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,PI-MSCL,multi_scale,yes,1.0,1.101,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,PI-MSCL,multi_scale,yes,0.7,1.115,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,PI-MSCL,multi_scale,yes,0.5,1.137,percent,label-budget model comparison
+cn_docx_20260806,Table4,MAE,PI-MSCL,multi_scale,yes,0.3,1.134,percent,label-budget model comparison
+cn_docx_20260806,Table5,MAE,CNN-LSTM,single_scale,no,0.7,1.147,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,CNN-LSTM,single_scale,no,0.7,1.989,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,CNN-LSTM,single_scale,no,0.7,0.9239,unitless,partial-supervision detail table
+cn_docx_20260806,Table5,MAE,CNN-LSTM,single_scale,no,0.5,1.164,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,CNN-LSTM,single_scale,no,0.5,2.102,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,CNN-LSTM,single_scale,no,0.5,0.9176,unitless,partial-supervision detail table
+cn_docx_20260806,Table5,MAE,CNN-LSTM,single_scale,no,0.3,1.186,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,CNN-LSTM,single_scale,no,0.3,2.211,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,CNN-LSTM,single_scale,no,0.3,0.9045,unitless,partial-supervision detail table
+cn_docx_20260806,Table5,MAE,PI-MSCL,multi_scale,yes,0.7,1.115,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,PI-MSCL,multi_scale,yes,0.7,1.707,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,PI-MSCL,multi_scale,yes,0.7,0.9431,unitless,partial-supervision detail table
+cn_docx_20260806,Table5,MAE,PI-MSCL,multi_scale,yes,0.5,1.137,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,PI-MSCL,multi_scale,yes,0.5,1.842,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,PI-MSCL,multi_scale,yes,0.5,0.9283,unitless,partial-supervision detail table
+cn_docx_20260806,Table5,MAE,PI-MSCL,multi_scale,yes,0.3,1.134,percent,partial-supervision detail table
+cn_docx_20260806,Table5,RMSE,PI-MSCL,multi_scale,yes,0.3,1.921,percent,partial-supervision detail table
+cn_docx_20260806,Table5,R2,PI-MSCL,multi_scale,yes,0.3,0.9185,unitless,partial-supervision detail table

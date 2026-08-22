@@ -1,0 +1,221 @@
+{
+  "modules": [
+    {
+      "component": "panel_a",
+      "render_exists": true,
+      "foreground_bbox": [
+        16,
+        16,
+        3319,
+        965
+      ],
+      "edge_margins": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "input_sequence",
+      "render_exists": true,
+      "foreground_bbox": [
+        28,
+        42,
+        363,
+        684
+      ],
+      "edge_margins": [
+        28,
+        42,
+        38,
+        47
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "multiscale_cnn",
+      "render_exists": true,
+      "foreground_bbox": [
+        85,
+        36,
+        982,
+        852
+      ],
+      "edge_margins": [
+        85,
+        36,
+        159,
+        39
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "fusion",
+      "render_exists": true,
+      "foreground_bbox": [
+        40,
+        97,
+        426,
+        442
+      ],
+      "edge_margins": [
+        40,
+        97,
+        85,
+        29
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "lstm",
+      "render_exists": true,
+      "foreground_bbox": [
+        52,
+        46,
+        631,
+        596
+      ],
+      "edge_margins": [
+        52,
+        46,
+        60,
+        5
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "regression",
+      "render_exists": true,
+      "foreground_bbox": [
+        26,
+        24,
+        279,
+        519
+      ],
+      "edge_margins": [
+        26,
+        24,
+        52,
+        32
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "output_curve",
+      "render_exists": true,
+      "foreground_bbox": [
+        37,
+        48,
+        326,
+        574
+      ],
+      "edge_margins": [
+        37,
+        48,
+        35,
+        37
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "panel_b",
+      "render_exists": true,
+      "foreground_bbox": [
+        16,
+        16,
+        3319,
+        871
+      ],
+      "edge_margins": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "supervised_path",
+      "render_exists": true,
+      "foreground_bbox": [
+        70,
+        2,
+        1807,
+        222
+      ],
+      "edge_margins": [
+        70,
+        2,
+        124,
+        9
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "monotonic_path",
+      "render_exists": true,
+      "foreground_bbox": [
+        48,
+        36,
+        2083,
+        246
+      ],
+      "edge_margins": [
+        48,
+        36,
+        48,
+        35
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "rate_path",
+      "render_exists": true,
+      "foreground_bbox": [
+        48,
+        26,
+        1807,
+        334
+      ],
+      "edge_margins": [
+        48,
+        26,
+        124,
+        27
+      ],
+      "safe_padding": true,
+      "passed": true
+    },
+    {
+      "component": "objective",
+      "render_exists": true,
+      "foreground_bbox": [
+        96,
+        42,
+        815,
+        247
+      ],
+      "edge_margins": [
+        96,
+        42,
+        26,
+        64
+      ],
+      "safe_padding": true,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

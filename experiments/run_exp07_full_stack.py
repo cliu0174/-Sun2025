@@ -47,13 +47,16 @@ OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), 'exp07_full_stack')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def compute_uncertainty_metrics(model, data_dict, device, n_mc_samples=50):
+def compute_uncertainty_metrics(model, data_dict, device, n_mc_samples=50,
+                                window_size=40):
     """
     M7：对测试集计算 PICP / MPIW / Spearman 指标。
     仅在模型含 MCDropout 层时有效。
 
     Args:
-        data_dict: train_cross_battery_model 返回的第三个值（包含 test_features/test_targets 的 numpy 数组字典）
+        data_dict:    train_cross_battery_model 返回的第三个值
+                      （包含 test_features/test_targets 的 **原始未滑窗** numpy 数组字典）
+        window_size:  滑窗大小，须与训练配置一致（默认 40）
     """
     from models.modules.mc_dropout import mc_predict
     from evaluation.uncertainty_eval import uncertainty_report
@@ -64,10 +67,25 @@ def compute_uncertainty_metrics(model, data_dict, device, n_mc_samples=50):
         print("  [WARN] M7: data_dict 中缺少 test_features/test_targets，跳过")
         return {}
 
-    x       = torch.tensor(np.array(test_feat), dtype=torch.float32).to(device)
-    targets = np.array(test_targ).squeeze()
+    feat_arr = np.array(test_feat)   # (N, F)
+    targ_arr = np.array(test_targ)   # (N,) 或 (N, 1)
 
-    # 分批推理，避免大测试集 OOM
+    # ── 滑窗（与 create_dataloaders 的 apply_windowing 保持一致）──────────
+    if window_size > 1 and len(feat_arr) >= window_size:
+        wf, wt = [], []
+        for i in range(len(feat_arr) - window_size + 1):
+            wf.append(feat_arr[i:i + window_size])
+            wt.append(targ_arr[i + window_size - 1])
+        x_np    = np.array(wf)         # (N', window_size, F)
+        targets = np.array(wt).squeeze()
+    else:
+        # window_size=1 或样本太少，直接升维
+        x_np    = feat_arr[:, np.newaxis, :]   # (N, 1, F)
+        targets = targ_arr.squeeze()
+
+    x = torch.tensor(x_np, dtype=torch.float32).to(device)
+
+    # ── 分批 MC 推理，避免大测试集 OOM ─────────────────────────────────
     batch_size = 512
     all_means, all_stds = [], []
     for i in range(0, len(x), batch_size):
@@ -79,7 +97,9 @@ def compute_uncertainty_metrics(model, data_dict, device, n_mc_samples=50):
     means = np.concatenate(all_means).squeeze()
     stds  = np.concatenate(all_stds).squeeze()
 
-    report = uncertainty_report(targets, means, stds)
+    # targets 与 means 对齐（防止极端情况下长度差 1）
+    min_len = min(len(means), len(targets))
+    report  = uncertainty_report(targets[:min_len], means[:min_len], stds[:min_len])
     return report
 
 
@@ -143,8 +163,16 @@ def run_single(seed: int, ratio: float) -> Optional[dict]:
         # M7：计算置信区间指标（直接使用 data_dict 中的 numpy 数组）
         uncertainty_metrics = {}
         try:
+            # window_size 从 full_stack config 读取（默认 40）
+            _cfg_ws = 40
+            try:
+                from models import ConfigLoader
+                _cfg_ws = ConfigLoader.load_model_config(MODEL_TYPE)['data']['window_size']
+            except Exception:
+                pass
             uncertainty_metrics = compute_uncertainty_metrics(
-                model, data_dict, DEVICE, n_mc_samples=50
+                model, data_dict, DEVICE,
+                n_mc_samples=50, window_size=_cfg_ws
             )
         except Exception as e:
             print(f"  [WARN] M7 指标计算失败: {e}")

@@ -1,0 +1,53 @@
+% CONDITIONAL CANDIDATE ONLY — deliberately not included by manuscript.tex.
+% Source: Chinese manuscript Tables 3 and 4, registered in
+% ../../data/paper_results/legacy_cn_tables.csv.
+% Evidence boundary: legacy point estimates; no reconstructable per-seed
+% archive, no error bars, and no pooling with v3_leakage_free results.
+
+\subsection{Legacy evidence from the Chinese source manuscript}
+\label{subsec:legacy_cn_evidence}
+
+The Chinese source manuscript reported point estimates for four retained-label
+ratios before the current fixed-split and leakage-free protocol was established.
+These values are retained as legacy evidence because they document the empirical
+basis of the original manuscript, but they are not pooled with the revised
+experiments. Figure~\ref{fig:legacy_cn_budget} reproduces the two result sets
+directly from a table-indexed source-data file. No error bars or significance
+claims are shown because the corresponding per-seed prediction archives were not
+available locally.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../../output/figures/legacy_cn/legacy_cn_budget_results_group.pdf}
+  \caption{Legacy label-budget trends reported in the Chinese source manuscript.
+  \textbf{a}, MAE across four model families. \textbf{b}, RMSE for the
+  architecture--physics factorial comparison. Values are point estimates.}
+  \label{fig:legacy_cn_budget}
+\end{figure*}
+
+In the legacy MAE comparison, PI-MSCL changed from 1.101\% at $r=1.0$ to
+1.134\% at $r=0.3$, an increase of 0.033 percentage points. Over the same range,
+the reported increases were 0.141, 0.132, and 0.127 percentage points for
+XGBoost, LSTM, and CNN-LSTM, respectively. PI-MSCL also had the lowest reported
+MAE at each partially supervised ratio: 1.115\%, 1.137\%, and 1.134\% for
+$r=0.7$, 0.5, and 0.3. These point estimates are consistent with the original
+claim that the combined model was less sensitive to a reduced SOH-label budget;
+however, they do not establish the variability or statistical significance of
+the differences.
+
+The legacy factorial comparison showed the lowest RMSE for the multi-scale,
+physics-informed configuration at all four ratios. Relative to its multi-scale
+counterpart without the physical constraint, its reported RMSE was lower by
+0.091, 0.086, 0.106, and 0.224 percentage points as $r$ decreased from 1.0 to
+0.3. The larger difference at $r=0.3$ is compatible with the proposed role of
+soft monotonicity as structural regularization when direct labels are sparse.
+Nevertheless, this interpretation remains conditional on the historical
+pipeline and must not be presented as confirmation under the revised protocol.
+
+% Claim--evidence map
+% Claim: legacy PI-MSCL point estimates vary less with r than legacy baselines.
+% Evidence: Chinese source manuscript Table 4; supported as a historical report.
+% Claim: legacy multi-scale + PI has the lowest Table-3 RMSE at each r.
+% Evidence: Chinese source manuscript Table 3; supported as a historical report.
+% Claim: the same effects hold in the revised fixed-split protocol.
+% Evidence: incomplete (4/48 runs); must not be stated from this candidate.

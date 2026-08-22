@@ -1,0 +1,225 @@
+% Archived pre-restructure draft content, removed from manuscript.tex on the
+% 2026-08 sparse-label protocol rewrite. This file is NOT \input by the
+% manuscript; it is kept only as a reference copy of the two sections that
+% were superseded: (1) the old full-supervision benchmark / 2D ablation /
+% trajectory-case-study results computed under the pre-rewrite 46/16/15
+% split and single-seed runs, and (2) the trajectory-based abnormal-
+% degradation risk-indication section (in-house dataset, fault-injection
+% scenarios), which is out of scope for the controlled sparse-label HUST
+% study in the current manuscript. Both blocks were previously wrapped in
+% \iffalse...\fi inside manuscript.tex; that wrapping is preserved below
+% so this file can be pasted back between \section{Conclusion} and the
+% preceding section if a future revision needs to resurrect it.
+
+\iffalse
+\subsection{Full-supervision benchmark on the public dataset}
+\label{subsec:full_supervision_results}
+
+The full-supervision experiment first evaluated whether PI-MSCL can provide a reliable SOH estimator under the standard public-dataset setting, where every training sample has an available SOH label. Table~\ref{tab:full_supervision} summarizes the test performance of XGBoost, LSTM, CNN-LSTM, and PI-MSCL under $r=1.0$.
+
+\begin{table}[t]
+\caption{Full-supervision benchmark performance on the test cells ($r=1.0$).}
+\label{tab:full_supervision}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Model & RMSE (\%) & MAE (\%) & $R^2$ \\
+\midrule
+XGBoost & 1.907 & 1.097 & 0.9322 \\
+LSTM & 2.086 & 1.164 & 0.9188 \\
+CNN-LSTM & 1.945 & \textbf{1.059} & 0.9294 \\
+PI-MSCL & \textbf{1.688} & 1.101 & \textbf{0.9461} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost achieved an RMSE of 1.907\% and an MAE of 1.097\%, indicating that hand-crafted charging features contain useful SOH information. However, its static regression structure does not explicitly model cross-cycle temporal evolution. The LSTM baseline produced higher RMSE and MAE than XGBoost, showing that recurrent modeling alone was not sufficient when local degradation features were not explicitly extracted. CNN-LSTM reduced MAE to 1.059\%, the lowest MAE in this full-supervision comparison, but its RMSE and $R^2$ remained close to those of XGBoost.
+
+PI-MSCL achieved the best RMSE and $R^2$, with RMSE decreasing to 1.688\% and $R^2$ increasing to 0.9461. Its MAE was slightly higher than that of CNN-LSTM, which indicates that the physical consistency constraint did not uniformly reduce all point-wise errors under dense supervision. The gain appeared mainly in suppressing larger trajectory deviations and improving the global consistency of SOH predictions. This observation provides an important baseline for the later incomplete-supervision analysis: PI-MSCL was not designed simply to minimize point-wise MAE under ideal full-label conditions, but to improve trajectory-level robustness when supervision becomes incomplete.
+
+\subsection{Architecture and physical-constraint ablation}
+\label{subsec:ablation_results}
+
+To separate the effects of multi-scale representation and physical consistency, a two-dimensional ablation was conducted. The architecture axis compared the single-scale CNN-LSTM with the proposed multi-scale MS-CNN-LSTM. The constraint axis compared models trained without physics and models trained with the soft monotonic physical consistency loss. Table~\ref{tab:ablation_matrix_full} reports the RMSE values under full supervision.
+
+\begin{table}[t]
+\caption{Two-dimensional ablation matrix under full supervision. Values are RMSE (\%).}
+\label{tab:ablation_matrix_full}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Model & No physics & Soft monotonic & Constraint gain \\
+\midrule
+CNN-LSTM & 1.945 & 1.819 & 0.126 \\
+MS-CNN-LSTM & 1.779 & \textbf{1.688} & 0.091 \\
+Architecture gain & 0.166 & 0.131 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both architectural improvement and physical consistency reduced RMSE. Replacing the single-scale CNN-LSTM with MS-CNN-LSTM reduced RMSE by 0.166 percentage points without the physical constraint and by 0.131 percentage points with the physical constraint. Adding the soft monotonic constraint reduced RMSE by 0.126 percentage points for the single-scale architecture and by 0.091 percentage points for the multi-scale architecture. These results show that multi-scale representation was the larger contributor under full supervision, while the physical constraint provided a smaller but still positive trajectory-regularization effect.
+
+The same ablation was then extended to all supervision ratios, as shown in Table~\ref{tab:ablation_ratios}. The RMSE improvement from the multi-scale architecture was stable across $r=1.0$, $0.7$, $0.5$, and $0.3$. The full PI-MSCL model consistently achieved the lowest RMSE among the four ablation variants at each ratio.
+
+\begin{table}[t]
+\caption{RMSE comparison across supervision ratios in the architecture-constraint ablation.}
+\label{tab:ablation_ratios}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Ratio & CNN-LSTM & PI-CNN-LSTM & MS-CNN-LSTM & PI-MSCL \\
+\midrule
+$r=1.0$ & 1.945 & 1.819 & 1.779 & \textbf{1.688} \\
+$r=0.7$ & 2.086 & 1.864 & 1.814 & \textbf{1.728} \\
+$r=0.5$ & 2.355 & 2.057 & 1.982 & \textbf{1.876} \\
+$r=0.3$ & 2.380 & 2.154 & 2.161 & \textbf{1.937} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ablation results support two conclusions. First, multi-scale convolution was the main source of representational improvement because it reduced RMSE under both physics-free and physics-informed settings. Second, the soft monotonic constraint became more important as the label density decreased. At $r=0.3$, the physical constraint reduced the RMSE of the multi-scale model from 2.161\% to 1.937\%, a larger absolute gain than under full supervision. This behavior is consistent with the role of physical consistency as structural weak supervision when direct SOH labels become sparse.
+
+\subsection{Robustness under partial lifecycle supervision}
+\label{subsec:partial_results}
+
+The partial-supervision experiments evaluated how model accuracy changed as the supervision ratio decreased. Table~\ref{tab:mae_ratios} reports MAE values for XGBoost, LSTM, CNN-LSTM, and PI-MSCL under four supervision ratios.
+
+\begin{table}[t]
+\caption{MAE (\%) under different supervision ratios.}
+\label{tab:mae_ratios}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Model & $r=1.0$ & $r=0.7$ & $r=0.5$ & $r=0.3$ \\
+\midrule
+XGBoost & 1.097 & 1.139 & 1.174 & 1.238 \\
+LSTM & 1.164 & 1.197 & 1.268 & 1.296 \\
+CNN-LSTM & \textbf{1.059} & 1.147 & 1.164 & 1.186 \\
+PI-MSCL & 1.101 & \textbf{1.115} & \textbf{1.137} & \textbf{1.134} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Under full supervision, CNN-LSTM achieved the lowest MAE. When the supervision ratio decreased, the three baselines degraded more clearly. From $r=1.0$ to $r=0.3$, MAE increased by 0.141 percentage points for XGBoost, 0.132 percentage points for LSTM, and 0.127 percentage points for CNN-LSTM. In contrast, PI-MSCL increased by only 0.033 percentage points, from 1.101\% to 1.134\%. The nearly flat MAE curve indicates that PI-MSCL retained stable point-wise accuracy when direct SOH labels were reduced.
+
+PI-MSCL became the best-performing model once the supervision ratio dropped below full supervision. At $r=0.7$, PI-MSCL achieved an MAE of 1.115\%, lower than CNN-LSTM at 1.147\%. At $r=0.5$ and $r=0.3$, PI-MSCL remained the best model, with MAE values of 1.137\% and 1.134\%, respectively. This result supports the central motivation of the framework: the physical constraint is most valuable when the data-fitting term is weakened by sparse labels.
+
+Table~\ref{tab:partial_multimetric} further compares CNN-LSTM and PI-MSCL using MAE, RMSE, and $R^2$ in the partial-supervision regimes. PI-MSCL improved all three metrics at $r=0.7$, $r=0.5$, and $r=0.3$. The RMSE reduction was larger than the MAE reduction. For example, at $r=0.3$, RMSE decreased from 2.211\% for CNN-LSTM to 1.921\% for PI-MSCL, while MAE decreased from 1.186\% to 1.134\%. Since RMSE is more sensitive to large errors, this difference indicates that PI-MSCL mainly reduced larger trajectory deviations rather than uniformly shrinking every point-wise error.
+
+\begin{table}[t]
+\caption{Multi-metric comparison between CNN-LSTM and PI-MSCL under partial supervision.}
+\label{tab:partial_multimetric}
+\centering
+\begin{tabular}{lcccccc}
+\toprule
+Ratio & \multicolumn{3}{c}{CNN-LSTM} & \multicolumn{3}{c}{PI-MSCL} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+& MAE (\%) & RMSE (\%) & $R^2$ & MAE (\%) & RMSE (\%) & $R^2$ \\
+\midrule
+$r=0.7$ & 1.147 & 1.989 & 0.9239 & \textbf{1.115} & \textbf{1.707} & \textbf{0.9431} \\
+$r=0.5$ & 1.164 & 2.102 & 0.9176 & \textbf{1.137} & \textbf{1.842} & \textbf{0.9283} \\
+$r=0.3$ & 1.186 & 2.211 & 0.9045 & \textbf{1.134} & \textbf{1.921} & \textbf{0.9185} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Trajectory-level behavior on an unseen cell}
+\label{subsec:trajectory_case}
+
+Point-wise metrics do not fully reveal whether an SOH model produces physically reasonable degradation trajectories. A trajectory-level case study was therefore conducted on an unseen test cell under the sparse supervision setting $r=0.3$. The final figure will compare the true SOH trajectory, the CNN-LSTM prediction, and the PI-MSCL prediction for the same cell.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for the unseen-cell SOH trajectory comparison.\\ The final figure should show true SOH, CNN-LSTM prediction, and PI-MSCL prediction under $r=0.3$.}}
+  \caption{Trajectory-level SOH prediction comparison on an unseen cell under sparse supervision.}
+  \label{fig:trajectory_case}
+\end{figure*}
+
+In the current manuscript data, the CNN-LSTM trajectory showed stronger local oscillations and a more visible stage-wise bias in the unlabeled lifecycle region. Its RMSE on the representative unseen cell was 0.454\%. PI-MSCL produced a smoother and more monotonic trajectory, with an RMSE of 0.207\% on the same cell. This trajectory-level reduction is consistent with the aggregate RMSE improvements in Table~\ref{tab:partial_multimetric}.
+
+A corresponding error-evolution plot will be inserted after the final figure assets are consolidated. In the current manuscript data, the PI-MSCL error curve stayed closer to zero, with an MAE of 0.159\%, whereas CNN-LSTM showed a larger systematic positive drift in the later lifecycle region, with an MAE of 0.346\%. In SOH estimation, positive drift in late-life regions can be safety-sensitive because it corresponds to overestimating the remaining health of a degrading battery. The case study therefore illustrates the practical value of combining multi-scale feature learning with a soft monotonic physical constraint: the model not only improves aggregate metrics, but also suppresses trajectory shapes that are undesirable for BMS use.
+\fi
+% Archived from the main evidence chain on 2026-08-06. The underlying draft
+% remains recoverable here and in backups/manuscript_pre_restructure_20260806,
+% but it is excluded because the synthetic risk experiment is outside the
+% controlled sparse-label SOH question evaluated in Sections 3--4.
+\iffalse
+\section{Trajectory-Based Abnormal Degradation Risk Indication}
+\label{sec:risk}
+
+The preceding experiments focused on SOH estimation accuracy and robustness under partial lifecycle supervision. In practical BMS deployment, however, the predicted SOH trajectory may also provide auxiliary information for abnormal degradation risk indication. This section therefore examines whether the trained SOH estimator can be reused, without training an additional fault-diagnosis model, to generate low-cost warning signals for degradation patterns that visibly disturb the predicted trajectory.
+
+The scope of this analysis is deliberately limited. The objective is not to replace electrochemical diagnosis, impedance analysis, or dedicated fault classifiers. Instead, the objective is to test whether a physically constrained SOH prediction trajectory can expose deviations associated with sudden accelerated aging, capacity-knee behavior, and lithium-plating-like step drops. Knee points in battery aging trajectories are widely recognized as important markers of nonlinear degradation transition \cite{attia2022knees}. These scenarios are treated as trajectory-level risk patterns because they alter either the local SOH level, the degradation slope, or both. This framing is consistent with the broader degradation-diagnostics view that battery faults and aging mechanisms often appear as changes in observable capacity and response trajectories \cite{birkl2017degradation}.
+
+\subsection{Trajectory-Deviation Risk Score}
+
+The risk score is constructed from the model output rather than from additional SOH labels. Let $\hat{y}_t$ denote the SOH predicted by a trained estimator at cycle or window $t$. For each detection window, a first-order local trend is fitted to the recent prediction sequence,
+\begin{equation}
+  \tilde{y}_t = a_t t + b_t,
+\end{equation}
+where $a_t$ and $b_t$ are obtained by linear regression over the local window. The trajectory-deviation score is then defined as the absolute residual between the current prediction and the local trend,
+\begin{equation}
+  s_t = |\hat{y}_t - \tilde{y}_t|.
+\end{equation}
+The underlying assumption is that a normal SOH trajectory should remain locally smooth and approximately monotonic over a short window, whereas an abnormal event or an abrupt degradation-regime change will increase the residual from the local trend.
+
+This score is attractive for deployment because it depends only on the online SOH predictions. No ground-truth SOH label is required at the detection time, and no separate abnormal-state classifier is trained. The score therefore evaluates whether PI-MSCL's smoother and more physically consistent prediction trajectory can increase the signal-to-noise ratio of trajectory disturbances relative to a purely data-driven CNN-LSTM baseline.
+
+\subsection{Thresholding and Warning Rule}
+
+To reduce false alarms caused by isolated noise, the warning rule combines a statistical threshold with a persistence criterion. The detection threshold is estimated from the normal segment of the score sequence as
+\begin{equation}
+  \tau = \mu_s + 2\sigma_s,
+\end{equation}
+where $\mu_s$ and $\sigma_s$ denote the mean and standard deviation of the normal trajectory-deviation scores. A warning is triggered only when $s_t > \tau$ holds for $N$ consecutive windows. In the current manuscript experiments, $N$ is set to 20. This N-hit strategy trades a modest detection delay for improved robustness against transient fluctuations.
+
+The detection performance is evaluated using three complementary metrics. The area under the receiver operating characteristic curve (AUC) measures the separability between normal and abnormal score distributions across thresholds. Det@FPR5\% reports the true detection rate when the window-level false-positive rate is fixed at 5\%. Delay reports the number of windows between abnormal injection and the first satisfied N-hit warning condition.
+
+\subsection{Risk-Indication Results}
+
+Figure~\ref{fig:risk_trajectories} will show representative normal and abnormal SOH prediction trajectories for the in-house abnormal-degradation scenarios after the final figure assets are consolidated. In the current manuscript data, sudden accelerated aging produced a clear separation between normal and abnormal predicted trajectories near the injection point, followed by a steeper degradation slope. Capacity-knee behavior showed a milder pre-event trajectory followed by an increased post-knee decay rate. The lithium-plating-like step-drop scenario produced an abrupt SOH decrease followed by continued accelerated decay. These trajectory shapes are consistent with the intended use of the deviation score: the score responds when the predicted trajectory no longer follows its recent local trend.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for normal and abnormal SOH prediction trajectories.\\ The final figure should compare CNN-LSTM and PI-MSCL under sudden aging, capacity knee, and lithium-plating-like step-drop scenarios.}}
+  \caption{Representative trajectory-level risk patterns under abnormal degradation scenarios.}
+  \label{fig:risk_trajectories}
+\end{figure*}
+
+Figure~\ref{fig:risk_scores} will present the corresponding trajectory-deviation scores, normal-score baseline, and detection threshold. The current results indicate that PI-MSCL yields larger and more sustained score excursions than CNN-LSTM in abrupt degradation scenarios. This behavior is expected because the physical constraint suppresses background oscillations in normal prediction trajectories, making abnormal deviations easier to separate from normal variation.
+
+\begin{figure*}[t]
+  \centering
+  \fbox{\parbox[c][0.18\textheight][c]{0.86\textwidth}{\centering Placeholder for trajectory-deviation scores and N-hit warnings.\\ The final figure should show the score baseline, threshold, and warning time for each scenario.}}
+  \caption{Trajectory-deviation scores and warning decisions under abnormal degradation scenarios.}
+  \label{fig:risk_scores}
+\end{figure*}
+
+Table~\ref{tab:risk_detection} summarizes the quantitative warning performance reported in the current manuscript. Across the three abnormal-degradation scenarios and three severity levels, PI-MSCL consistently improves AUC and Det@FPR5\% and reduces detection delay compared with CNN-LSTM. The advantage is particularly clear in abrupt trajectory-disturbance scenarios. For the severe lithium-plating-like step-drop case, PI-MSCL achieves an AUC of 0.893, Det@FPR5\% of 87.3\%, and a mean delay of 5.0 windows, compared with 0.837, 80.8\%, and 18.5 windows for CNN-LSTM. In the medium sudden-aging case, the delay decreases from 11.2 windows to 5.8 windows. In the medium capacity-knee case, Det@FPR5\% increases from 67.2\% to 85.4\%.
+
+\begin{table}[t]
+\caption{Abnormal degradation risk-indication performance under different scenarios.}
+\label{tab:risk_detection}
+\centering
+\begin{tabular}{llcccccc}
+\toprule
+Scenario & Severity & \multicolumn{3}{c}{CNN-LSTM} & \multicolumn{3}{c}{PI-MSCL} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+ & & AUC & Det@FPR5\% & Delay & AUC & Det@FPR5\% & Delay \\
+\midrule
+Sudden aging & Mild & 0.716 & 63.5 & 58.8 & 0.809 & 74.3 & 7.2 \\
+Sudden aging & Medium & 0.734 & 67.3 & 11.2 & 0.815 & 76.3 & 5.8 \\
+Sudden aging & Severe & 0.729 & 71.8 & 8.0 & 0.817 & 78.2 & 4.8 \\
+Capacity knee & Mild & 0.720 & 62.6 & 96.0 & 0.837 & 77.9 & 23.0 \\
+Capacity knee & Medium & 0.741 & 67.2 & 59.0 & 0.869 & 85.4 & 15.2 \\
+Capacity knee & Severe & 0.750 & 68.8 & 67.8 & 0.858 & 83.9 & 21.2 \\
+Lithium-plating step drop & Mild & 0.741 & 67.5 & 28.0 & 0.838 & 81.3 & 10.0 \\
+Lithium-plating step drop & Medium & 0.756 & 70.8 & 25.0 & 0.847 & 83.4 & 6.0 \\
+Lithium-plating step drop & Severe & 0.837 & 80.8 & 18.5 & 0.893 & 87.3 & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These results suggest that PI-MSCL is useful not only as a point-wise SOH estimator, but also as a trajectory generator whose physically smoothed output can support simple risk screening. The interpretation should nevertheless remain bounded. The current deviation score is most suitable for abrupt or slope-changing degradation patterns. Progressive anomalies with slowly accumulating deviations may require longer detection windows, multi-signal fusion, or a dedicated diagnostic model. Therefore, the proposed risk-indication module should be viewed as an engineering extension of SOH estimation rather than as a complete battery-fault diagnosis framework.
+
+\fi

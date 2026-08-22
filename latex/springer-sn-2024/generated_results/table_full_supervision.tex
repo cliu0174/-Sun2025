@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\caption{Full-supervision performance on unseen HUST cells.}
+\label{tab:full_supervision}
+\centering
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lccc}
+\toprule
+Model & MAE (\%) & RMSE (\%) & R-squared \\
+\midrule
+CNN--LSTM & 1.649 \textpm{} 0.050 & 2.948 \textpm{} 0.076 & 0.8357 \textpm{} 0.0085 \\
+PI--CNN--LSTM & 1.679 \textpm{} 0.055 & 3.058 \textpm{} 0.109 & 0.8231 \textpm{} 0.0126 \\
+MS--CNN--LSTM & 1.582 \textpm{} 0.102 & 3.048 \textpm{} 0.222 & 0.8238 \textpm{} 0.0260 \\
+PI--MSCL & 1.556 \textpm{} 0.044 & 2.984 \textpm{} 0.028 & 0.8317 \textpm{} 0.0032 \\
+\bottomrule
+\end{tabular}
+\end{table}

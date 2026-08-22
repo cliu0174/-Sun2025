@@ -1,0 +1,42 @@
+{
+  "baseline_mae": 12.112852096557617,
+  "target_mae": 10.901566886901856,
+  "best_mae": 12.112852096557617,
+  "foreground_mae": 43.830055236816406,
+  "relative_improvement": 0.0,
+  "target_relative_improvement": 0.1,
+  "target_achieved": false,
+  "attempts_used": 0,
+  "max_try": 3,
+  "optimization_status": "no_safe_improvement",
+  "delivered_state": "best_valid_candidate",
+  "hard_audits_passed": true,
+  "semantic_audits_passed": true,
+  "constraint_coverage_passed": true,
+  "component_mae": {
+    "panel_a": 14.19822883605957,
+    "input_sequence": 24.47893524169922,
+    "multiscale_cnn": 20.362533569335938,
+    "fusion": 14.630985260009766,
+    "lstm": 15.107173919677734,
+    "regression": 21.446760177612305,
+    "output_curve": 16.975791931152344,
+    "panel_b": 10.72842025756836,
+    "supervised_path": 12.062975883483887,
+    "monotonic_path": 15.13377571105957,
+    "rate_path": 10.730762481689453,
+    "objective": 16.55658531188965
+  },
+  "attempts": [],
+  "semantic_revision_tradeoff": {
+    "pre_edit_reference_mae": 12.020462036132812,
+    "post_edit_mae": 12.112852096557617,
+    "reason_for_acceptance": "The previous version did not satisfy the new hard requirements for a strict row-major shade progression and unmistakable 3D depth in the fused tensor. The revised version satisfies both requirements and all structural, semantic, package, and PowerPoint-preview gates.",
+    "post_baseline_optimization": "No further safe local MAE optimization was identified after independent review without weakening the requested gradient order or tensor depth cues."
+  },
+  "correction_cycle": {
+    "issue_found": "The standalone multiscale_cnn module bbox excluded the leftmost legend item.",
+    "correction": "Expanded the manifest bbox from x=215,width=555 to x=90,width=680 and rebuilt all modules, the PPTX, the PowerPoint preview, and QA.",
+    "verification": "Standalone integrity and all aggregate hard gates passed after the correction."
+  }
+}

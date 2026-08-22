@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\caption{$R^2$ across SOH-label retention ratios. Values are mean $\pm$ sample standard deviation across three paired repetitions on the fixed cell split (seed 42).}
+\label{tab:label_budget_r2}
+\centering
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
+\toprule
+Model & r = 1.0 & r = 0.7 & r = 0.5 & r = 0.3 \\
+\midrule
+CNN--LSTM & 0.8357 \textpm{} 0.0085 & 0.8371 \textpm{} 0.0263 & 0.8350 \textpm{} 0.0200 & 0.8301 \textpm{} 0.0071 \\
+PI--CNN--LSTM & 0.8231 \textpm{} 0.0126 & 0.8437 \textpm{} 0.0095 & 0.8426 \textpm{} 0.0163 & 0.8192 \textpm{} 0.0076 \\
+MS--CNN--LSTM & 0.8238 \textpm{} 0.0260 & 0.8148 \textpm{} 0.0167 & 0.8310 \textpm{} 0.0134 & 0.8251 \textpm{} 0.0120 \\
+PI--MSCL & 0.8317 \textpm{} 0.0032 & 0.8228 \textpm{} 0.0030 & 0.8217 \textpm{} 0.0183 & 0.8251 \textpm{} 0.0238 \\
+\bottomrule
+\end{tabular*}
+\end{table}

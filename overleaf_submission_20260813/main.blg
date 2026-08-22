@@ -1,0 +1,71 @@
+This is BibTeX, Version 0.99e
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+Reallocating 'name_of_file' (item size: 1) to 16 items.
+The style file: sn-mathphys-num.bst
+Reallocating 'name_of_file' (item size: 1) to 11 items.
+Reallocating 'glb_str_end' (item size: 4) to 20 items.
+Reallocating 'glb_str_ptr' (item size: 4) to 20 items.
+Reallocating 'global_strs' (item size: 1) to 4000000 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'wiz_functions' (item size: 4) to 6000 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Database file #1: references.bib
+sn-mathphys-num.bst [2024/07/19 v1.1  bibliography style]
+Reallocating 'wiz_functions' (item size: 4) to 9000 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+You've used 40 entries,
+            7485 wiz_defined-function locations,
+            1455 strings with 19853 characters,
+and the built_in function-call counts, 178514 in all, are:
+= -- 21623
+> -- 1794
+< -- 696
++ -- 3938
+- -- 571
+* -- 12932
+:= -- 35725
+add.period$ -- 41
+call.type$ -- 40
+change.case$ -- 219
+chr.to.int$ -- 1942
+cite$ -- 40
+duplicate$ -- 2296
+empty$ -- 11632
+format.name$ -- 1448
+if$ -- 40438
+int.to.chr$ -- 1
+int.to.str$ -- 61
+missing$ -- 0
+newline$ -- 731
+num.names$ -- 200
+pop$ -- 1182
+preamble$ -- 1
+purify$ -- 180
+quote$ -- 0
+skip$ -- 11564
+stack$ -- 0
+substring$ -- 23263
+swap$ -- 1312
+text.length$ -- 493
+text.prefix$ -- 0
+top$ -- 1
+type$ -- 1764
+warning$ -- 0
+while$ -- 1415
+width$ -- 0
+write$ -- 971

@@ -1,0 +1,191 @@
+{
+  "observations": 9,
+  "hard_constraints": 15,
+  "implemented": 15,
+  "executed": 15,
+  "passed_checks": 15,
+  "uncovered_observations": [],
+  "constraints": [
+    {
+      "constraint_id": "inv_panel_order",
+      "component": "canvas",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.panels.order",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_input_dimension",
+      "component": "input_sequence",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.input.dimension",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_branch_order_colors",
+      "component": "multiscale_cnn",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.cnn.branch_order_colors",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_branch_dimensions",
+      "component": "multiscale_cnn",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.cnn.dimensions",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_model_flow",
+      "component": "panel_a",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.model.flow",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_lstm_layers",
+      "component": "lstm",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.lstm.two_layers",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_sparse_labels",
+      "component": "supervised_path",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.supervision.sparse_markers",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_mono_violation",
+      "component": "monotonic_path",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.monotonicity.violation",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_rate_kink",
+      "component": "rate_path",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.rate.kink",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_objective_inputs",
+      "component": "objective",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.objective.three_inputs",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "inv_objective_formula",
+      "component": "objective",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.objective.formula",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "neg_no_full_raster",
+      "component": "canvas",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.canvas.no_raster",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "neg_no_soh_input",
+      "component": "input_sequence",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.input.no_soh_target",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "neg_no_extra_branch",
+      "component": "multiscale_cnn",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.cnn.exactly_three",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    },
+    {
+      "constraint_id": "neg_no_invented_objective_edge",
+      "component": "objective",
+      "severity": "hard",
+      "audit_check": "semantic_constraint_audit.objective.no_extra_edge",
+      "implemented": true,
+      "executed": true,
+      "passed": true,
+      "evidence": {
+        "actual_check_value": true
+      }
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,10 @@
+{
+  "checks": {
+    "loss_boxes_same_x": true,
+    "loss_boxes_width_168": true,
+    "panel_titles_left_aligned": true,
+    "no_panel_overlap": true,
+    "model_stage_order": true
+  },
+  "passed": true
+}

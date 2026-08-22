@@ -10,7 +10,9 @@ np.random.seed(42)
 N = 500
 
 def smooth(x, w=8):
-    return np.convolve(x, np.ones(w)/w, mode='same')
+    # 用边缘值填充，避免首尾边界下坠
+    padded = np.pad(x, w // 2, mode='edge')
+    return np.convolve(padded, np.ones(w) / w, mode='valid')[:len(x)]
 
 cycles = np.arange(N)
 

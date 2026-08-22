@@ -305,17 +305,22 @@ def inject_self_knee_sampling(
     """
     场景 A2 — 容量拐点（Capacity Knee-point via Skip Sampling）
 
-    fault_cycle 后对同一电池轨迹做跳采样，每步跨越多个真实循环，
+    fault_cycle 后对同一电池轨迹做跳采样（按 gamma 压缩因子均匀抽样），
     使单位 pseudo-cycle 内 SOH 下降更快，模拟退化速率突增。
 
-    返回：(corrupted_features, fault_start)
+    gamma = 压缩因子（>1）：尾段被压缩到 1/gamma 的长度，斜率视觉上变陡 gamma 倍。
     """
-    step_map = {'mild': 2, 'moderate': 3, 'severe': 4}
-    step = step_map.get(severity, 3)
+    # 用浮点 gamma 代替整数 step，让严重度梯度更平滑
+    gamma_map = {'mild': 1.3, 'moderate': 1.7, 'severe': 2.2}
+    gamma = gamma_map.get(severity, 1.7)
 
     T = len(features)
     t0 = fault_cycle
-    tail_idx = np.arange(t0, T, step)
+    n_tail = T - t0
+    n_keep = max(1, int(n_tail / gamma))
+
+    # 用 linspace 均匀抽样，支持非整数 gamma
+    tail_idx = np.unique(np.linspace(t0, T - 1, n_keep).astype(int))
     if len(tail_idx) == 0:
         tail_idx = np.array([T - 1])
 
@@ -383,13 +388,14 @@ def inject_self_lithium_plating(
     # 台阶落差比 sudden_drop 小（析锂引起的台阶通常较小）
     soh_drop_map  = {'mild': 0.02, 'moderate': 0.035, 'severe': 0.055}
     fallback_map  = {'mild': 0.58, 'moderate': 0.65, 'severe': 0.72}
-    step_map      = {'mild': 2, 'moderate': 2, 'severe': 3}
+    # 用浮点 gamma 替代整数 step，避免末段被压缩得太陡
+    gamma_map     = {'mild': 1.3, 'moderate': 1.5, 'severe': 1.8}
 
     T = len(features)
     t0 = fault_cycle
     soh_drop = soh_drop_map.get(severity, 0.035)
     target_soh = targets[t0] - soh_drop
-    step = step_map.get(severity, 2)
+    gamma = gamma_map.get(severity, 1.5)
 
     s0 = None
     for s in range(t0 + 1, T):
@@ -401,7 +407,10 @@ def inject_self_lithium_plating(
         s0 = max(t0 + 1, default_s0)
         s0 = min(s0, T - 1)
 
-    tail_idx = np.arange(s0, T, step)
+    # 用 linspace 均匀抽样 s0 之后的尾段，避免 step=2/3 时斜率太陡
+    n_tail = T - s0
+    n_keep = max(1, int(n_tail / gamma))
+    tail_idx = np.unique(np.linspace(s0, T - 1, n_keep).astype(int))
     if len(tail_idx) == 0:
         tail_idx = np.array([T - 1])
 

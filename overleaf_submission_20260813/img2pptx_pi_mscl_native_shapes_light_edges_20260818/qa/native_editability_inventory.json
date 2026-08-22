@@ -1,0 +1,4642 @@
+[
+  {
+    "name": "slide__rect_001",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__rect_002",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__model_connectors",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_001",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_001",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_002",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_002",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_003",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_003",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_004",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_004",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_005",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_005",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_006",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_006",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_007",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_007",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_008",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_008",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_009",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_009",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polyline_010",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__model_connectors__polygon_010",
+    "parent": "module__pi_mscl_figure__panel_a__model_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__panel_a_header",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__panel_a_header__rect_003",
+    "parent": "module__pi_mscl_figure__panel_a__panel_a_header",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__panel_a_header__text_001",
+    "parent": "module__pi_mscl_figure__panel_a__panel_a_header",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "a"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__panel_a_header__text_002",
+    "parent": "module__pi_mscl_figure__panel_a__panel_a_header",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "PI–MSCL architecture"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__input_sequence",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_003",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Input"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_004",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40 × 14"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_004",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_005",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_006",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_007",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_008",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_009",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_010",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_011",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_012",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_013",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_014",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_015",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_016",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_017",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_018",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_019",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_020",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_021",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_022",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_023",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_024",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_025",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_026",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_027",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_028",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_029",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_030",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_031",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_032",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_033",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_034",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_035",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_036",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_037",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_038",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_039",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_040",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_041",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_042",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_043",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_044",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_045",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_046",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_047",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_048",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_049",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_050",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_051",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_052",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_005",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "⋮"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_006",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "⋮"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_007",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "⋮"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_053",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_054",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_055",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_056",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_057",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_058",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_059",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_060",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_061",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_062",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_063",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__rect_064",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__line_001",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__polyline_011",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__polygon_011",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_008",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "features (14)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__polyline_012",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__polygon_012",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__input_sequence__text_009",
+    "parent": "module__pi_mscl_figure__panel_a__input_sequence",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "time (40 cycles)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__text_010",
+    "parent": "slide",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Conv1D blocks"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__text_011",
+    "parent": "slide",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(64 ch.)"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__text_012",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 3"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_013",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_014",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_015",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_016",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_017",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_018",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_019",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_020",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_021",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_022",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_023",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_024",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_025",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_026",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_027",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_028",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_029",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_030",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_031",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_032",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_033",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_034",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_035",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_036",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_037",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_038",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_039",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_040",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_041",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_40__polygon_042",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__polyline_013",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__polygon_043",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_044",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_045",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_046",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_047",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_048",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_049",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_050",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_051",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_052",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_053",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_054",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_055",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_056",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_057",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_058",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_059",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_060",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_20__polygon_061",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__polyline_014",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__polygon_062",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_063",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_064",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_065",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_066",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_067",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_068",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_069",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_070",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_071",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_072",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_073",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k3__cnn_k3_10__polygon_074",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3__cnn_k3_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__text_013",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__text_014",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "20"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k3__text_015",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k3",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__text_016",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 7"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_075",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_076",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_077",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_078",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_079",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_080",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_081",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_082",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_083",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_084",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_085",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_086",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_087",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_088",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_089",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_090",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_091",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_092",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_093",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_094",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_095",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_096",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_097",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_098",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_099",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_100",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_101",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_102",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_103",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_40__polygon_104",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__polyline_015",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__polygon_105",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_106",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_107",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_108",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_109",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_110",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_111",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_112",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_113",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_114",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_115",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_116",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_117",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_118",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_119",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_120",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_121",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_122",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_20__polygon_123",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__polyline_016",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__polygon_124",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_125",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_126",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_127",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_128",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_129",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_130",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_131",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_132",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_133",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_134",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_135",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k7__cnn_k7_10__polygon_136",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7__cnn_k7_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__text_017",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__text_018",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "20"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k7__text_019",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k7",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__text_020",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 15"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_137",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_138",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_139",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_140",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_141",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_142",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_143",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_144",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_145",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_146",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_147",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_148",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_149",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_150",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_151",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_152",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_153",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_154",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_155",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_156",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_157",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_158",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_159",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_160",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_161",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_162",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_163",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_164",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_165",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_40__polygon_166",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_40",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__polyline_017",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__polygon_167",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_168",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_169",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_170",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_171",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_172",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_173",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_174",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_175",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_176",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_177",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_178",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_179",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_180",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_181",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_182",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_183",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_184",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_20__polygon_185",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_20",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__polyline_018",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__polygon_186",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_187",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_188",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_189",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_190",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_191",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_192",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_193",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_194",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_195",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_196",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_197",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "multiscale_cnn__cnn_k15__cnn_k15_10__polygon_198",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15__cnn_k15_10",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__text_021",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__text_022",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "20"
+  },
+  {
+    "name": "panel_a__multiscale_cnn__cnn_k15__text_023",
+    "parent": "module__pi_mscl_figure__panel_a__multiscale_cnn__cnn_k15",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__rect_065",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__text_024",
+    "parent": "slide",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 3 (local)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__rect_066",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__text_025",
+    "parent": "slide",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 7 (intermediate)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__rect_067",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__multiscale_cnn__text_026",
+    "parent": "slide",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "k = 15 (longer-range)"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__fusion",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__rect_068",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__text_027",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Fuse"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__text_028",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "1 × 1 Conv"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__text_029",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(128 ch.)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_199",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_200",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_201",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_202",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_203",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_204",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_205",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_206",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_207",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_208",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_209",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_210",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_211",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_212",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_213",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_214",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_215",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_216",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_217",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_218",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_219",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_220",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_221",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_222",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_223",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_224",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_225",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__polygon_226",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__text_030",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "⋮"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__text_031",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__fusion__rect_069",
+    "parent": "module__pi_mscl_figure__panel_a__fusion",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__lstm",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_070",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_032",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM (2 layers)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_071",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_033",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_072",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_034",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_073",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_035",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_074",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_036",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_075",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_037",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_076",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_038",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "LSTM"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_039",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "•••"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_040",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "•••"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_019",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_227",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_020",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_228",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_021",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_229",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_022",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_230",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_023",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_231",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_024",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_232",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polyline_025",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__polygon_233",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_041",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "t = 1"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__text_042",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "t = 10"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__lstm__rect_077",
+    "parent": "module__pi_mscl_figure__panel_a__lstm",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__regression",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__rect_078",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__text_043",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Regression head"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__text_044",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(FC + Dropout)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__rect_079",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__circle_001",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__circle_002",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__circle_003",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__circle_004",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__text_045",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "⋮"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__regression__rect_080",
+    "parent": "module__pi_mscl_figure__panel_a__regression",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_a__output_curve",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_046",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Predicted SOH"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_047",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "ŷᵢ,ₜ"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_002",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_003",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_004",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_048",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "1.0"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_005",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_049",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "0.8"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_006",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_050",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "0.6"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_007",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_051",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "0.4"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_008",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_052",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "0.2"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__line_009",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_053",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "0.0"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__polyline_026",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_005",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_006",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_007",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_008",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_009",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_010",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_011",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_012",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__circle_013",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_054",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "1"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_055",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__output_curve__text_056",
+    "parent": "module__pi_mscl_figure__panel_a__output_curve",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "cycle index"
+  },
+  {
+    "name": "pi_mscl_figure__panel_a__rect_081",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rect_082",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__training_connectors",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polyline_027",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polygon_234",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polyline_028",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polygon_235",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polyline_029",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__training_connectors__polygon_236",
+    "parent": "module__pi_mscl_figure__panel_b__training_connectors",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__panel_b_header",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__panel_b_header__rect_083",
+    "parent": "module__pi_mscl_figure__panel_b__panel_b_header",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__panel_b_header__text_057",
+    "parent": "module__pi_mscl_figure__panel_b__panel_b_header",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "b"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__panel_b_header__text_058",
+    "parent": "module__pi_mscl_figure__panel_b__panel_b_header",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Sparse-label physics-informed learning"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__supervised_path",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_059",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Sparse labels"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_060",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(one cell)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_014",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_015",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_016",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_017",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_018",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_019",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_020",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_021",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_022",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_023",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_024",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_025",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_026",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_027",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_028",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_029",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_030",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_031",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_032",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_033",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_034",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_035",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_036",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_037",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_038",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_039",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__circle_040",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_010",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_011",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_012",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_013",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_014",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__line_015",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_061",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "1"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_062",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "10"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_063",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "20"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_064",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "30"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_065",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_066",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "cycle index"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__rect_084",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_067",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Masked"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_068",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "supervision"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__text_069",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "ℒₛᵤₚ"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__rect_085",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__polyline_030",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__supervised_path__polygon_237",
+    "parent": "module__pi_mscl_figure__panel_b__supervised_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_070",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Predicted SOH"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_071",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(ordered cell)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polyline_031",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_041",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_042",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_043",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_044",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_045",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_046",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_047",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_048",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_049",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_050",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_051",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_052",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_053",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_054",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_055",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_056",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_057",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__circle_058",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polyline_032",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__ellipse_001",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__line_016",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_072",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "1"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_073",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "40"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__rect_086",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_074",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Soft monotonicity"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_075",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "ℒₘₒₙₒ"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__rect_087",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polyline_033",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polygon_238",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polyline_034",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__polygon_239",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__rect_088",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_076",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Δc ≤ 40"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__rect_089",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__monotonic_path__text_077",
+    "parent": "module__pi_mscl_figure__panel_b__monotonic_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "c ≥ 300"
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__rate_path",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_078",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Predicted SOH"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_079",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "(local segment)"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__polyline_035",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__polyline_036",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__polyline_037",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_059",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_060",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_061",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_062",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_063",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_064",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_065",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_066",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_067",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_068",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_069",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_070",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_071",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_072",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_073",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_074",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_075",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_076",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__circle_077",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__ellipse_002",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__line_017",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "LINE (9)",
+    "is_group": false,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_080",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "t − w"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_081",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "t"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_082",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "t + w"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_083",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "cycle index"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__rect_090",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_084",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Rate continuity"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__text_085",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "ℒᵣₐₜₑ"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__rect_091",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__polyline_038",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rate_path__polygon_240",
+    "parent": "module__pi_mscl_figure__panel_b__rate_path",
+    "shape_type": "FREEFORM (5)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "module__pi_mscl_figure__panel_b__objective",
+    "parent": "slide",
+    "shape_type": "GROUP (6)",
+    "is_group": true,
+    "has_text_frame": false,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__objective__rect_092",
+    "parent": "module__pi_mscl_figure__panel_b__objective",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__objective__text_086",
+    "parent": "module__pi_mscl_figure__panel_b__objective",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "Training objective"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__objective__text_087",
+    "parent": "module__pi_mscl_figure__panel_b__objective",
+    "shape_type": "TEXT_BOX (17)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": "ℒ = ℒₛᵤₚ + λₘₒₙₒℒₘₒₙₒ + λᵣₐₜₑℒᵣₐₜₑ"
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__objective__rect_093",
+    "parent": "module__pi_mscl_figure__panel_b__objective",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  },
+  {
+    "name": "pi_mscl_figure__panel_b__rect_094",
+    "parent": "slide",
+    "shape_type": "AUTO_SHAPE (1)",
+    "is_group": false,
+    "has_text_frame": true,
+    "text": ""
+  }
+]

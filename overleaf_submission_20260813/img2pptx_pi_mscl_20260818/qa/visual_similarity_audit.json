@@ -1,0 +1,62 @@
+{
+  "baseline_mae": 11.762454986572266,
+  "target_mae": 10.58620948791504,
+  "best_mae": 11.680272102355957,
+  "foreground_mae": 42.89527893066406,
+  "relative_improvement": 0.0069868819315463135,
+  "target_relative_improvement": 0.1,
+  "target_achieved": false,
+  "attempts_used": 3,
+  "max_try": 3,
+  "optimization_status": "max_try_reached",
+  "delivered_state": "best_valid_candidate",
+  "hard_audits_passed": true,
+  "semantic_audits_passed": true,
+  "constraint_coverage_passed": true,
+  "component_mae": {
+    "panel_a": 13.330891609191895,
+    "input_sequence": 24.235618591308594,
+    "multiscale_cnn": 17.014188766479492,
+    "fusion": 13.73049259185791,
+    "lstm": 15.107173919677734,
+    "regression": 21.446760177612305,
+    "output_curve": 16.975791931152344,
+    "panel_b": 10.72842025756836,
+    "supervised_path": 12.062975883483887,
+    "monotonic_path": 15.13377571105957,
+    "rate_path": 10.730762481689453,
+    "objective": 16.55658531188965
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "targeted_components": ["output_curve", "objective"],
+      "changes": ["restored the output chart to the source-aligned x position while shortening the incoming arrow", "temporarily enlarged the objective formula"],
+      "candidate_mae": 11.741706848144531,
+      "foreground_mae": 43.151756286621094,
+      "hard_audits_passed": true,
+      "accepted": false,
+      "decision": "rejected: objective component MAE regressed from 16.5566 to 16.7831"
+    },
+    {
+      "attempt": 2,
+      "targeted_components": ["output_curve"],
+      "changes": ["kept the source-aligned chart and short incoming arrow", "rolled back the objective formula enlargement"],
+      "candidate_mae": 11.73354434967041,
+      "foreground_mae": 43.119503021240234,
+      "hard_audits_passed": true,
+      "accepted": true,
+      "decision": "promoted to best"
+    },
+    {
+      "attempt": 3,
+      "targeted_components": ["input_sequence"],
+      "changes": ["expanded the six input-matrix tiles to better match the source grid width while preserving the 8-row, ellipsis, 2-row order"],
+      "candidate_mae": 11.680272102355957,
+      "foreground_mae": 42.89527893066406,
+      "hard_audits_passed": true,
+      "accepted": true,
+      "decision": "promoted to final best"
+    }
+  ]
+}

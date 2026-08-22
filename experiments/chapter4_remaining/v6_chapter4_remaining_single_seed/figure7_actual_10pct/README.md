@@ -1,0 +1,1 @@
+# Empirical Figure 7: 10% labels\n\nGenerated solely from saved predictions of completed factorial-ablation_r0p1 runs. No trajectory values were simulated or modified.\n

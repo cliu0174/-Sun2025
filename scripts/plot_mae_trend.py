@@ -114,7 +114,6 @@ for xi_idx, xi in enumerate(x):
 # ── 坐标轴设置 ────────────────────────────────────────────────────
 ax.set_xlabel('Supervision Ratio  r', fontsize=11)
 ax.set_ylabel('MAE (%)', fontsize=11)
-ax.set_title('MAE vs. Supervision Ratio — 4 Models', fontsize=12, fontweight='bold', pad=10)
 
 ax.set_xticks(RATIOS)
 ax.set_xticklabels([str(r) for r in RATIOS], fontsize=10)
@@ -136,11 +135,6 @@ ax.legend(fontsize=9, loc='upper right',
           framealpha=0.85, edgecolor='#CCCCCC',
           handlelength=2.0)
 
-# 添加稀疏度方向注释
-ax.annotate('← Full supervision          Sparse →',
-            xy=(0.5, -0.13), xycoords='axes fraction',
-            ha='center', fontsize=8, color='#777777',
-            style='italic')
 
 plt.tight_layout()
 

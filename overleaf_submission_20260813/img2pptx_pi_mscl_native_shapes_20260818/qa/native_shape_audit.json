@@ -1,0 +1,54 @@
+{
+  "source_svg": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_proportional_cells_20260818\\full.svg",
+  "output_pptx": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_native_shapes_20260818\\PI-MSCL_architecture_native_shapes_20260818.pptx",
+  "output_pptx_fully_ungrouped": "D:\\Projects\\1111-soh\\outputs\\img2pptx_pi_mscl_native_shapes_20260818\\PI-MSCL_architecture_native_shapes_fully_ungrouped_20260818.pptx",
+  "canvas_px": [
+    1672.0,
+    941.0
+  ],
+  "slide_inches": [
+    13.333333,
+    7.5039870532296655
+  ],
+  "svg_element_counts": {
+    "rect": 94,
+    "polyline": 38,
+    "polygon": 240,
+    "group": 25,
+    "text": 87,
+    "line": 17,
+    "circle": 77,
+    "ellipse": 2
+  },
+  "pptx_package_counts": {
+    "native_shapes": 538,
+    "connectors": 17,
+    "groups": 25,
+    "pictures": 0,
+    "editable_text_runs": 87,
+    "custom_geometries": 278,
+    "media_files": []
+  },
+  "fully_ungrouped_package_counts": {
+    "native_shapes": 538,
+    "connectors": 17,
+    "groups": 0,
+    "pictures": 0,
+    "editable_text_runs": 87,
+    "custom_geometries": 278,
+    "media_files": []
+  },
+  "hard_checks": {
+    "single_slide": true,
+    "no_picture_objects": true,
+    "no_embedded_media": true,
+    "native_shape_count_at_least_svg_graphics": true,
+    "editable_text_runs_match_svg": true,
+    "custom_geometry_present": true,
+    "semantic_groups_present": true,
+    "fully_ungrouped_has_no_groups": true,
+    "fully_ungrouped_has_no_pictures": true,
+    "fully_ungrouped_preserves_all_text": true
+  },
+  "all_hard_checks_pass": true
+}

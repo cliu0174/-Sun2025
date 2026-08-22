@@ -1,0 +1,583 @@
+%%
+%% Applied Energy / Elsevier CAS template (double-column): cas-dc
+%% Your figures are in ./figs/
+%% Copy-paste this whole file into Overleaf as main.tex (or replace template body)
+%%
+
+\documentclass[a4paper,fleqn]{cas-dc}
+
+% -----------------------------
+% Citations (Applied Energy often uses authoryear)
+% -----------------------------
+\usepackage[authoryear,longnamesfirst]{natbib}
+
+% -----------------------------
+% Common packages for AE papers
+% -----------------------------
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\graphicspath{{figs/}} % <-- figures folder
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{hyperref}
+
+
+%%% Author macros (optional; keep if you like)
+\def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
+\tsc{BMS}
+\tsc{SOH}
+\tsc{SOC}
+\tsc{CNN}
+\tsc{LSTM}
+
+\begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+
+% -----------------------------
+% Short title/author for running header
+% -----------------------------
+\shorttitle{Physics-consistent multimodal SOH fusion via PI-CNNLSTM}
+\shortauthors{Liu}
+
+% -----------------------------
+% Main title
+% -----------------------------
+\title[mode=title]{Physics-Consistent PI-CNNLSTM for Robust Lithium-Ion Battery SOH Estimation under Partial Lifecycle Supervision}
+
+% Title footnote (optional)
+% \tnotemark[1]
+% \tnotetext[1]{}
+
+% -----------------------------
+% Authors & affiliations (edit these)
+% -----------------------------
+\author[1]{Chang Liu}
+\cormark[1]
+\ead{35524421@seu.edu.com}
+
+\affiliation[1]{organization={Southeast University},
+  addressline={},
+  city={Nanjing},
+  postcode={210096},
+  state={Jiangsu},
+  country={China}}
+
+\cortext[1]{Corresponding author}
+
+% If you have multiple authors, duplicate blocks:
+% \author[2]{...}
+% \affiliation[2]{...}
+
+% -----------------------------
+% Abstract / Highlights / Keywords
+% -----------------------------
+\begin{abstract}
+Accurate state-of-health (SOH) estimation is essential for safety-aware battery management systems (BMS). However, purely data-driven neural estimators often suffer from limited robustness and non-physical prediction behaviors when operating conditions vary and SOH labels are sparse. This paper presents a physics-consistent PI-CNNLSTM framework that integrates multimodal feature fusion with lightweight physical regularization, including soft monotonicity constraints, temporal decay weighting, and boundary enforcement, to stabilize degradation trajectory prediction. To better reflect practical BMS scenarios where full lifecycle labels are unavailable, a partial lifecycle supervision strategy is introduced, in which SOH annotations are provided only within limited continuous intervals while full-lifecycle inference is required. Experimental results demonstrate that the proposed framework effectively suppresses prediction drift and non-physical oscillations under incomplete supervision, significantly improving cross-battery generalization and deployment reliability without requiring additional electrochemical modeling.
+\end{abstract}
+
+\begin{highlights}
+\item A physics-consistent PI-CNNLSTM framework is developed for robust SOH estimation.
+\item A partial lifecycle supervision strategy is designed to simulate sparse-label BMS scenarios.
+\item Soft monotonicity and boundary constraints suppress non-physical degradation rebounds.
+\item The proposed method enhances cross-battery generalization under incomplete supervision.
+\end{highlights}
+
+\begin{keywords}
+Lithium-ion battery \sep State of health \sep Physics-consistent learning \sep Partial lifecycle supervision \sep CNN-LSTM \sep Battery management system \sep Data-driven modeling
+\end{keywords}
+
+\maketitle
+
+% =========================================================
+\section{Introduction}
+\label{sec:intro}
+
+Accurate estimation of the state of health (SOH) of lithium-ion batteries is a fundamental prerequisite for ensuring safe operation and lifetime management in battery management systems (BMS). During long-term cycling, batteries undergo complex degradation mechanisms, including loss of active materials, electrolyte decomposition, and solid electrolyte interphase (SEI) layer growth. These internal aging processes manifest macroscopically as capacity fading and internal resistance increase, thereby affecting system reliability and safety \citep{Tao2024}. However, due to the high diversity of battery types, operating conditions, and environmental factors, stable modeling and precise SOH estimation remain challenging.
+
+In recent years, extensive research efforts have been devoted to SOH estimation methods, which can generally be categorized into experimental measurement-based methods, model-based approaches, and data-driven methods \citep{Vignesh2024}.
+
+(1) \textbf{Experimental measurement and model-based methods.}  
+Methods such as Coulomb counting and equivalent circuit models (ECM) have been widely applied in engineering practice. Nevertheless, their estimation accuracy heavily depends on sensor precision and complex parameter identification procedures. Furthermore, these approaches exhibit limitations when addressing nonlinear degradation behavior.
+
+(2) \textbf{Pure data-driven methods.}  
+With the rapid development of deep learning, methods based on long short-term memory networks (LSTM), convolutional neural networks (CNN), and related architectures have demonstrated strong capability in SOH estimation. These models can effectively establish nonlinear mappings between measurable signals such as voltage, current, and temperature and battery health states \citep{Lin2025}, thereby avoiding the difficulty of acquiring complex electrochemical model parameters.
+
+Despite these advances, conventional neural network-based methods exhibit evident common bottlenecks in practical engineering applications. As these models essentially function as “black-box” mappings, their performance strongly depends on the consistency of training data distributions. Recent studies \citep{Tao2024,Lin2025} have pointed out that dynamically changing operating conditions, heterogeneous data distributions, and distribution-shifted samples significantly increase the difficulty of SOH/SOC estimation in real-world applications. Without physical constraints, predicted degradation trajectories may exhibit non-physical behaviors, such as abnormal capacity rebounds or high-frequency oscillations, which undermine deployment reliability in practical BMS systems. 
+
+Therefore, purely data-driven models often face challenges in generalization and robustness. In contrast, physics-informed machine learning (PIML) frameworks that incorporate physical modeling knowledge or degradation-related physical features can enhance interpretability and cross-condition generalization capability.
+
+Physics-consistent learning provides a modeling strategy that balances flexibility and stability for SOH estimation. This approach emphasizes embedding widely accepted macroscopic physical priors during battery degradation—such as the monotonic capacity decay trend and physical boundary constraints—into the neural network training process via customized loss functions. By implicitly constraining the output space within physically feasible regions, the model is guided to learn degradation patterns consistent with physical laws \citep{Lin2025,Sun2025}. This paradigm preserves the capability of deep learning to capture complex nonlinear relationships while improving the rationality and stability of predicted degradation trajectories.
+
+Under this background, this chapter proposes an SOH robust estimation framework that integrates multimodal feature fusion and physics-consistent constraints. First, under full lifecycle supervision on the standard HUST dataset, the baseline estimation performance of the PI-CNNLSTM model is validated to ensure its stable modeling capability under ideal labeling conditions. Subsequently, to better reflect realistic BMS scenarios characterized by sparse health labels and incomplete lifecycle coverage, a partial lifecycle supervision setting is further introduced. In this setting, different battery cells provide SOH supervision only within certain continuous intervals of their lifecycles, while the model is required to predict the SOH evolution over the entire lifecycle during testing.
+
+Based on this supervision structure, this study systematically evaluates the influence of physics-consistent constraints on model stability and generalization capability under incomplete supervision and partially observable degradation trajectories. Experimental results demonstrate that introducing physics-consistent constraints effectively alleviates prediction drift and unreasonable fluctuations that commonly appear in purely data-driven models during inference, thereby significantly improving robustness and engineering applicability under complex operating conditions.
+
+Overall, the proposed framework is oriented toward practical engineering deployment. It does not rely on complete lifecycle labeling or additional degradation prior information, making it more consistent with data acquisition constraints in real-world BMS applications. The proposed method thus provides a stable and reliable modeling solution for battery lifetime management under scenarios of incomplete sampling and limited lifecycle coverage.
+
+% =========================================================
+\section{Data Preparation and Feature Engineering}
+\label{sec:data}
+
+% ---------------------------------------------------------
+\subsection{HUST dataset and feature space construction}
+\label{subsec:dataset}
+
+This study is based on the publicly available full-lifecycle lithium-ion battery degradation dataset released by Huazhong University of Science and Technology (HUST). A total of 77 LFP/graphite cells are selected for analysis. Each cell has a nominal capacity of 1.1 Ah and a nominal voltage of 3.3 V. All samples are operated under a constant temperature environment of 30~$^\circ$C and follow a unified CC--CV charging protocol. During the discharge stage, multi-step discharge conditions are introduced to simulate degradation variations caused by realistic load fluctuations.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_1}
+\caption{Capacity degradation trajectories of 77 lithium-ion cells in the HUST dataset.}
+\label{fig:hust_capacity}
+\end{figure}
+
+As shown in Fig.~\ref{fig:hust_capacity}, the discharge capacity (Ah) of all cells gradually decreases with increasing cycle number. Although an overall monotonic degradation trend can be observed, significant variability exists in degradation rates and end-of-life points across different cells. This dataset effectively captures key aging characteristics, including capacity decay, current behavior changes, and internal resistance evolution, thereby providing sufficient data support for feature learning at different degradation stages as well as reflecting the intrinsic complexity and uncertainty of battery aging.
+
+In terms of feature engineering, this study focuses on externally observable signals obtained during the CC--CV charging process. Statistical and dynamic features are extracted from individual charging cycles to construct a multidimensional feature vector. Specifically, voltage behavior during the CC stage and current attenuation behavior during the CV stage are separately analyzed to construct statistical descriptors that reflect signal amplitude, fluctuation characteristics, distribution patterns, and temporal evolution properties.
+
+A total of 15 features are extracted from each charging cycle, including statistical descriptors of voltage and current signals (e.g., mean, skewness, kurtosis), as well as charge quantities and time-related dynamic indicators during the CC and CV stages. The detailed feature definitions are listed in Table~\ref{tab:feature_def}.
+
+\begin{table}[pos=htbp]
+\centering
+\caption{Statistical and dynamic features extracted from the CC--CV charging process.}
+\label{tab:feature_def}
+
+\begin{tabular*}{\tblwidth}{@{}p{0.35\linewidth}p{0.6\linewidth}@{}}
+\toprule
+\textbf{Feature Name} & \textbf{Description} \\
+\midrule
+Voltage mean & Average voltage during CC stage \\
+Voltage std & Standard deviation of voltage during CC stage \\
+Voltage kurtosis & Sharpness of voltage distribution \\
+Voltage skewness & Symmetry of voltage distribution \\
+CC Q & Charged capacity during CC stage \\
+CC charge time & Time duration of CC stage \\
+Voltage entropy & Complexity or uncertainty of voltage data \\
+Current mean & Average current during CV stage \\
+Current std & Standard deviation of current during CV stage \\
+Current kurtosis & Sharpness of current distribution \\
+Current skewness & Symmetry of current distribution \\
+CV Q & Charged capacity during CV stage \\
+CV charge time & Time duration of CV stage \\
+Current entropy & Complexity of current data \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+These features characterize nonlinear responses induced by active material loss, polarization mechanisms, and transport resistance variations from multiple perspectives, thereby providing a structurally stable and information-rich input space for subsequent SOH modeling.
+
+\begin{figure*}[pos=htbp]
+\centering
+\includegraphics[width=0.7\textwidth]{Fig4_2}
+\caption{Pearson correlation matrix between extracted features and capacity in the HUST dataset (n=77 batteries).}
+\label{fig:correlation}
+\end{figure*}
+
+To analyze redundancy and mutual information among constructed features, Fig.~\ref{fig:correlation} presents the Pearson correlation matrix between feature variables and capacity. It can be observed that different statistical features exhibit certain correlations, reflecting different aspects of the same degradation behavior. Meanwhile, multiple features show moderate to strong correlations with capacity, indicating their effectiveness in capturing SOH variation trends.
+
+It should be noted that feature selection based solely on correlation analysis is not performed in this study. Instead, the complete feature set is retained, allowing the deep learning model to automatically learn nonlinear combinations during training. Within the deep learning framework, preserving multidimensional feature representations contributes to constructing more robust high-dimensional representations under complex degradation patterns.
+
+
+% ---------------------------------------------------------
+\subsection{Degradation sample construction under partial lifecycle supervision}
+\label{subsec:partial}
+
+In practical battery management system (BMS) applications, SOH labeling is typically obtained through periodic capacity testing or offline diagnostic procedures. Due to maintenance intervals, testing costs, and operational constraints, continuous full-lifecycle SOH annotations are often unavailable. More commonly, only partial lifecycle intervals contain reliable SOH labels, while other segments remain unobserved.
+
+Based on this engineering reality, this study models SOH estimation as a degradation trajectory learning task under partial lifecycle supervision. In this setting, different battery samples provide supervision signals only within certain continuous intervals of their lifecycles.
+
+Formally, for the $i$-th battery with total lifecycle length $T_i$, the true SOH trajectory is denoted as
+
+\begin{equation}
+\{y_i(1), y_i(2), \dots, y_i(T_i)\}.
+\end{equation}
+
+During training, only one or several continuous sub-intervals
+
+\begin{equation}
+\{y_i(t_s), \dots, y_i(t_e)\}, \quad 1 \le t_s < t_e \le T_i
+\end{equation}
+
+are used as supervisory labels, while unlabeled time steps do not participate in loss computation. Corresponding feature vectors $\mathbf{x}_i(t)$ are still extracted from complete charging cycles to ensure consistent input structure.
+
+This training strategy ensures sufficient coverage of different degradation stages at the population level while avoiding reliance on complete degradation trajectories of individual batteries. Under such incomplete supervision conditions, the model must infer reasonable SOH mappings based solely on local degradation features rather than memorizing absolute lifecycle positions.
+
+It should be emphasized that partial lifecycle supervision affects only the training loss structure. During inference, the model still performs cycle-level one-to-one estimation for any given charging cycle, without altering its deployment inference mechanism.
+
+To prevent implicit memorization of absolute degradation positions, a strict battery-level split strategy is adopted in subsequent experiments, ensuring that testing batteries remain entirely unseen during training. Combined with physics-consistent output constraints, this design promotes learning degradation patterns that adhere to physical laws, enabling more stable and reliable SOH estimation under incomplete supervision and complex operating conditions.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_3}
+\caption{Lifecycle coverage illustration of training batteries under partial lifecycle supervision.}
+\label{fig:partial_coverage}
+\end{figure}
+
+As illustrated in Fig.~\ref{fig:partial_coverage}, individual batteries contain SOH labels only within certain continuous lifecycle intervals, while other segments remain unlabeled. Different batteries exhibit distinct coverage patterns across early, mid, and late degradation stages. This setting better reflects the practical engineering reality where SOH labeling is sparse and discontinuous.
+
+
+% ---------------------------------------------------------
+\subsection{Data preprocessing and battery-level split}
+\label{subsec:preprocess}
+
+To ensure training stability and scientific validity, systematic preprocessing and strict dataset partitioning strategies are applied after feature construction.
+
+First, a 3$\sigma$ outlier detection rule is adopted at the feature level to remove abnormal samples in voltage and current signals. For each feature dimension, the mean and standard deviation are computed, and samples exceeding three standard deviations are treated as outliers. To avoid excessive information loss under complex conditions, a minimum retention mechanism is introduced: if the number of valid samples after cleaning falls below 80\% of the original dataset, the unfiltered data are retained to preserve statistical stability.
+
+Subsequently, all feature vectors are normalized using the StandardScaler method for scale alignment. The target SOH values are linearly mapped to the interval $[0,1]$, where 1 represents the initial healthy state and 0 corresponds to the end-of-life threshold.
+
+Regarding dataset partitioning, a battery-level split strategy is employed instead of traditional random sample splitting. Specifically, the 77 battery samples are divided into training (46 batteries, 60\%), validation (16 batteries, 20\%), and testing (15 batteries, 20\%) subsets. Batteries in the testing set are strictly excluded from training to ensure unbiased generalization evaluation.
+
+\begin{table*}[pos=htbp]
+\centering
+\caption{Dataset partition and usage description.}
+\label{tab:split}
+% 使用 \textwidth 并加上 \extracolsep{\fill} 让四列均匀分布撑满两栏
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc@{}}
+\toprule
+Dataset & Number of batteries & Model update & Main usage \\
+\midrule
+Training set & 46 & Yes & Feature learning and weight optimization \\
+Validation set & 16 & Yes & Hyperparameter tuning \\
+Testing set & 15 & No & Cross-battery lifecycle generalization evaluation \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+This partition strategy enables realistic evaluation of model generalization performance on unseen batteries and complex degradation data, providing stronger engineering relevance compared to conventional random sample splitting.
+
+% \FloatBarrier
+
+% =========================================================
+\section{PI-CNNLSTM Architecture with Physics-Consistent Design}
+\label{sec:pi_cnnlstm}
+
+After completing feature construction and data preparation under the partial lifecycle supervision setting, this study proposes a deep learning SOH estimation framework integrating physics-consistent constraints, termed PI-CNNLSTM. While leveraging the strong feature representation capability of deep neural networks, the framework introduces physical prior constraints to correct prediction bias under incomplete supervision, thereby improving model stability and interpretability in complex operating environments.
+
+\subsection{Temporal Feature Extraction Network}
+\label{subsec:temporal_feature}
+
+Considering that the SOH evolution process of lithium-ion batteries simultaneously involves local electrochemical dynamic characteristics within a single charge–discharge cycle and long-term capacity degradation trends across cycles, a temporal feature extraction network composed of one-dimensional convolutional neural networks (CNN) and long short-term memory networks (LSTM) is constructed. The network performs hierarchical modeling of multivariate feature sequences across different temporal scales, enabling joint representation of intra-cycle transient behavior and inter-cycle degradation patterns, thereby providing discriminative feature representations for accurate SOH estimation.
+
+\textbf{(1) Local feature convolution layer (Conv1D):}
+
+In the local feature extraction stage, one-dimensional convolutional layers sliding along the temporal dimension are applied to the multivariate input feature sequence to perform window-based convolution operations, capturing local dynamic characteristics within individual charge–discharge cycles. Two convolutional layers are employed, with 256 and 128 filters respectively, and a kernel size of 7. This configuration enables automatic extraction of correlation patterns among voltage, current, and derived features within limited temporal windows. It enhances the model’s ability to represent short-term dynamic variations and local electrochemical response forms, while mitigating the weakening of transient information during long-sequence modeling.
+
+\textbf{(2) Long short-term memory layer (LSTM):}
+
+For cross-cycle temporal modeling, the high-level feature sequences extracted by CNN are fed into stacked LSTM layers to characterize long-term degradation trends of SOH over cycle progression. The hidden state dimension of LSTM is set to 64. Its gating mechanism enables state information to be transmitted and updated across cycles, facilitating implicit encoding of temporal dependencies among different degradation stages. To alleviate overfitting under limited-sample conditions, Dropout regularization is introduced between LSTM layers, with dropout rates ranging from 0.3 to 0.4, and determined via validation experiments. This design improves the generalization capability of the network across different battery samples.
+
+\textbf{(3) State mapping layer (Fully Connected, FC):}
+
+At the network output stage, a fully connected layer combined with a Sigmoid activation function is adopted to map high-dimensional hidden features to normalized SOH estimates. The Sigmoid mapping constrains model outputs within the interval $[0,1]$, ensuring that SOH predictions remain within the physically feasible domain of capacity degradation. At the same time, it provides a bounded output space for subsequent incorporation of physics-consistent constraints based on SOH monotonic degradation priors.
+
+\begin{figure*}[pos=htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Fig4_4} % textwidth 代表整个页面的文本总宽
+    \caption{Overall architecture of the PI-CNNLSTM model integrating physics-consistent constraints.}
+    \label{fig:pi_cnnlstm}
+\end{figure*}
+
+\subsection{Physics-consistent Constraint Based on Soft Monotonicity}
+\label{subsec:soft_monotonicity}
+
+For the partial lifecycle supervision task described in Section 2, neural networks lacking complete lifecycle prior information are susceptible to local noise and incomplete supervision signals, which may result in predictions inconsistent with physical degradation laws. To address this issue, a physics-consistent constraint mechanism based on soft monotonicity is introduced.
+
+This constraint is derived from the macroscopic electrochemical characteristic that lithium-ion battery active material degradation is irreversible. Therefore, the predicted SOH trajectory is expected to exhibit an overall non-increasing trend along the temporal dimension. The physical loss term is defined as:
+
+\begin{equation}
+\mathcal{L}_{mono} =
+\sum_{i,k}
+w(k)\,
+\max\left(0,\hat{y}_{i,k} - \hat{y}_{i,k-1} - \varepsilon \right),
+\end{equation}
+
+where $\hat{y}_{i,k}$ denotes the predicted SOH of battery $i$ at cycle $k$, and $\varepsilon$ is a tolerance factor (set to 0.01) allowing slight local fluctuations caused by measurement noise. The monotonicity constraint is imposed only on limited cycle intervals to avoid enforcing overly strong global restrictions on the entire degradation trajectory.
+
+In addition, it is observed that during early lifecycle stages, capacity rebound phenomena may occur due to activation processes, electrode wetting effects, or testing noise. As illustrated in Fig.~\ref{fig:early_rise}, multiple batteries exhibit a limited but consistent capacity rise in early cycles, followed by a stable degradation phase. Therefore, applying a monotonic constraint indiscriminately across the entire lifecycle may unnecessarily interfere with early-stage learning.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_5}
+\caption{Capacity rebound phenomenon observed during early lifecycle stages of multiple batteries.}
+\label{fig:early_rise}
+\end{figure}
+
+To address this issue, a delayed activation strategy for the monotonic constraint is adopted. By introducing a cycle threshold $i_0$, the monotonic constraint is activated only when the cycle index satisfies $i \ge i_0$. In the early lifecycle stage, capacity rebound is not forcibly penalized. This design respects the physical heterogeneity of battery degradation across different lifecycle stages. The model is allowed to represent potential non-monotonic behavior in early stages, while gradually enforcing globally non-increasing degradation patterns in the stable aging region, thereby improving both long-term physical consistency and predictive stability.
+
+\subsection{Temporal Decay Weighting and Physical Boundary Constraint}
+\label{subsec:decay_boundary}
+
+To further enhance the rationality of physics-consistent constraints across different temporal scales, a temporal decay weighting mechanism is introduced into the monotonic loss. The weighting function is defined as:
+
+\begin{equation}
+w(k) = \exp(-\alpha k),
+\end{equation}
+
+where $\alpha$ is the decay coefficient (set to 0.2), and $k$ denotes the cycle index. This design assigns relatively stronger constraint weights to adjacent cycles while gradually weakening the constraint effect for cycles that are temporally distant. It reflects the physical characteristic that short-term degradation consistency is stronger, whereas long-term degradation may be influenced by more complex factors.
+
+In addition, a boundary regularization term $\mathcal{L}_{boundary}$ is introduced as an auxiliary regularization component to suppress gradient drift induced by physics-based penalties. Although the Sigmoid activation already constrains model outputs within the feasible SOH interval, the boundary constraint further enhances numerical stability during training and ensures that predictions remain within reasonable physical domains.
+
+\subsection{Joint Optimization Objective}
+\label{subsec:joint_loss}
+
+The training process of PI-CNNLSTM is jointly guided by the data-driven regression error and the physics-consistent constraint terms. The overall loss function is defined as:
+
+\begin{equation}
+\mathcal{L}_{total}
+=
+w_{base}\mathcal{L}_{MSE}
++
+w_{mono}\mathcal{L}_{mono}
++
+w_{bound}\mathcal{L}_{boundary}.
+\end{equation}
+
+By appropriately tuning the weights of each component, the proposed PI-CNNLSTM framework achieves accurate SOH regression on the standard HUST public dataset while maintaining stable performance under partial lifecycle supervision and complex operating conditions. The physics-consistent constraints guide the model to learn degradation patterns that conform to electrochemical laws.
+
+\subsection{Evaluation Metrics}
+\label{subsec:metrics}
+
+To quantitatively evaluate prediction accuracy and error characteristics of the proposed model in SOH estimation tasks, Root Mean Square Error (RMSE) and Mean Absolute Error (MAE) are adopted as primary performance metrics. These indicators are widely used in battery health estimation studies and reflect prediction deviation from different perspectives.
+
+MAE is defined as:
+
+\begin{equation}
+MAE =
+\frac{1}{n}
+\sum_{i=1}^{n}
+\left| y_i - \hat{y}_i \right|,
+\end{equation}
+
+which measures the average magnitude of prediction errors.
+
+RMSE is defined as:
+
+\begin{equation}
+RMSE =
+\sqrt{
+\frac{1}{n}
+\sum_{i=1}^{n}
+\left( y_i - \hat{y}_i \right)^2
+},
+\end{equation}
+
+which is more sensitive to large deviations and is suitable for evaluating model robustness under degradation later stages or complex operating conditions.
+
+Here, $y_i$ and $\hat{y}_i$ denote the true and predicted SOH values of the $i$-th sample, and $n$ represents the number of test samples.
+
+% =========================================================
+\section{Experimental Results and Analysis}
+\label{sec:experiments}
+
+To systematically evaluate the SOH estimation performance of the proposed PI-CNNLSTM model under different supervision settings and levels of operating-condition complexity, we conduct a series of comparative experiments from three perspectives: prediction accuracy, robustness, and physics consistency. The experiments emphasize (i) generalization to unseen batteries and (ii) prediction stability under complex conditions and incomplete supervision.
+
+\subsection{Experimental Setup and Baselines}
+\label{subsec:setup}
+
+All experiments are conducted on the HUST dataset and its extended versions under complex operating conditions. To avoid data leakage and ensure an objective evaluation of generalization, we strictly follow a battery-level split strategy, i.e., batteries in the test set are completely unseen during training.
+
+The model input is a multivariate feature sequence extracted from each single charging cycle, containing voltage-, current-, and capacity-related information. The model output is the SOH prediction corresponding to the cycle. Under full lifecycle supervision, complete SOH trajectories from the initial state to the failure stage are available during training.
+
+To analyze how different modeling assumptions and physical priors influence prediction performance, we include the following baseline models:
+
+\begin{table}[pos=htbp]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\caption{Baseline models used for comparison.}
+\label{tab:baselines}
+\begin{tabular*}{\tblwidth}{@{}p{0.25\linewidth}p{0.68\linewidth}@{}}
+\toprule
+\textbf{Model} & \textbf{Description} \\
+\midrule
+XGBoost    & A baseline machine learning model without physics-consistent constraints \\
+GRU        & A recurrent model introducing a soft monotonicity constraint on the baseline setting \\
+CNN-LSTM   & A CNN--LSTM model further incorporating temporal decay weighting for physics consistency \\
+PI-CNNLSTM & Full physics-consistent model with monotonicity, temporal decay, and boundary constraints \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+To ensure fair comparison, all deep learning models use the same input features and data split strategy, and are optimized under comparable network scales and training configurations. Model performance is comprehensively evaluated using MAE, RMSE, and $R^2$. Each experiment is repeated multiple times with different random seeds, and the averaged results are reported to verify stability.
+
+\subsection{Baseline Performance under Full Lifecycle Supervision}
+\label{subsec:full_supervision}
+
+Under the standard full lifecycle supervision setting, each battery sample provides complete SOH labels covering the entire degradation process. This allows the models to learn the temporal mapping between observable signals and health states under an ideal supervision condition. Table~\ref{tab:full_results} summarizes the regression performance on the test set, and Fig.~\ref{fig:scatter_full} and Fig.~\ref{fig:bar_full} provide an intuitive comparison from the perspectives of point-wise consistency and metric-level performance.
+
+\begin{table}[pos=htbp]
+\centering
+% 稍微调大一点行距，让数据看起来不那么拥挤 (默认是1)
+\renewcommand{\arraystretch}{1.2} 
+\caption{Performance comparison under full lifecycle supervision.}
+\label{tab:full_results}
+% 使用 \tblwidth 锁定单栏宽度，并让列间距自动撑满
+\begin{tabular*}{\tblwidth}{@{\extracolsep{\fill}} l c c c @{}}
+\toprule
+\textbf{Model} & \textbf{RMSE(\%)} & \textbf{MAE(\%)} & $\mathbf{R^2}$ \\
+\midrule
+XGBoost    & 1.486 & 0.857 & 0.9563 \\
+LSTM       & 1.643 & 0.829 & 0.9465 \\
+CNN-LSTM   & 1.210 & \textbf{0.682} & 0.9710 \\
+PI-CNNLSTM & \textbf{1.026} & 0.683 & \textbf{0.9789} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_6}
+\caption{Global scatter-point consistency comparison on the test set under full lifecycle supervision.}
+\label{fig:scatter_full}
+\end{figure}
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_7}
+\caption{Metric comparison of different models under full lifecycle supervision (RMSE/MAE/$R^2$).}
+\label{fig:bar_full}
+\end{figure}
+
+From the overall metrics, the classical machine learning model XGBoost achieves RMSE = 1.486\% and MAE = 0.857\%, with $R^2=0.9563$, indicating that it can capture the overall degradation trend. However, as shown in Fig.~\ref{fig:scatter_full}, its predictions exhibit noticeable dispersion and structural deviation in the mid-to-low SOH region, suggesting limited capability in modeling nonlinear stage-wise differences and cross-cycle temporal dependencies. In particular, when handcrafted features are mapped to SOH through a relatively static function, it is difficult to fully characterize the nonlinear responses induced by active material loss, polarization evolution, and impedance changes.
+
+Compared with XGBoost, the sequential neural model LSTM demonstrates stronger ability to learn degradation regularities under complete supervision (RMSE = 1.643\%, MAE = 0.829\%, $R^2=0.9465$). Nevertheless, the scatter distribution in Fig.~\ref{fig:scatter_full} shows evident ``band-like'' dispersion, implying that a pure global sequence dependency model may be insufficient in capturing intra-cycle local charging dynamics, especially when local feature sensitivity varies across degradation stages, which may lead to locally unstable fitting.
+
+By introducing intra-cycle local dynamics modeling via convolution, CNN-LSTM achieves improved regression accuracy under full supervision: RMSE decreases to 1.210\%, MAE reaches 0.682\%, and $R^2$ increases to 0.9710. The scatter points become more compact and closer to the ideal diagonal line (Fig.~\ref{fig:scatter_full}), and the coverage across the SOH range becomes more uniform, particularly in the high-SOH region and mid-to-late degradation stages. This suggests that combining local charging-dynamics feature extraction with long-term degradation sequence modeling is more effective in learning the nonlinear mapping between observable signals and SOH.
+
+On this basis, PI-CNNLSTM further improves RMSE and $R^2$ (RMSE = 1.026\%, $R^2=0.9789$), achieving the best overall performance among all models, while its MAE (0.683\%) remains comparable to CNN-LSTM (0.682\%). These results indicate that under ideal complete supervision, physics-consistent constraints may not yield substantial gains on average absolute error, but can enhance the global fitting quality (RMSE) and output consistency ($R^2$). As shown in Fig.~\ref{fig:scatter_full}, PI-CNNLSTM exhibits a tighter scatter distribution across SOH intervals and fewer structurally unreasonable outliers, thereby achieving improved global error control and output consistency.
+
+It should be noted that under full lifecycle supervision, the dataset itself already implicitly encodes the monotonic degradation tendency. Therefore, the improvement of physics-consistent constraints on ``static'' error metrics can be relatively limited. The value of PI-CNNLSTM lies not only in pursuing lower average errors, but also in introducing structural constraints during training to reduce sensitivity to local noise and anomalous fluctuations, thereby providing a more stable degradation-learning foundation for complex conditions and incomplete-supervision scenarios investigated in subsequent sections.
+
+\subsection{Generalization Analysis on Unseen Batteries}
+\label{subsec:unseen}
+
+To further examine the contribution of physics-consistent constraints to cross-battery generalization, we select three representative unseen batteries in the test set (Battery 3-3, 5-2, and 9-5) for detailed comparison. As shown in Fig.~\ref{fig:unseen_pred}, both models can track the overall degradation trend to a certain extent. CNN-LSTM benefits from the convolutional structure and exhibits enhanced feature representation, producing relatively smooth prediction trajectories in many cases. However, when the degradation rate, noise level, or local operating variations differ significantly across battery cells, CNN-LSTM may still display locally unstable behavior, implying potential risks for purely data-driven models under cross-battery degradation conditions.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_8}
+\caption{SOH trajectory prediction comparison on representative unseen batteries.}
+\label{fig:unseen_pred}
+\end{figure}
+
+This phenomenon is particularly evident on Battery 9-5. As shown in the bottom panel of Fig.~\ref{fig:unseen_pred}, the standard CNN-LSTM produces a sharp downward deviation in the mid-to-late stage. Although such an abnormal fluctuation does not completely change the global degradation trend, it causes the predicted SOH to deviate from the physically smooth degradation trajectory within a short interval. This result suggests that without explicit physical priors, the model may overreact to sampling noise or local degradation-rate changes, leading to predictions that are inconsistent with battery aging physics.
+
+The corresponding prediction error evolution is shown in Fig.~\ref{fig:unseen_err}. Compared with CNN-LSTM, PI-CNNLSTM exhibits more stable and consistent prediction behavior on these unseen batteries:
+
+\textbf{(1) Suppression of abnormal oscillations:} by embedding the soft monotonicity constraint into the loss function, PI-CNNLSTM successfully identifies and smooths the abnormal spike observed on Battery 9-5, and its predicted trajectory maintains a physically reasonable decreasing trend.
+
+\textbf{(2) Stabilization of error distribution:} as shown in Fig.~\ref{fig:unseen_err}, the error curves of PI-CNNLSTM are generally smoother and closer to zero across batteries. For example, on Battery 5-2, PI-CNNLSTM reduces RMSE from 1.064\% to 0.858\% compared with the baseline model.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_9}
+\caption{Prediction error evolution comparison on representative unseen batteries.}
+\label{fig:unseen_err}
+\end{figure}
+
+Overall, these results indicate that physics-consistent constraints help the model build a more structured health-state mapping under cross-battery and partially observed conditions. The model not only captures correlations in observable signals via deep learning, but also uses macroscopic physical laws to correct self-fitting behavior when supervision information is limited, thereby improving the physical credibility of SOH estimation.
+
+\subsection{Robustness Evaluation under Partial Lifecycle Supervision}
+\label{subsec:partial}
+
+To better match practical BMS applications where SOH labels are only available for continuous segments within the lifecycle, we evaluate model robustness under partial lifecycle supervision. In this setting, each battery provides supervision signals only within certain observed intervals during training, whereas SOH prediction is still required over the full lifecycle during inference. This setting aims to assess the ability of models to construct a globally consistent health-state mapping under limited supervision and to maintain prediction robustness.
+
+Under the same partial supervision ratio, PI-CNNLSTM significantly outperforms the CNN-LSTM baseline in RMSE, MAE, and $R^2$, as summarized in Table~\ref{tab:partial_results}. Specifically, PI-CNNLSTM reduces RMSE from 1.964\% to 1.107 (a relative reduction of 43.6\%) and increases $R^2$ to 0.9754, demonstrating that physics-consistent constraints effectively improve prediction accuracy and global fitting stability when supervision information is incomplete.
+
+\begin{table}[pos=htbp]
+\centering
+
+\renewcommand{\arraystretch}{1.2}
+\caption{Performance comparison under partial lifecycle supervision.}
+\label{tab:partial_results}
+\begin{tabular*}{\tblwidth}{@{\extracolsep{\fill}} l c c c @{}}
+\toprule
+\textbf{Model} & \textbf{RMSE(\%)} & \textbf{MAE(\%)} & $\mathbf{R^2}$ \\
+\midrule
+CNN-LSTM   & 1.964 & 0.937 & 0.9236 \\
+PI-CNNLSTM & \textbf{1.107} & \textbf{0.728} & \textbf{0.9754} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+For a more intuitive comparison of overall metrics, Fig.~\ref{fig:partial_bar} presents the bar-chart results of RMSE, MAE, and $R^2$. PI-CNNLSTM maintains a consistently better trend across all three metrics, with a particularly pronounced improvement in $R^2$, indicating that physics-consistent constraints help preserve strong global fitting capability under limited supervision.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_10}
+\caption{Metric comparison under partial lifecycle supervision (RMSE/MAE/$R^2$).}
+\label{fig:partial_bar}
+\end{figure}
+
+Beyond aggregate metrics, we further analyze distribution-level consistency of predictions. Fig.~\ref{fig:partial_scatter} shows scatter-point distributions under partial supervision. CNN-LSTM exhibits evident dispersion in the mid-to-low SOH region and deviations from the ideal diagonal, reflecting insufficient consistency across degradation stages under incomplete labels. In contrast, PI-CNNLSTM produces a more compact scatter distribution across SOH intervals, remaining closer to the diagonal, suggesting that physics-consistent constraints improve the stability and continuity of the global mapping relationship.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_11}
+\caption{Scatter-point consistency comparison between CNN-LSTM and PI-CNNLSTM under partial lifecycle supervision.}
+\label{fig:partial_scatter}
+\end{figure}
+
+To further evaluate prediction stability outside supervised intervals, Fig.~\ref{fig:partial_traj} compares SOH trajectories on two unseen batteries (Battery 10-5 and Battery 3-2). CNN-LSTM is more likely to show trajectory drift or stage-wise deviation outside labeled intervals. On Battery 10-5, the prediction gradually deviates from the true degradation curve in the mid-to-late stage, implying limited stability. On Battery 3-2, CNN-LSTM shows a pronounced non-physical abrupt phenomenon, resulting in discontinuous trends. In contrast, PI-CNNLSTM yields smoother and more continuous prediction trajectories and maintains an overall monotonic degradation tendency across the entire lifecycle, even outside supervised intervals.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_12}
+\caption{SOH trajectory comparison on unseen batteries under partial lifecycle supervision.}
+\label{fig:partial_traj}
+\end{figure}
+
+The corresponding prediction error evolution is shown in Fig.~\ref{fig:partial_err}. CNN-LSTM exhibits obvious stage-wise drift outside supervised intervals, with enlarged error amplitudes, reflecting limited generalization to unseen degradation patterns. In contrast, PI-CNNLSTM maintains error fluctuations around zero without clear systematic bias, indicating that physics-consistent constraints can suppress prediction instability induced by missing supervision information to a certain extent.
+
+\begin{figure}[pos=htbp]
+\centering
+\includegraphics[width=\linewidth]{Fig4_13}
+\caption{Prediction error evolution comparison under partial lifecycle supervision.}
+\label{fig:partial_err}
+\end{figure}
+
+In summary, under partial lifecycle supervision, purely data-driven temporal models may struggle to construct a globally consistent health-state mapping based on local degradation information alone. Introducing physics-consistent constraints enables the model to learn a more stable and physically reasonable degradation representation. PI-CNNLSTM not only improves quantitative metrics, but also demonstrates stronger robustness in trajectory smoothness, distribution consistency, and error stability, providing important support for reliable deployment in practical BMS scenarios.
+
+% =========================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+This study focuses on the engineering demand for reliable state-of-health (SOH) estimation of lithium-ion batteries under complex operating environments, and systematically investigates a robust SOH estimation approach that integrates data-driven modeling with physics-consistent constraints. Considering the strong nonlinearity of battery degradation, variability of operating conditions, and practical limitations in observation availability, this work re-examines SOH modeling and learning paradigms from an engineering perspective, emphasizing the importance of constructing stable, interpretable, and generalizable estimation models under non-ideal data conditions.
+
+In terms of methodological design, the proposed PI-CNNLSTM framework adopts a cascaded CNN–LSTM architecture to capture intra-cycle local dynamic features and long-term cross-cycle degradation evolution, respectively. While preserving the flexible modeling capability of deep learning, structural constraints aligned with physical intuition of battery degradation are incorporated. To address data noise, incomplete supervision, and unstable degradation trajectories under complex conditions, soft monotonicity constraints, temporal decay weighting, and output boundary regularization are further embedded at the loss-function level. These constraints enforce a physically feasible solution space without excessively restricting model expressiveness.
+
+Experimental results demonstrate that under complete lifecycle data, the improvement of physics-consistent constraints on numerical error metrics is relatively limited. However, under complex operating conditions and limited supervision scenarios, such constraints significantly enhance prediction stability, cross-battery generalization ability, and physical plausibility of degradation trajectories. Particularly under partial lifecycle supervision and incomplete observation settings that are closer to practical BMS applications, the proposed PI-CNNLSTM effectively suppresses non-physical rebounds and local oscillations commonly observed in purely data-driven models, exhibiting more consistent and robust SOH evolution modeling across different battery individuals.
+
+Overall, this study verifies the necessity and effectiveness of introducing physics-consistent constraints in complex-condition SOH estimation tasks. The proposed modeling paradigm is not only suitable for high-precision estimation under ideal data conditions, but also maintains strong robustness and generalization performance under observation-limited and condition-variable real-world scenarios, providing methodological support for advanced degradation modeling and reliable SOH estimation in practical BMS systems.
+
+% =========================================================
+% Credit authorship (optional)
+% =========================================================
+\printcredits
+
+% =========================================================
+% Bibliography
+% =========================================================
+\bibliographystyle{cas-model2-names}
+\bibliography{cas-refs}
+
+% =========================================================
+% Minimal bib placeholders (OPTIONAL):
+% If you don't want a .bib yet, comment out the \bibliography line above
+% and use thebibliography below.
+% =========================================================
+% \begin{thebibliography}{00}
+% \bibitem[Tao et~al.(2024)]{Tao2024}
+% Tao, S., et al. (2024). Title. \textit{Journal}, volume, pages.
+% \bibitem[Vignesh et~al.(2024)]{Vignesh2024}
+% Vignesh, S., et al. (2024). Title. \textit{Applied Energy}, volume, pages.
+% \bibitem[Lin et~al.(2025)]{Lin2025}
+% Lin, C., et al. (2025). Title. \textit{Energy}, volume, pages.
+% \bibitem[Sun et~al.(2025)]{Sun2025}
+% Sun, G., et al. (2025). Title. \textit{Journal of Power Sources}, volume, pages.
+% \end{thebibliography}
+
+\end{document}

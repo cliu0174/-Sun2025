@@ -1,0 +1,14 @@
+{
+  "generated_at_utc": "2026-08-07T16:29:39.001669+00:00",
+  "primary_source": "D:\\Projects\\1111-soh\\experiments\\paper_main_results\\fixed_split\\v3_leakage_free\\summary.json",
+  "primary_sha256": "9a82e8b5ac19e29fe411e63d3ded8471ba4324c43a381d9662968eb7b44c6a24",
+  "baseline_source": "D:\\Projects\\1111-soh\\experiments\\paper_baselines\\fixed_split\\v1_leakage_free_endpoints\\summary.json",
+  "baseline_sha256": "526c65ae32e5cafae9a9284489a1184f2abf8da764b6de3f859f1fc0f07cda0e",
+  "formal_primary_runs": 48,
+  "formal_baseline_runs": 24,
+  "files": [
+    "table_all_models_full_supervision.tex",
+    "table_all_models_endpoint_budget.tex",
+    "table_all_models_trajectory_r0p3.tex"
+  ]
+}

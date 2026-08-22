@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "canvas_matches_source": true,
+    "panels_share_left_edge": true,
+    "panels_share_width": true,
+    "panel_a_above_panel_b": true,
+    "panel_gap_px": 14,
+    "panel_side_margin_px": 10,
+    "canvas_right_margin_px": 10
+  },
+  "passed": true
+}
